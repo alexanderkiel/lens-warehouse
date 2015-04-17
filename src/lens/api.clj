@@ -336,18 +336,24 @@
   (d/q '[:find [?v ...] :with ?dp :in $ % ?i :where (item-values-dp ?i ?dp ?v)]
        (d/entity-db item) values-rules (:db/id item)))
 
-(defn nearest-rank [p n]
+(defn nearest-rank
+  "Returns the nearest rank of the percentile p in a list of n items."
+  [p n]
+  {:pre [(<= 0 p 1) (not= 0 n)]}
   (int (Math/ceil (* p n))))
 
-(defn value-quartiles [item]
+(defn value-quartiles
+  "Returns nil when the item has no values."
+  [item]
   {:pre [(entity? item)]}
-  (let [values (->> (values item) (sort) (vec))
-        n (count values)]
-    {:min (first values)
-     :q1 (values (nearest-rank 0.25 n))
-     :q2 (values (nearest-rank 0.5 n))
-     :q3 (values (nearest-rank 0.75 n))
-     :max (peek values)}))
+  (when-let [values (seq (values item))]
+    (let [values (->> values (sort) (vec))
+          n (count values)]
+      {:min (first values)
+       :q1 (values (nearest-rank 0.25 n))
+       :q2 (values (nearest-rank 0.5 n))
+       :q3 (values (nearest-rank 0.75 n))
+       :max (peek values)})))
 
 (def ^:private histogram-stat
   "Cache for histogram statistics.
@@ -359,17 +365,20 @@
   {:basis-t (d/basis-t db) :id id})
 
 (defn- value-histogram' [item]
-  (let [values (->> (values item) (sort) (vec))
-        n (count values)
-        init-means [(first values)
-                    (values (nearest-rank 0.25 n))
-                    (values (nearest-rank 0.5 n))
-                    (values (nearest-rank 0.75 n))
-                    (peek values)]]
-    (->> (k-means init-means values)
-         (map-vals count))))
+  (when-let [values (seq (values item))]
+    (let [values (->> values (sort) (vec))
+          n (count values)
+          init-means [(first values)
+                      (values (nearest-rank 0.25 n))
+                      (values (nearest-rank 0.5 n))
+                      (values (nearest-rank 0.75 n))
+                      (peek values)]]
+      (->> (k-means init-means values)
+           (map-vals count)))))
 
-(defn value-histogram [item]
+(defn value-histogram
+  "Returns nil when the item has no values."
+  [item]
   {:pre [(entity? item)]}
   (let [db (d/entity-db item)
         key (histogram-stat-key db (:db/id item))]

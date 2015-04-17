@@ -100,3 +100,11 @@
     (is (= #{} (query-conjunction nil nil))))
   (testing "empty disjunction"
     (is (= #{} (query-conjunction nil [])))))
+
+(deftest nearest-rank-test
+  (testing "Percentile smaller 0"
+    (is (thrown? AssertionError (nearest-rank -1 1))))
+  (testing "Percentile bigger 1"
+    (is (thrown? AssertionError (nearest-rank 2 1))))
+  (testing "n = 0"
+    (is (thrown? AssertionError (nearest-rank 0.5 0)))))

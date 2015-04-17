@@ -64,6 +64,8 @@
   (time (count-datoms db)))
 
 (comment
-  (value-quartiles (item (d/db (connect)) "T00003_F0036"))
+  (value-quartiles (item (d/db (connect)) "T00002_F0014"))
+  (value-histogram (item (d/db (connect)) "T00002_F0014"))
+  (pst)
   )
 
