@@ -18,7 +18,7 @@
       (do
         (run-server (app (:database-uri options) version)
                     (merge {:worker-name-prefix "http-kit-worker-"} options))
-        (println "Datomic Main:" (:database-uri options))
+        (println "Datomic:" (:database-uri options))
         (println "Server started")
         (println "Listen at" (str (:ip options) ":" (:port options)))
         (println "Using" (:thread options) "worker threads"))
