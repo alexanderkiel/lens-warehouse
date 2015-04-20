@@ -2,7 +2,6 @@
   (:use plumbing.core)
   (:require [clojure.string :as str]
             [clojure.edn :as edn]
-            [datomic.api :as d]
             [compojure.core :as compojure :refer [GET POST DELETE]]
             [ring.util.response :as ring-resp]
             [cemerick.url :as url]
@@ -481,12 +480,9 @@ query."}}}}}))
     (Integer/parseInt s)
     default))
 
-(defn- last-loaded [db]
-  (:db/txInstant (d/entity db (d/t->tx (d/basis-t db)))))
-
 (defn routes [version]
   (compojure/routes
-   (GET "/" [db] (service-document version (last-loaded db)))
+   (GET "/" [db] (service-document version (api/last-loaded db)))
 
    (GET "/study-events" [db page-num]
         (study-events db (to-int page-num 1)))

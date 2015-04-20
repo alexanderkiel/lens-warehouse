@@ -8,6 +8,11 @@
             [lens.util :as util :refer [entity?]]
             [lens.k-means :refer [k-means]]))
 
+;; ---- Last Loaded -----------------------------------------------------------
+
+(defn last-loaded [db]
+  (:db/txInstant (d/entity db (d/t->tx (d/basis-t db)))))
+
 ;; ---- Single Accessors ------------------------------------------------------
 
 (defn subject
