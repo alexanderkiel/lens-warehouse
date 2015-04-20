@@ -2,20 +2,30 @@
   (:require [clojure.string :as str]
             [org.httpkit.server :refer [run-server]]
             [lens.app :refer [app]]
-            [lens.util :refer [parse-int]]))
+            [lens.util :refer [parse-int]]
+            [datomic.api :as d]
+            [lens.schema :as schema])
+  (:import [java.io File]))
 
 (defn env []
-  (->> (str/split-lines (slurp ".env"))
-       (reduce (fn [ret line]
-                 (let [vs (str/split line #"=")]
-                   (assoc ret (first vs) (str/join "=" (rest vs))))) {})))
+  (if (.canRead (File. ".env"))
+    (->> (str/split-lines (slurp ".env"))
+         (reduce (fn [ret line]
+                   (let [vs (str/split line #"=")]
+                     (assoc ret (first vs) (str/join "=" (rest vs))))) {}))
+    {}))
+
+(defn create-mem-db []
+  (let [uri "datomic:mem://lens"]
+    (d/create-database uri)
+    (schema/load-base-schema (d/connect uri))
+    uri))
 
 (defn system [env]
   {:app app
-   :db-uri (or (env "DB_URI") "datomic:mem://lens")
+   :db-uri (or (env "DB_URI") (create-mem-db))
    :version (System/getProperty "lens.version")
-   :port (or (some-> (env "PORT") (parse-int)) 5001)
-   :mdb-uri (env "MDB_URI")})
+   :port (or (some-> (env "PORT") (parse-int)) 5001)})
 
 (defn start [{:keys [app db-uri version port] :as system}]
   (let [stop-fn (run-server (app db-uri version) {:port port})]
