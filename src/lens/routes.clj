@@ -31,7 +31,8 @@
     :version version
     :last-loaded last-loaded
     :links
-    {:lens/all-study-events {:href "/study-events"}
+    {:self {:href "/"}
+     :lens/all-study-events {:href "/study-events"}
      :lens/all-forms {:href "/forms"}}
     :forms
     {:lens/query
