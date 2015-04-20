@@ -10,4 +10,6 @@
       (catch Throwable e
         (pst-on *err* false e)
         {:status 500
-         :body {:error (.getMessage e)}}))))
+         :body
+         {:links {:up {:href "/"}}
+          :error (.getMessage e)}}))))
