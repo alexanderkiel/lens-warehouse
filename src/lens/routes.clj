@@ -102,7 +102,7 @@ query."}}}}}))
     (ring-resp/response
      {:links
       (-> {:self {:href "/study-events"}
-           :up {:href ""}}
+           :up {:href "/"}}
           (assoc-when :prev (when (< 1 page-num) (page-link (dec page-num))))
           (assoc-when :next (when next-page? (page-link (inc page-num)))))
       :embedded
@@ -119,19 +119,19 @@ query."}}}}}))
      {:id (:subject/id subject)
       :type :subject
       :links
-      {:up {:href ""}
+      {:up {:href "/"}
        :self {:href (str "/subjects/" id)}}})
     (ring-resp/not-found
-     {:links {:up {:href ""}}
+     {:links {:up {:href "/"}}
       :error "Subject not found."})))
 
 (defn retract-subject [conn id]
   (if (api/retract-subject conn id)
     (ring-resp/response
       {:links
-       {:up {:href ""}}})
+       {:up {:href "/"}}})
     (ring-resp/not-found
-     {:links {:up {:href ""}}
+     {:links {:up {:href "/"}}
       :error "Subject not found."})))
 
 ;; ---- Forms -----------------------------------------------------------------
@@ -181,7 +181,7 @@ query."}}}}}))
     (ring-resp/response
       {:links
        (-> {:self {:href "/forms"}
-            :up {:href ""}}
+            :up {:href "/"}}
            (assoc-when :prev (when (< 1 page-num) (page-link (dec page-num))))
            (assoc-when :next (when next-page? (page-link (inc page-num)))))
        :forms
@@ -444,7 +444,7 @@ query."}}}}}))
      (-> {:id (:code-list/id code-list)
           :type :code-list
           :links
-          {:up {:href ""}
+          {:up {:href "/"}
            :self {:href (str "/code-lists/" (:code-list/id code-list))}}
           :embedded
           {:lens/code-list-items
@@ -454,7 +454,7 @@ query."}}}}}))
                 (render-embedded-code-list-items))}}
          (assoc-when :name (:name code-list))))
     (ring-resp/not-found
-     {:links {:up {:href ""}}
+     {:links {:up {:href "/"}}
       :error "Code list not found."})))
 
 ;; ---- Query -----------------------------------------------------------------
@@ -467,7 +467,7 @@ query."}}}}}))
 (defn query [db expr]
   (let [visits (api/query db (edn/read-string expr))]
     (ring-resp/response
-      {:links {:up {:href ""}}
+      {:links {:up {:href "/"}}
        :visit-count (count visits)
        :visit-count-by-study-event (visit-count-by-study-event visits)
        :subject-count (->> (map :visit/subject visits)
@@ -521,5 +521,5 @@ query."}}}}}))
    (POST "/query" [db expr] (query db expr))
 
    (fn [_] (ring-resp/not-found
-             {:links {:up {:href ""}}
+             {:links {:up {:href "/"}}
               :error "Resource not found."}))))
