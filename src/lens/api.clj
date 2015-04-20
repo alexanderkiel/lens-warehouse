@@ -433,11 +433,12 @@
 (defn query
   "Issues a query against the database.
 
-  The query consists of two parts. Part one specifies the :items which have to
+  The query consists of two parts. Part one specifies the :terms which have to
   be present and part two specifies the :study-events which are of interest.
 
   The first part consists of a seq of disjunctions forming one conjunction.
-  Each disjunction is a seq of atoms. Each atom has a type and an identifier.
+  Each disjunction is a seq of atoms. Each atom has a type, an identifier and
+  optional parts.
 
   The second part consists of a seq of of study-event identifiers. An empty
   seq returns all visits regardless of study-event.
@@ -465,7 +466,15 @@
   {:items [[[:form \"T00001\"]]]
    :study-events [\"A1_HAUPT01\"]}
 
-  The query returns the seq of visits which has data points satisfying the
+  Range queries:
+
+  Item atoms can contain an optional value range. When an item atom contains a
+  value range, only visits with data points falling in the value range qualify.
+
+  Value ranges are specified by adding :range [start end] after the item
+  identifier.
+
+  The query returns the seq of visits which have data points satisfying the
   query."
   [db {:keys [items study-events]}]
   (let [visits (query-conjunction db (clean-query items))]
