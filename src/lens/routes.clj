@@ -28,7 +28,7 @@
   It should be print to #inst."
   [version last-loaded]
   (ring-resp/response
-   {:name "Lens"
+   {:name "Lens Warehouse"
     :version version
     :last-loaded last-loaded
     :links
