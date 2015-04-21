@@ -100,17 +100,17 @@
 
 (defn- list-all [q db & inputs]
   (->> (apply d/q q db inputs)
-       (r/map #(d/entity db (first %)))))
+       (r/map #(d/entity db %))))
 
 (defn all-studies
   "Returns a reducible coll of all studies."
   [db]
-  (list-all '[:find ?e :where [?e :study/id]] db))
+  (list-all '[:find [?e ...] :where [?e :study/id]] db))
 
 (defn all-study-events
   "Returns a reducible coll of all study-events."
   [db]
-  (list-all '[:find ?e :where [?e :study-event/id]] db))
+  (list-all '[:find [?e ...] :where [?e :study-event/id]] db))
 
 (defn all-forms
   "Returns a reducible coll of all forms sorted by :form/id."
