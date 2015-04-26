@@ -71,7 +71,7 @@
     {:db/ident :form/studies
      :db/valueType :db.type/ref
      :db/cardinality :db.cardinality/many
-     :db/doc "A reference to all the studies of a form."}
+     :db/doc "A reference to all studies of a form."}
 
     ;; Item-Group
 
