@@ -6,11 +6,13 @@
             [clojure.core.cache :as cache]
             [datomic.api :as d]
             [lens.util :as util :refer [entity?]]
-            [lens.k-means :refer [k-means]]))
+            [lens.k-means :refer [k-means]])
+  (:import [java.util UUID]))
 
 ;; ---- Last Loaded -----------------------------------------------------------
 
 (defn last-loaded [db]
+  {:pre [db]}
   (:db/txInstant (d/entity db (d/t->tx (d/basis-t db)))))
 
 ;; ---- Single Accessors ------------------------------------------------------
@@ -18,37 +20,50 @@
 (defn subject
   "Returns the subject with the id or nil if none was found."
   [db id]
+  {:pre [db (string? id)]}
   (d/entity db [:subject/id id]))
 
 (defn study
   "Returns the study with the id or nil if none was found."
   [db id]
+  {:pre [db (string? id)]}
   (d/entity db [:study/id id]))
 
 (defn study-event
   "Returns the study-event with the id or nil if none was found."
   [db id]
+  {:pre [db (string? id)]}
   (d/entity db [:study-event/id id]))
 
 (defn form
   "Returns the form with the id or nil if none was found."
   [db id]
+  {:pre [db (string? id)]}
   (d/entity db [:form/id id]))
 
 (defn item-group
   "Returns the item group with the id or nil if none was found."
   [db id]
+  {:pre [db (string? id)]}
   (d/entity db [:item-group/id id]))
 
 (defn item
   "Returns the item with the given ID or nil if none was found."
   [db id]
+  {:pre [db (string? id)]}
   (d/entity db [:item/id id]))
 
 (defn code-list
   "Returns the code-list with the given ID or nil if none was found."
   [db id]
+  {:pre [db (string? id)]}
   (d/entity db [:code-list/id id]))
+
+(defn snapshot
+  "Returns the snapshot with the given ID or nil if none was found."
+  [db id]
+  {:pre [db (instance? UUID id)]}
+  (d/entity db [:tx-id id]))
 
 (def ^:private cli-cache (atom (cache/lru-cache-factory {} :threshold 1024)))
 
@@ -88,6 +103,7 @@
   Returns true if an existing subject was retracted and false if the subject
   did not exist at the time the transaction happend."
   [conn id]
+  {:pre [conn (string? id)]}
   (try
     @(d/transact-async conn [[:retract-subject id]])
     true
@@ -117,6 +133,11 @@
   [db]
   (->> (d/datoms db :avet :form/id)
        (r/map #(d/entity db (:e %)))))
+
+(defn all-snapshots
+  "Returns a reducible coll of all snapshots."
+  [db]
+  (list-all '[:find [?tx ...] :where [?tx :tx-id]] db))
 
 ;; ---- Traversal -------------------------------------------------------------
 

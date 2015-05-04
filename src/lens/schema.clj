@@ -237,7 +237,17 @@
      :db/cardinality :db.cardinality/many
      :db/doc (str "All visits which have at least one data point on an "
                   "entity. The entity can be a form, item-group, item, "
-                  "code-list-item or study-event.")}]
+                  "code-list-item or study-event.")}
+
+    ;; Transactions
+    {:db/ident :tx-id
+     :db/valueType :db.type/uuid
+     :db/unique :db.unique/identity
+     :db/cardinality :db.cardinality/one
+     :db/doc (str "Marks a transaction as prepresenting a fully loaded "
+                  "warehouse. Transactions missing this id represent "
+                  "intermediate states of warehouse loads. Queries should only "
+                  "use databases as-of transactions having this id.")}]
 
    :functions
    [{:db/id (d/tempid :db.part/user)

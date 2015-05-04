@@ -12,7 +12,8 @@
       {:status 204
        :headers {"Access-Control-Allow-Origin" "*"
                  "Access-Control-Allow-Methods" "GET, POST, PUT"
-                 "Access-Control-Allow-Headers" "Authorization, Accept, If-Match"
+                 "Access-Control-Allow-Headers"
+                 "Authorization, Accept, If-Match, X-Lens-Snapshot"
                  "Access-Control-Max-Age" "3600"}}
       (-> (handler request)
           (assoc-header)))))

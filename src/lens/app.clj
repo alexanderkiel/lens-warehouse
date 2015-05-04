@@ -9,9 +9,9 @@
 
 (defn app [db-uri version]
   (-> (routes version)
+      (wrap-connection db-uri)
       (wrap-exception)
       (wrap-restful-format)
-      (wrap-cors)
-      (wrap-connection db-uri)
       (wrap-keyword-params)
-      (wrap-params)))
+      (wrap-params)
+      (wrap-cors)))

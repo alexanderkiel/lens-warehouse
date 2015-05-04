@@ -9,7 +9,8 @@
             [lens.util :as util]
             [lens.api :as api]
             [clojure.core.async :refer [timeout]]
-            [clojure.core.reducers :as r]))
+            [clojure.core.reducers :as r])
+  (:import [java.util UUID]))
 
 (def page-size 50)
 
@@ -474,6 +475,38 @@ query."}}}}}))
                            (set)
                            (count))})))
 
+;; ---- Snapshots -------------------------------------------------------------
+
+(defn render-embedded-snapshot [snapshot]
+  {:links
+   {:self {:href (str "/snapshots/" (:tx-id snapshot))}}
+   :id (str (:tx-id snapshot))
+   :time (:db/txInstant snapshot)})
+
+(defn render-embedded-snapshots [snapshots]
+  (mapv render-embedded-snapshot snapshots))
+
+(defn snapshots [db]
+  (let [snapshots (->> (api/all-snapshots db)
+                       (into [])
+                       (sort-by :db/txInstant)
+                       (reverse))]
+    (ring-resp/response
+      {:links
+       {:self {:href "/snapshots"}
+        :up {:href "/"}}
+       :embedded
+       {:lens/snapshots
+        (render-embedded-snapshots snapshots)}})))
+
+(defn snapshot [db id]
+  (let [snapshot (api/snapshot db (UUID/fromString id))]
+    (ring-resp/response
+      {:links
+         {:self {:href (str "/snapshots/" (:tx-id snapshot))}}
+         :id (str (:tx-id snapshot))
+         :time (:db/txInstant snapshot)})))
+
 ;; ---- Routes ----------------------------------------------------------------
 
 (defn to-int [s default]
@@ -519,6 +552,10 @@ query."}}}}}))
    (GET "/code-lists/:id" [db id] (code-list db id))
 
    (GET "/query" [db expr] (query db expr))
+
+   (GET "/snapshots" [db] (snapshots db))
+
+   (GET "/snapshots/:id" [db id] (snapshot db id))
 
    (fn [_] (ring-resp/not-found
              {:links {:up {:href "/"}}
