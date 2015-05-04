@@ -37,7 +37,7 @@
     :forms
     {:lens/query
      {:action "/query"
-      :method "POST"
+      :method "GET"
       :title "Query"
       :params
       {:expr
@@ -518,7 +518,7 @@ query."}}}}}))
 
    (GET "/code-lists/:id" [db id] (code-list db id))
 
-   (POST "/query" [db expr] (query db expr))
+   (GET "/query" [db expr] (query db expr))
 
    (fn [_] (ring-resp/not-found
              {:links {:up {:href "/"}}
