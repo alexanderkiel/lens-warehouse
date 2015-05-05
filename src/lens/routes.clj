@@ -2,7 +2,7 @@
   (:use plumbing.core)
   (:require [clojure.string :as str]
             [clojure.edn :as edn]
-            [compojure.core :as compojure :refer [GET POST DELETE]]
+            [compojure.core :as compojure :refer [GET DELETE]]
             [ring.util.response :as ring-resp]
             [cemerick.url :as url]
             [lens.reducers :as lr]
@@ -146,7 +146,7 @@ query."}}}}}))
 
 (defn search-item-groups-form [form]
   {:action (str "/forms/" (:form/id form) "/search-item-groups")
-   :method "POST"
+   :method "GET"
    :title (str "Search Item Groups of Form " (:form/id form))
    :params
    {:query
@@ -211,7 +211,7 @@ query."}}}}}))
 
 (defn search-items-form [item-group]
   {:action (str "/item-groups/" (:item-group/id item-group) "/search-items")
-   :method "POST"
+   :method "GET"
    :title (str "Search Items of Item Group " (:name item-group))
    :params
    {:query
@@ -555,14 +555,14 @@ query."}}}}}))
 
    (GET "/forms/:id/count" [db id] (form-count db id))
 
-   (POST "/forms/:id/search-item-groups" [db id query]
+   (GET "/forms/:id/search-item-groups" [db id query]
          (search-item-groups db id query))
 
    (GET "/item-groups/:id" [db id] (item-group db id))
 
    (GET "/item-groups/:id/count" [db id] (item-group-count db id))
 
-   (POST "/item-groups/:id/search-items" [db id query]
+   (GET "/item-groups/:id/search-items" [db id query]
          (search-items db id query))
 
    (GET "/items/:id" [db id] (item db id))
