@@ -43,6 +43,18 @@
       :params
       {:id
        {:type :string}}}
+     :lens/find-item-group
+     {:action "/find-item-group"
+      :method "GET"
+      :params
+      {:id
+       {:type :string}}}
+     :lens/find-item
+     {:action "/find-item"
+      :method "GET"
+      :params
+      {:id
+       {:type :string}}}
      :lens/query
      {:action "/query"
       :method "GET"
@@ -350,6 +362,20 @@ query."}}}}}))
      {:links {:up {:href "/forms"}}
       :error "Item group not found."})))
 
+(defn item-group-bare [db id]
+  (if-let [item-group (api/item-group db id)]
+    (ring-resp/response
+     {:id (:item-group/id item-group)
+      :name (:name item-group)
+      :type :item-group
+      :links
+      {:up {:href (str "/forms/" (:form/id (:item-group/form item-group)))
+            :title (:name (:item-group/form item-group))}
+       :self {:href (str "/item-groups/" id)}}})
+    (ring-resp/not-found
+     {:links {:up {:href "/forms"}}
+      :error "Item group not found."})))
+
 (defn item-group-count [db id]
   (if-let [item-group (api/item-group db id)]
     (ring-resp/response
@@ -560,12 +586,16 @@ query."}}}}}))
 
    (GET "/item-groups/:id" [db id] (item-group db id))
 
+   (GET "/find-item-group" [db id] (item-group-bare db id))
+
    (GET "/item-groups/:id/count" [db id] (item-group-count db id))
 
    (GET "/item-groups/:id/search-items" [db id query]
          (search-items db id query))
 
    (GET "/items/:id" [db id] (item db id))
+
+   (GET "/find-item" [db id] (item db id))
 
    (GET "/items/:id/count" [db id] (item-count db id))
 
