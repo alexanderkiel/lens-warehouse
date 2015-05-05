@@ -34,9 +34,16 @@
     :links
     {:self {:href "/"}
      :lens/all-study-events {:href "/study-events"}
-     :lens/all-forms {:href "/forms"}}
+     :lens/all-forms {:href "/forms"}
+     :lens/all-snapshots {:href "/snapshots"}}
     :forms
-    {:lens/query
+    {:lens/find-form
+     {:action "/find-form"
+      :method "GET"
+      :params
+      {:id
+       {:type :string}}}
+     :lens/query
      {:action "/query"
       :method "GET"
       :title "Query"
@@ -244,6 +251,20 @@ query."}}}}}))
        (->> (api/item-groups form)
             (sort-by :item-group/rank)
             (render-embedded-item-groups (timeout 100)))}})
+    (ring-resp/not-found
+     {:links {:up {:href "/forms"}}
+      :error "Form not found."})))
+
+(defn form-bare [db id]
+  (if-let [form (api/form db id)]
+    (ring-resp/response
+     {:id (:form/id form)
+      :alias (:form/alias form)
+      :name (:name form)
+      :type :form
+      :links
+      {:up {:href "/forms"}
+       :self {:href (str "/forms/" id)}}})
     (ring-resp/not-found
      {:links {:up {:href "/forms"}}
       :error "Form not found."})))
@@ -529,6 +550,8 @@ query."}}}}}))
         (forms db filter (to-int page-num 1)))
 
    (GET "/forms/:id" [db id] (form db id))
+
+   (GET "/find-form" [db id] (form-bare db id))
 
    (GET "/forms/:id/count" [db id] (form-count db id))
 
