@@ -518,8 +518,8 @@ query."}}}}}))
       {:links {:up {:href "/"}}
        :visit-count (count visits)
        :visit-count-by-study-event (visit-count-by-study-event visits)
-       :subject-count (->> (map :visit/subject visits)
-                           (set)
+       :subject-count (->> (r/map :visit/subject visits)
+                           (into #{})
                            (count))})))
 
 ;; ---- Snapshots -------------------------------------------------------------
