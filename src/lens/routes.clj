@@ -5,6 +5,8 @@
             [compojure.core :as compojure :refer [GET DELETE]]
             [ring.util.response :as ring-resp]
             [cemerick.url :as url]
+            [clj-time.core :as t]
+            [clj-time.coerce :as c]
             [lens.reducers :as lr]
             [lens.util :as util]
             [lens.api :as api]
@@ -512,12 +514,25 @@ query."}}}}}))
        (map-keys :study-event/id)
        (map-vals count)))
 
+(defn age-at-visit [visit]
+  (when-let [birth-date (-> visit :visit/subject :subject/birth-date)]
+    (when-let [edat (:visit/edat visit)]
+      (t/in-years (t/interval (c/from-date birth-date) (c/from-date edat))))))
+
+(defn age-decade [age]
+  (* (quot age 10) 10))
+
+(defn visit-count-by-age-decade [visits]
+  (->> (group-by (comp age-decade age-at-visit) visits)
+       (map-vals count)))
+
 (defn query [db expr]
   (let [visits (api/query db (edn/read-string expr))]
     (ring-resp/response
       {:links {:up {:href "/"}}
        :visit-count (count visits)
        :visit-count-by-study-event (visit-count-by-study-event visits)
+       :visit-count-by-age-decade (visit-count-by-age-decade visits)
        :subject-count (->> (r/map :visit/subject visits)
                            (into #{})
                            (count))})))

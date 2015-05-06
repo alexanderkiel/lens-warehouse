@@ -38,6 +38,12 @@
      :db/cardinality :db.cardinality/one
      :db/doc "The identifier of a subject."}
 
+    {:db/ident :subject/birth-date
+     :db/valueType :db.type/instant
+     :db/cardinality :db.cardinality/one
+     :db/doc (str "The date of birth of a subject. One should use the 15th of "
+                  "a month if there are any privacy regulations in place.")}
+
     ;; Study
 
     {:db/ident :study/id
