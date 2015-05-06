@@ -520,10 +520,13 @@ query."}}}}}))
       (t/in-years (t/interval (c/from-date birth-date) (c/from-date edat))))))
 
 (defn age-decade [age]
+  {:pre [age]}
   (* (quot age 10) 10))
 
 (defn visit-count-by-age-decade [visits]
-  (->> (group-by (comp age-decade age-at-visit) visits)
+  (->> (map age-at-visit visits)
+       (remove nil?)
+       (group-by age-decade)
        (map-vals count)))
 
 (defn query [db expr]
