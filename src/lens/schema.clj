@@ -44,6 +44,11 @@
      :db/doc (str "The date of birth of a subject. One should use the 15th of "
                   "a month if there are any privacy regulations in place.")}
 
+    {:db/ident :subject/sex
+     :db/valueType :db.type/ref
+     :db/cardinality :db.cardinality/one
+     :db/doc "The sex of a subject."}
+
     ;; Study
 
     {:db/ident :study/id

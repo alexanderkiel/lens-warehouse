@@ -519,15 +519,18 @@ query."}}}}}))
     (when-let [edat (:visit/edat visit)]
       (t/in-years (t/interval (c/from-date birth-date) (c/from-date edat))))))
 
+(defn sex [visit]
+  (-> visit :visit/subject :subject/sex name keyword))
+
 (defn age-decade [age]
   {:pre [age]}
   (* (quot age 10) 10))
 
-(defn visit-count-by-age-decade [visits]
-  (->> (map age-at-visit visits)
-       (remove nil?)
-       (group-by age-decade)
-       (map-vals count)))
+(defn visit-count-by-age-decade-and-sex [visits]
+  (->> (group-by #(some-> (age-at-visit %) age-decade) visits)
+       (reduce-kv #(if %2 (assoc %1 %2 %3) %1) {})
+       (map-vals #(->> (group-by sex %)
+                       (map-vals count)))))
 
 (defn query [db expr]
   (let [visits (api/query db (edn/read-string expr))]
@@ -535,7 +538,8 @@ query."}}}}}))
       {:links {:up {:href "/"}}
        :visit-count (count visits)
        :visit-count-by-study-event (visit-count-by-study-event visits)
-       :visit-count-by-age-decade (visit-count-by-age-decade visits)
+       :visit-count-by-age-decade-and-sex
+       (visit-count-by-age-decade-and-sex visits)
        :subject-count (->> (r/map :visit/subject visits)
                            (into #{})
                            (count))})))
