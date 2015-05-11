@@ -11,7 +11,8 @@
             [lens.util :as util]
             [lens.api :as api]
             [clojure.core.async :refer [timeout]]
-            [clojure.core.reducers :as r])
+            [clojure.core.reducers :as r]
+            [clojure.set :as set])
   (:import [java.util UUID]))
 
 (def page-size 50)
@@ -532,6 +533,11 @@ query."}}}}}))
        (map-vals #(->> (group-by sex %)
                        (map-vals count)))))
 
+(defn subject-count [visits]
+  (->> (r/map :visit/subject visits)
+       (into #{})
+       (count)))
+
 (defn query [db expr]
   (let [visits (api/query db (edn/read-string expr))]
     (ring-resp/response
@@ -540,9 +546,7 @@ query."}}}}}))
        :visit-count-by-study-event (visit-count-by-study-event visits)
        :visit-count-by-age-decade-and-sex
        (visit-count-by-age-decade-and-sex visits)
-       :subject-count (->> (r/map :visit/subject visits)
-                           (into #{})
-                           (count))})))
+       :subject-count (subject-count visits)})))
 
 ;; ---- Snapshots -------------------------------------------------------------
 
