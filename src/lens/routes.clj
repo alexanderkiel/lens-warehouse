@@ -11,8 +11,7 @@
             [lens.util :as util]
             [lens.api :as api]
             [clojure.core.async :refer [timeout]]
-            [clojure.core.reducers :as r]
-            [clojure.set :as set])
+            [clojure.core.reducers :as r])
   (:import [java.util UUID]))
 
 (def page-size 50)
@@ -518,7 +517,9 @@ query."}}}}}))
 (defn age-at-visit [visit]
   (when-let [birth-date (-> visit :visit/subject :subject/birth-date)]
     (when-let [edat (:visit/edat visit)]
-      (t/in-years (t/interval (c/from-date birth-date) (c/from-date edat))))))
+      (if (t/after? (c/from-date edat) (c/from-date birth-date))
+        (t/in-years (t/interval (c/from-date birth-date) (c/from-date edat)))
+        (- (t/in-years (t/interval (c/from-date edat) (c/from-date birth-date))))))))
 
 (defn sex [visit]
   (-> visit :visit/subject :subject/sex name keyword))

@@ -64,56 +64,9 @@
   (time (count-datoms db)))
 
 (comment
-  (value-quartiles (item (d/db (connect)) "T00002_F0014"))
-  (value-histogram (item (d/db (connect)) "T00002_F0014"))
-  (pst)
-  )
-
-(defn same-item-group? [[i1 i2]]
-  (= (:item/item-group i1) (:item/item-group i2)))
-
-(defn a2? [[i1 i2]]
-  (and
-    (contains? (set (map :study/id (-> i1 :item/item-group :item-group/form :form/studies))) "A2")
-    (contains? (set (map :study/id (-> i2 :item/item-group :item-group/form :form/studies))) "A2")))
-
-(defn show-item-pair [[i1 i2]]
-  [(:item/question i1)
-   (:item/id i1)
-   (:item/id i2)])
-
-(defn common-question? [[q]]
-  (re-find #"Erfassender|Erfassungsdatum|Bemerkungen|Uhrzeit Ende" q))
-
-(comment
+  (startup)
+  (reset)
   (def conn (connect))
   (def db (d/db conn))
-  (def res1 (d/q '[:find ?i1 ?i2
-                   :where
-                   [?i1 :item/question ?q1]
-                   [?i2 :item/question ?q2]
-                   [(< ?i1 ?i2)]
-                   [(= ?q1 ?q2)]] db))
-  (count res)
 
-  (->> (d/q '[:find [?id ...]
-              :where
-              [?s :study/id "A2"]
-              [?f :form/studies ?s]
-              [?f :form/id ?id]] db)
-       (sort)
-       (last))
-
-  (->> res
-       (map #(mapv (partial d/entity db) %))
-       (remove same-item-group?)
-       (filter a2?)
-       (map show-item-pair)
-       (remove common-question?)
-       (group-by first)
-       (map-vals #(->> (map rest %) (flatten) (set) (sort)))
-       (sort-by first)
-       (map (fn [[q items]] (str/join "," (cons (str \" q \") items))))
-       (str/join "\n")
-       (spit "duplicates.csv"))
   )
