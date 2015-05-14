@@ -10,23 +10,10 @@
                  [org.clojure/core.cache "0.6.4"]
                  [prismatic/plumbing "0.4.0"]
                  [slingshot "0.12.2"]
-                 [com.datomic/datomic-pro "0.9.5078"
-                  :exclusions [org.slf4j/slf4j-nop
-                               org.slf4j/slf4j-log4j12
-                               org.apache.httpcomponents/httpclient
-                               commons-codec
-                               joda-time]]
-                 [com.basho.riak/riak-client "1.4.4"]
-                 [org.apache.curator/curator-framework "2.6.0"
-                  :exclusions [io.netty/netty log4j org.slf4j/slf4j-log4j12]]
                  [http-kit "2.1.18"]
-                 [com.cemerick/url "0.1.1"]
                  [compojure "1.3.3"]
                  [ring-middleware-format "0.5.0"
                   :exclusions [org.clojure/tools.reader
-                               com.fasterxml.jackson.core/jackson-core
-                               com.fasterxml.jackson.core/jackson-annotations
-                               com.fasterxml.jackson.core/jackson-databind
                                ring/ring-core ring
                                commons-codec]]
                  [clj-time "0.6.0"]
@@ -38,13 +25,39 @@
              {:source-paths ["dev"]
               :dependencies [[org.clojure/tools.namespace "0.2.4"]
                              [criterium "0.4.3"]
+                             [com.datomic/datomic-free "0.9.5078"
+                              :exclusions [org.slf4j/slf4j-nop commons-codec
+                                           com.amazonaws/aws-java-sdk
+                                           joda-time]]
                              [cursive/datomic-stubs "0.9.5153" :scope "provided"]]
-              :global-vars {*print-length* 20}
-              :jvm-opts ["-Xmx4g"]}
+              :global-vars {*print-length* 20}}
 
-             :production-run
-             {:main lens.core
-              :jvm-opts ["-Xmx4g"]}}
+             :datomic-free
+             {:dependencies [[com.datomic/datomic-free "0.9.5078"
+                              :exclusions [org.slf4j/slf4j-nop commons-codec
+                                           com.amazonaws/aws-java-sdk
+                                           joda-time]]]}
+
+             :datomic-pro
+             {:dependencies [[com.datomic/datomic-pro "0.9.5078"
+                              :exclusions [org.slf4j/slf4j-nop
+                                           org.slf4j/slf4j-log4j12
+                                           org.apache.httpcomponents/httpclient
+                                           com.fasterxml.jackson.core/jackson-annotations
+                                           com.fasterxml.jackson.core/jackson-core
+                                           com.fasterxml.jackson.core/jackson-databind
+                                           commons-codec
+                                           joda-time]]
+                             [com.basho.riak/riak-client "1.4.4"
+                              :exclusions [com.fasterxml.jackson.core/jackson-annotations
+                                           com.fasterxml.jackson.core/jackson-core
+                                           com.fasterxml.jackson.core/jackson-databind]]
+                             [org.apache.curator/curator-framework "2.6.0"
+                              :exclusions [io.netty/netty log4j org.slf4j/slf4j-log4j12
+                                           com.google.guava/guava]]]}
+
+             :production
+             {:main lens.core}}
 
   :repl-options {:welcome (do
                             (println "   Docs: (doc function-name-here)")

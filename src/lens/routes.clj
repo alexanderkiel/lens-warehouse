@@ -4,7 +4,6 @@
             [clojure.edn :as edn]
             [compojure.core :as compojure :refer [GET DELETE]]
             [ring.util.response :as ring-resp]
-            [cemerick.url :as url]
             [clj-time.core :as t]
             [clj-time.coerce :as c]
             [lens.reducers :as lr]
@@ -12,16 +11,26 @@
             [lens.api :as api]
             [clojure.core.async :refer [timeout]]
             [clojure.core.reducers :as r])
-  (:import [java.util UUID]))
+  (:import [java.util UUID]
+           [java.net URLEncoder]))
 
 (def page-size 50)
 
 (def paginate (partial util/paginate page-size))
 
+(defn url-encode
+  [string]
+  (some-> string str (URLEncoder/encode "UTF-8") (.replace "+" "%20")))
+
+(defn pr-form-data [data]
+  (->> (for [[k v] data :when k]
+         (str/join "=" [(name k) (url-encode v)]))
+       (str/join "&")))
+
 (defn query-map [page-num filter]
   (-> {:page-num page-num}
       (assoc-when :filter (when-not (str/blank? filter) filter))
-      (url/map->query)))
+      (pr-form-data)))
 
 ;; ---- Service Document ------------------------------------------------------
 

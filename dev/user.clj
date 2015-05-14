@@ -67,5 +67,6 @@
   (reset)
   (def conn (connect))
   (def db (d/db conn))
-
+  (create-database)
+  (schema/load-base-schema conn)
   )
