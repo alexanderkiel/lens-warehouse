@@ -13,10 +13,9 @@
             [clojure.core.async :as async :refer [chan go go-loop <! <!! >! alts! close!]]
             [lens.schema :as schema]
             [lens.routes :as routes]
-            [lens.api :as api :refer :all]
+            [lens.api :as api]
             [datomic.api :as d]
-            [system]
-            [lens.util :as util]))
+            [system]))
 
 (def system nil)
 
