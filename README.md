@@ -36,3 +36,9 @@ environment vars specified above and just type `foreman start`.
 
 Running a REPL will load the user namespace. Use `(startup)` to start the server
 and `(reset)` to reload after code changes.
+
+## Using Datomic Pro
+
+You need a license to be able to use the Pro Edition of Datomic. The Leiningen
+project file contains two profiles, one for the Free Edition (datomic-free) and
+one for the Pro Edition (datomic-pro).
