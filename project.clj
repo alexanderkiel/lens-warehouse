@@ -21,8 +21,6 @@
                  [org.slf4j/slf4j-api "1.7.7"]
                  [ch.qos.logback/logback-classic "1.1.2"]]
 
-  :repositories [["my.datomic.com" "https://my.datomic.com/repo"]]
-
   :profiles {:dev
              {:source-paths ["dev"]
               :dependencies [[org.clojure/tools.namespace "0.2.4"]
@@ -41,7 +39,8 @@
                                            joda-time]]]}
 
              :datomic-pro
-             {:dependencies [[com.datomic/datomic-pro "0.9.5173"
+             {:repositories [["my.datomic.com" "https://my.datomic.com/repo"]]
+              :dependencies [[com.datomic/datomic-pro "0.9.5173"
                               :exclusions [org.slf4j/slf4j-nop
                                            org.slf4j/slf4j-log4j12
                                            org.apache.httpcomponents/httpclient
