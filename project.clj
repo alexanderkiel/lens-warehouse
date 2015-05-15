@@ -21,6 +21,8 @@
                  [org.slf4j/slf4j-api "1.7.7"]
                  [ch.qos.logback/logback-classic "1.1.2"]]
 
+  :repositories [["my.datomic.com" "https://my.datomic.com/repo"]]
+
   :profiles {:dev
              {:source-paths ["dev"]
               :dependencies [[org.clojure/tools.namespace "0.2.4"]
