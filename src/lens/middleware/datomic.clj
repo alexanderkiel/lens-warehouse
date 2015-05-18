@@ -6,7 +6,7 @@
 (defn- assoc-conn
   [request conn]
   (if (#{:post :put :delete} (:request-method request))
-    (assoc-in request [:params :conn] conn)
+    (assoc request :conn conn)
     request))
 
 (defn- db [request conn]
@@ -20,7 +20,7 @@
 (defn- assoc-db
   [request conn]
   (if (#{:get :head} (:request-method request))
-    (assoc-in request [:params :db] (db request conn))
+    (assoc request :db (db request conn))
     request))
 
 (defn- connect [uri]
@@ -30,7 +30,7 @@
       (str "Error connecting to " uri ": " (.getMessage e)))))
 
 (defn add-cache-headers [req resp]
-  (if-let [t (some-> req :params :db d/as-of-t)]
+  (if-let [t (some-> req :db d/as-of-t)]
     (-> (assoc-in resp [:headers "cache-control"] "max-age=86400")
         (assoc-in [:headers "etag"] t)
         (assoc-in [:headers "vary"] "Accept, X-Lens-Snapshot"))

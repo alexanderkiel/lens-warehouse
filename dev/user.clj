@@ -12,7 +12,6 @@
             [clojure.core.cache :as cache]
             [clojure.core.async :as async :refer [chan go go-loop <! <!! >! alts! close!]]
             [lens.schema :as schema]
-            [lens.routes :as routes]
             [lens.api :as api]
             [datomic.api :as d]
             [system]))
@@ -41,11 +40,11 @@
   (startup)
   (reset))
 
-(defn delete-database []
-  (d/delete-database (:db-uri system)))
-
 (defn create-database []
   (d/create-database (:db-uri system)))
+
+(defn delete-database []
+  (d/delete-database (:db-uri system)))
 
 (defn connect []
   (d/connect (:db-uri system)))
@@ -68,5 +67,6 @@
   (def conn (connect))
   (def db (d/db conn))
   (create-database)
+  (delete-database)
   (schema/load-base-schema conn)
   )

@@ -147,7 +147,8 @@
     {:db/ident :code-list/attr
      :db/valueType :db.type/ref
      :db/cardinality :db.cardinality/one
-     :db/doc "A reference to the code list item attribute of a code list."}
+     :db/doc "A reference to the code list item attribute of a code list.
+Which is one of :code-list-item/long-code or :code-list-item/string-code."}
 
     {:db/ident :code-list-item/code-list
      :db/valueType :db.type/ref

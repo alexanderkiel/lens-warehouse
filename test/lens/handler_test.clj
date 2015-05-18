@@ -1,6 +1,6 @@
-(ns lens.routes-test
+(ns lens.handler-test
   (:require [clojure.test :refer :all]
-            [lens.routes :refer :all]
+            [lens.handler :refer :all]
             [clj-time.core :as t]
             [clj-time.coerce :as c]))
 
@@ -20,4 +20,4 @@
                                   (t/date-time 2016 05 11))))))
   (testing "-1 year age"
     (is (= -1 (age-at-visit (visit (t/date-time 2014 05 11)
-                                  (t/date-time 2013 05 11)))))))
+                                   (t/date-time 2013 05 11)))))))

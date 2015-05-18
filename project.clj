@@ -4,18 +4,20 @@
   :min-lein-version "2.0.0"
 
   :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/tools.cli "0.3.1"]
-                 [org.clojure/tools.logging "0.2.6"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [org.clojure/core.cache "0.6.4"]
-                 [prismatic/plumbing "0.4.0"]
+                 [org.clojure/data.json "0.2.6"]
+                 [org.clojure/tools.cli "0.3.1"]
+                 [org.clojure/tools.logging "0.2.6"]
+                 [org.clojure/tools.reader "0.9.2"]
+                 [prismatic/plumbing "0.4.3"]
                  [slingshot "0.12.2"]
                  [http-kit "2.1.18"]
-                 [compojure "1.3.3"]
-                 [ring-middleware-format "0.5.0"
-                  :exclusions [org.clojure/tools.reader
-                               ring/ring-core ring
-                               commons-codec]]
+                 [ring/ring-core "1.3.2" :exclusions [commons-codec]]
+                 [bidi "1.18.10"]
+                 [liberator "0.12.2"]
+                 [com.cognitect/transit-clj "0.8.271"]
+                 [io.clojure/liberator-transit "0.3.0"]
                  [clj-time "0.6.0"]
                  [clj-stacktrace "0.2.7"]
                  [org.slf4j/slf4j-api "1.7.7"]
@@ -52,7 +54,8 @@
                              [com.basho.riak/riak-client "1.4.4"
                               :exclusions [com.fasterxml.jackson.core/jackson-annotations
                                            com.fasterxml.jackson.core/jackson-core
-                                           com.fasterxml.jackson.core/jackson-databind]]
+                                           com.fasterxml.jackson.core/jackson-databind
+                                           commons-codec]]
                              [org.apache.curator/curator-framework "2.6.0"
                               :exclusions [io.netty/netty log4j org.slf4j/slf4j-log4j12
                                            com.google.guava/guava]]]}
