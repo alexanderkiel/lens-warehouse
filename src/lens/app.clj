@@ -23,7 +23,7 @@
       {:status 404})))
 
 (defnk app [db-uri context-path :as opts]
-  {:pre [(re-matches #"(/?:.*[^/])?" context-path)]}
+  (assert (re-matches #"/(?:.*[^/])?" context-path))
   (let [routes (routes context-path)
         opts (assoc opts :path-for (path-for routes))]
     (-> (bidi-ring/make-handler routes (handlers opts))

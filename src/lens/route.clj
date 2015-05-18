@@ -1,8 +1,8 @@
 (ns lens.route)
 
 (defn routes [context-path]
-  [context-path
-   {"" :service-document-handler
+  [(if (= "/" context-path) "" context-path)
+   {(if (= "/" context-path) "/" "") :service-document-handler
     "/study-events"
     {"" :all-study-events-handler
      ["/" :id] :study-event-handler}

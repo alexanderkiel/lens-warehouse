@@ -58,7 +58,7 @@
     {:name "Lens Warehouse"
      :version version
      :links
-     {:self {:href "/"}
+     {:self {:href (path-for :service-document-handler)}
       :lens/all-study-events {:href (path-for :all-study-events-handler)}
       :lens/all-forms {:href (path-for :all-forms-handler)}
       :lens/all-snapshots {:href (path-for :all-snapshots-handler)}}
@@ -672,7 +672,7 @@
       (-> {:id (:code-list/id code-list)
            :type :code-list
            :links
-           {:up {:href "/"}
+           {:up {:href (path-for :service-document-handler)}
             :self {:href (path-for :code-list-hanlder :id
                                    (:code-list/id code-list))}}
            :embedded
