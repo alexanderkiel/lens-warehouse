@@ -19,7 +19,7 @@
                  [com.basho.riak/riak-client "1.4.4"]
                  [org.apache.curator/curator-framework "2.6.0"
                   :exclusions [io.netty/netty log4j org.slf4j/slf4j-log4j12]]
-                 [http-kit "2.1.16"]
+                 [http-kit "2.1.18"]
                  [com.cemerick/url "0.1.1"]
                  [compojure "1.3.3"]
                  [ring-middleware-format "0.5.0"
