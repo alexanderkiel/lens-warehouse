@@ -1,7 +1,8 @@
 (ns system
   (:require [clojure.string :as str]
+            [org.httpkit.server :refer [run-server]]
             [lens.app :refer [app]]
-            [org.httpkit.server :refer [run-server]]))
+            [lens.util :refer [parse-int]]))
 
 (defn env []
   (->> (str/split-lines (slurp ".env"))
@@ -13,7 +14,7 @@
   {:app app
    :db-uri (or (env "DB_URI") "datomic:mem://lens")
    :version (System/getProperty "lens.version")
-   :port (or (env "PORT") 5001)
+   :port (or (some-> (env "PORT") (parse-int)) 5001)
    :mdb-uri (env "MDB_URI")})
 
 (defn start [{:keys [app db-uri version port] :as system}]
