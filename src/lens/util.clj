@@ -163,6 +163,9 @@
   [e]
   (:type (ex-data (unwrap-execution-exception e))))
 
+(defn parse-int [s]
+  (Integer/parseInt s))
+
 ;; ---- Datomic ---------------------------------------------------------------
 
 (defn entity?

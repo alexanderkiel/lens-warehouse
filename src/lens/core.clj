@@ -1,13 +1,14 @@
 (ns lens.core
-  (:require [lens.app :refer [app]]
-            [clojure.tools.cli :as cli]
-            [org.httpkit.server :refer [run-server]]))
+  (:require [clojure.tools.cli :as cli]
+            [org.httpkit.server :refer [run-server]]
+            [lens.app :refer [app]]
+            [lens.util :refer [parse-int]]))
 
 (defn cli [args]
   (cli/cli args
-    ["-p" "--port" "Listen on this port" :default 8080 :parse-fn #(Integer/parseInt %)]
+    ["-p" "--port" "Listen on this port" :default 8080 :parse-fn parse-int]
     ["-i" "--ip" "The IP to bind" :default "0.0.0.0"]
-    ["-t" "--thread" "Number of worker threads" :default 4 :parse-fn #(Integer/parseInt %)]
+    ["-t" "--thread" "Number of worker threads" :default 4 :parse-fn parse-int]
     ["-d" "--database-uri" "The Datomic database URI to use"]))
 
 (defn -main [& args]
