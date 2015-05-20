@@ -1,5 +1,6 @@
 (defproject lens-warehouse "0.1-SNAPSHOT"
   :description "The data warehouse component of the Lens system."
+  :url "https://github.com/alexanderkiel/lens-warehouse"
 
   :min-lein-version "2.0.0"
 
