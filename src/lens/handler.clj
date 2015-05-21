@@ -714,7 +714,7 @@
         (- (t/in-years (t/interval (c/from-date edat) (c/from-date birth-date))))))))
 
 (defn sex [visit]
-  (-> visit :visit/subject :subject/sex name keyword))
+  (some-> visit :visit/subject :subject/sex name keyword))
 
 (defn age-decade [age]
   {:pre [age]}
@@ -722,9 +722,14 @@
 
 (defn visit-count-by-age-decade-and-sex [visits]
   (->> (group-by #(some-> (age-at-visit %) age-decade) visits)
-       (reduce-kv #(if %2 (assoc %1 %2 %3) %1) {})
-       (map-vals #(->> (group-by sex %)
-                       (map-vals count)))))
+       (reduce-kv
+         (fn [r age-decade visits]
+           (if age-decade
+             (assoc r age-decade (->> (r/map sex visits)
+                                      (r/remove nil?)
+                                      (frequencies)))
+             r))
+         {})))
 
 (defn subject-count [visits]
   (->> (r/map :visit/subject visits)
