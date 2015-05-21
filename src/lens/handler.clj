@@ -3,6 +3,7 @@
   (:require [clojure.core.async :refer [timeout]]
             [clojure.core.reducers :as r]
             [liberator.core :refer [resource]]
+            [pandect.algo.md5 :refer [md5]]
             [lens.handler.util :refer :all]
             [lens.api :as api]
             [lens.reducers :as lr]
@@ -52,7 +53,19 @@
 
 (defn service-document-handler [path-for version]
   (resource
-    resource-defaults
+    (resource-defaults :cache-control "max-age=60")
+
+    :etag
+    (fnk [[:representation media-type]]
+      (md5 (str media-type
+                (path-for :service-document-handler)
+                (path-for :all-study-events-handler)
+                (path-for :all-forms-handler)
+                (path-for :all-snapshots-handler)
+                (path-for :find-form-handler)
+                (path-for :find-item-group-handler)
+                (path-for :find-item-handler)
+                (path-for :query-handler))))
 
     :handle-ok
     {:name "Lens Warehouse"
@@ -140,7 +153,7 @@
 
 (defn all-study-events-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :handle-ok
     (fnk [db [:request params]]
@@ -169,7 +182,7 @@
 
 (defn study-event-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :exists?
     (fnk [db [:request [:params id]]]
@@ -192,7 +205,7 @@
 
 (defn get-subject-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :exists?
     (fnk [db [:request [:params id]]]
@@ -248,7 +261,7 @@
 
 (defn all-forms-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :handle-ok
     (fnk [db [:request params]]
@@ -309,7 +322,7 @@
 
 (defn form-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :exists?
     (fnk [db [:request [:params id]]]
@@ -338,7 +351,7 @@
 
 (defn find-form-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :exists?
     (fnk [db [:request [:params id]]]
@@ -360,7 +373,7 @@
 
 (defn form-count-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :exists?
     (fnk [db [:request [:params id]]]
@@ -381,7 +394,7 @@
 
 (defn search-item-groups-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :exists?
     (fnk [db [:request [:params id]]]
@@ -440,7 +453,7 @@
 
 (defn item-group-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :exists?
     (fnk [db [:request [:params id]]]
@@ -471,7 +484,7 @@
 
 (defn find-item-group-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :exists?
     (fnk [db [:request [:params id]]]
@@ -495,7 +508,7 @@
 
 (defn item-group-count-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :exists?
     (fnk [db [:request [:params id]]]
@@ -517,7 +530,7 @@
 
 (defn search-items-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :exists?
     (fnk [db [:request [:params id]]]
@@ -567,7 +580,7 @@
 
 (defn item-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :exists?
     (fnk [db [:request [:params id]]]
@@ -605,7 +618,7 @@
 
 (defn item-count-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :exists?
     (fnk [db [:request [:params id]]]
@@ -624,7 +637,7 @@
 
 (defn item-code-list-item-count-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :exists?
     (fnk [db [:request [:params id code]]]
@@ -660,7 +673,7 @@
 
 (defn code-list-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :exists?
     (fnk [db [:request [:params id]]]
@@ -720,7 +733,7 @@
 
 (defn query-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :processable?
     (fnk [[:request params]]
@@ -752,7 +765,7 @@
 
 (defn all-snapshots-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :handle-ok
     (fnk [db]
@@ -769,7 +782,7 @@
 
 (defn snapshot-handler [path-for]
   (resource
-    resource-defaults
+    (resource-defaults)
 
     :processable?
     (fnk [[:request params]]

@@ -1,8 +1,6 @@
 (ns lens.handler.util
-  (:use plumbing.core))
-
-(defn decode-etag [etag]
-  (subs etag 1 (dec (count etag))))
+  (:use plumbing.core)
+  (:require [liberator.representation :refer [as-response]]))
 
 (defn error-body [path-for msg]
   {:links {:up {:href (path-for :service-document-handler)}}
@@ -12,7 +10,12 @@
   {:status status
    :body (error-body path-for msg)})
 
-(def resource-defaults
+(defn handle-cache-control [resp opts]
+  (if-let [cache-control (:cache-control opts)]
+    (assoc-in resp [:headers "cache-control"] cache-control)
+    resp))
+
+(defn resource-defaults [& {:as opts}]
   {:available-media-types ["application/json" "application/transit+json"
                            "application/edn"]
 
@@ -23,6 +26,13 @@
        (when (or conn db)
          {:conn conn :db db})))
 
+   :as-response
+   (fn [d ctx]
+     (-> (as-response d ctx)
+         (handle-cache-control opts)))
+
    ;; Just respond with plain text here because the media type is negotiated
    ;; later in the decision graph.
-   :handle-unauthorized (fn [{:keys [error]}] (or error "Not authorized."))})
+   :handle-unauthorized (fn [{:keys [error]}] (or error "Not authorized."))
+
+   :handle-not-modified nil})
