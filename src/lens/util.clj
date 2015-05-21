@@ -7,6 +7,8 @@
   (:import [datomic Entity]
            [java.util.concurrent ExecutionException]))
 
+(def uuid-regexp #"[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}")
+
 ;; ---- Core-Async ------------------------------------------------------------
 
 (defn throw-err

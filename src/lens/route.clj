@@ -7,7 +7,7 @@
     {"" :all-study-events-handler
      ["/" :id] :study-event-handler}
     ["/subjects/" :id] {:get :get-subject-handler
-                       :delete :delete-subject-handler}
+                        :delete :delete-subject-handler}
     "/forms"
     {"" :all-forms-handler
      ["/" :id] :form-handler
@@ -27,8 +27,9 @@
     ["/code-lists" :id] :code-list-handler
     "/snapshots"
     {"" :all-snapshots-handler
-     ["/" :id] :snapshot-handler}
+     ["/" :id] :snapshot-handler
+     ["/" :id "/query"] :query-handler}
+    "/most-recent-snapshot" :most-recent-snapshot-handler
     "/find-form" :find-form-handler
     "/find-item-group" :find-item-group-handler
-    "/find-item" :find-item-handler
-    "/query" :query-handler}])
+    "/find-item" :find-item-handler}])

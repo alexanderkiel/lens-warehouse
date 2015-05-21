@@ -2,7 +2,7 @@
   (:use plumbing.core)
   (:require [clojure.core.async :refer [timeout]]
             [clojure.core.reducers :as r]
-            [liberator.core :refer [resource]]
+            [liberator.core :refer [resource to-location]]
             [pandect.algo.md5 :refer [md5]]
             [lens.handler.util :refer :all]
             [lens.api :as api]
@@ -11,7 +11,8 @@
             [lens.util :as util]
             [clj-time.coerce :as c]
             [clj-time.core :as t]
-            [clojure.edn :as edn])
+            [clojure.edn :as edn]
+            [datomic.api :as d])
   (:import [java.net URLEncoder]
            [java.util UUID]))
 
@@ -65,7 +66,7 @@
                 (path-for :find-form-handler)
                 (path-for :find-item-group-handler)
                 (path-for :find-item-handler)
-                (path-for :query-handler))))
+                (path-for :most-recent-snapshot-handler))))
 
     :handle-ok
     {:name "Lens Warehouse"
@@ -74,7 +75,8 @@
      {:self {:href (path-for :service-document-handler)}
       :lens/all-study-events {:href (path-for :all-study-events-handler)}
       :lens/all-forms {:href (path-for :all-forms-handler)}
-      :lens/all-snapshots {:href (path-for :all-snapshots-handler)}}
+      :lens/all-snapshots {:href (path-for :all-snapshots-handler)}
+      :lens/most-recent-snapshot {:href (path-for :most-recent-snapshot-handler)}}
      :forms
      {:lens/find-form
       {:action (path-for :find-form-handler)
@@ -93,50 +95,7 @@
        :method "GET"
        :params
        {:id
-        {:type :string}}}
-      :lens/query
-      {:action (path-for :query-handler)
-       :method "GET"
-       :title "Query"
-       :params
-       {:expr
-        {:type :string
-         :description "Issues a query against the database.
-
-    The query consists of two parts. Part one specifies the :items which have to
-    be present and part two specifies the :study-events which are of interest.
-
-    The first part consists of a seq of disjunctions forming one conjunction.
-    Each disjunction is a seq of atoms. Each atom has a type and an identifier.
-
-    The second part consists of a seq of of study-event identifiers. An empty
-    seq returns all visits regardless of study-event.
-
-    Valid types are:
-
-    * :form
-    * :item-group
-    * :item
-    * :code-list-item
-
-    The identifiers are values of the corresponding :<type>/id attribute of the
-    schema except for :code-list-item where the identifier is a map of :item-id
-    and :code.
-
-    Example atoms:
-
-    [:form \"T00001\"]
-    [:item-group \"cdd90833-d9c3-4ba1-b21e-7d03483cae63\"]
-    [:item \"T00001_F0001\"]
-    [:code-list-item {:item-id \"T00001_F0001\" :code 0}]
-
-    Example query:
-
-    {:items [[[:form \"T00001\"]]]
-     :study-events [\"A1_HAUPT01\"]}
-
-    The query returns the set of visits which has data points satisfying the
-    query."}}}}}))
+        {:type :string}}}}}))
 
 ;; ---- Study Events ----------------------------------------------------------
 
@@ -699,6 +658,118 @@
     :handle-not-found
     (error-body path-for "Code List not found.")))
 
+;; ---- Snapshots -------------------------------------------------------------
+
+(defn snapshot-path [path-for snapshot]
+  (path-for :snapshot-handler :id (:tx-id snapshot)))
+
+(defn render-embedded-snapshot [path-for snapshot]
+  {:links
+   {:self {:href (snapshot-path path-for snapshot)}}
+   :id (str (:tx-id snapshot))
+   :time (:db/txInstant snapshot)})
+
+(defn render-embedded-snapshots [path-for snapshots]
+  (mapv #(render-embedded-snapshot path-for %) snapshots))
+
+(defn all-snapshots-handler [path-for]
+  (resource
+    (resource-defaults)
+
+    :handle-ok
+    (fnk [db]
+      (let [snapshots (->> (api/all-snapshots db)
+                           (into [])
+                           (sort-by :db/txInstant)
+                           (reverse))]
+        {:links
+         {:self {:href (path-for :all-snapshots-handler)}
+          :up {:href (path-for :service-document-handler)}}
+         :embedded
+         {:lens/snapshots
+          (render-embedded-snapshots path-for snapshots)}}))))
+
+(defn snapshot-handler [path-for]
+  (resource
+    (resource-defaults)
+
+    :processable?
+    (fnk [[:request params]]
+      (some->> (:id params) (re-matches util/uuid-regexp)))
+
+    :exists?
+    (fnk [db [:request [:params id]]]
+      (when-let [snapshot (api/snapshot db (UUID/fromString id))]
+        {:snapshot snapshot}))
+
+    :handle-ok
+    (fnk [snapshot]
+      {:links
+       {:self {:href (snapshot-path path-for snapshot)}}
+       :id (str (:tx-id snapshot))
+       :time (:db/txInstant snapshot)
+       :forms
+       {:lens/query
+        {:action (path-for :query-handler :id (:tx-id snapshot))
+         :method "GET"
+         :title "Query"
+         :params
+         {:expr
+          {:type :string
+           :description "Issues a query against the database.
+
+    The query consists of two parts. Part one specifies the :items which have to
+    be present and part two specifies the :study-events which are of interest.
+
+    The first part consists of a seq of disjunctions forming one conjunction.
+    Each disjunction is a seq of atoms. Each atom has a type and an identifier.
+
+    The second part consists of a seq of of study-event identifiers. An empty
+    seq returns all visits regardless of study-event.
+
+    Valid types are:
+
+    * :form
+    * :item-group
+    * :item
+    * :code-list-item
+
+    The identifiers are values of the corresponding :<type>/id attribute of the
+    schema except for :code-list-item where the identifier is a map of :item-id
+    and :code.
+
+    Example atoms:
+
+    [:form \"T00001\"]
+    [:item-group \"cdd90833-d9c3-4ba1-b21e-7d03483cae63\"]
+    [:item \"T00001_F0001\"]
+    [:code-list-item {:item-id \"T00001_F0001\" :code 0}]
+
+    Example query:
+
+    {:items [[[:form \"T00001\"]]]
+     :study-events [\"A1_HAUPT01\"]}
+
+    The query returns the set of visits which has data points satisfying the
+    query."}}}}})))
+
+(defn most-recent-snapshot-handler [path-for]
+  (resource
+    (resource-defaults)
+
+    :exists? false
+    :existed? true
+    :moved-temporarily? true
+
+    :handle-moved-temporarily
+    (fnk [db]
+      (->> (api/all-snapshots db)
+           (into [])
+           (sort-by :db/txInstant)
+           (last)
+           (snapshot-path path-for)
+           (to-location)))))
+
 ;; ---- Query -----------------------------------------------------------------
 
 (defn visit-count-by-study-event [visits]
@@ -738,72 +809,35 @@
 
 (defn query-handler [path-for]
   (resource
-    (resource-defaults)
+    (resource-defaults :cache-control "max-age=3600")
 
     :processable?
     (fnk [[:request params]]
-      (when-let [expr (:expr params)]
-        (try
-          {:expr (edn/read-string expr)}
-          (catch Exception _))))
+      (when (some->> (:id params) (re-matches util/uuid-regexp))
+        (when-let [expr (:expr params)]
+          (try
+            {:expr (edn/read-string expr)}
+            (catch Exception _)))))
+
+    :exists?
+    (fnk [db [:request [:params id]]]
+      (when-let [snapshot (api/snapshot db (UUID/fromString id))]
+        {:snapshot snapshot
+         :db (d/as-of db (:db/id snapshot))}))
+
+    :etag
+    (fnk [snapshot [:representation media-type]]
+      (md5 (str media-type (snapshot-path path-for snapshot))))
 
     :handle-ok
-    (fnk [db expr]
+    (fnk [snapshot db expr]
       (let [visits (api/query db expr)]
-        {:links {:up {:href (path-for :service-document-handler)}}
+        {:links {:up {:href (snapshot-path path-for snapshot)}}
          :visit-count (count visits)
          :visit-count-by-study-event (visit-count-by-study-event visits)
          :visit-count-by-age-decade-and-sex
          (visit-count-by-age-decade-and-sex visits)
          :subject-count (subject-count visits)}))))
-
-;; ---- Snapshots -------------------------------------------------------------
-
-(defn render-embedded-snapshot [path-for snapshot]
-  {:links
-   {:self {:href (path-for :snapshot-handler :id (:tx-id snapshot))}}
-   :id (str (:tx-id snapshot))
-   :time (:db/txInstant snapshot)})
-
-(defn render-embedded-snapshots [path-for snapshots]
-  (mapv #(render-embedded-snapshot path-for %) snapshots))
-
-(defn all-snapshots-handler [path-for]
-  (resource
-    (resource-defaults)
-
-    :handle-ok
-    (fnk [db]
-      (let [snapshots (->> (api/all-snapshots db)
-                           (into [])
-                           (sort-by :db/txInstant)
-                           (reverse))]
-        {:links
-         {:self {:href (path-for :all-snapshots-handler)}
-          :up {:href (path-for :service-document-handler)}}
-         :embedded
-         {:lens/snapshots
-          (render-embedded-snapshots path-for snapshots)}}))))
-
-(defn snapshot-handler [path-for]
-  (resource
-    (resource-defaults)
-
-    :processable?
-    (fnk [[:request params]]
-      (some-> (:id params) (re-matches #"[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}")))
-
-    :exists?
-    (fnk [db [:request [:params id]]]
-      (when-let [item (api/snapshot db (UUID/fromString id))]
-        {:item item}))
-
-    :handle-ok
-    (fnk [snapshot]
-      {:links
-       {:self {:href (path-for :snapshot-handler :id (:tx-id snapshot))}}
-       :id (str (:tx-id snapshot))
-       :time (:db/txInstant snapshot)})))
 
 ;; ---- Handlers --------------------------------------------------------------
 
@@ -830,4 +864,5 @@
    :code-list-handler (code-list-handler path-for)
    :query-handler (query-handler path-for)
    :snapshot-handler (snapshot-handler path-for)
-   :all-snapshots-handler (all-snapshots-handler path-for)})
+   :all-snapshots-handler (all-snapshots-handler path-for)
+   :most-recent-snapshot-handler (most-recent-snapshot-handler path-for)})
