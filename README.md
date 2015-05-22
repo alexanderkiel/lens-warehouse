@@ -2,6 +2,8 @@ __This software is ALPHA, lacks documentation and has to be deployed in conjunct
 
 # Lens Warehouse Service
 
+[![Build Status](https://travis-ci.org/alexanderkiel/lens-warehouse.svg?branch=master)](https://travis-ci.org/alexanderkiel/lens-warehouse)
+
 The data warehouse component of the Lens system which is one of several backend
 services.
 
