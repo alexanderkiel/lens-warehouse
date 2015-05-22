@@ -33,8 +33,7 @@
                              [com.datomic/datomic-free "0.9.5173"
                               :exclusions [org.slf4j/slf4j-nop commons-codec
                                            com.amazonaws/aws-java-sdk
-                                           joda-time]]
-                             [cursive/datomic-stubs "0.9.5153" :scope "provided"]]
+                                           joda-time]]]
               :global-vars {*print-length* 20}}
 
              :datomic-free

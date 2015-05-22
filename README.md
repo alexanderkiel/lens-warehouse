@@ -35,6 +35,12 @@ environment vars specified above and just type `foreman start`.
 Running a REPL will load the user namespace. Use `(startup)` to start the server
 and `(reset)` to reload after code changes.
 
+If you use [Intellij IDEA][2] with [Cursive][3], you can add a Datomic stub JAR
+to your project dependencies as described [here][4]. The stub will provide
+signatures and documentation for the Datomic API functions. I can't add the
+stub dependency to the project.clj file because it is currently not available on
+Clojars. I opened an issue [here][5].
+
 ## Using Datomic Pro
 
 You need a license to be able to use the Pro Edition of Datomic. The Leiningen
@@ -48,3 +54,7 @@ Copyright © 2015 Alexander Kiel
 Distributed under the Eclipse Public License, the same as Clojure.
 
 [1]: https://github.com/ddollar/foreman
+[2]: https://www.jetbrains.com/idea/
+[3]: https://cursiveclojure.com
+[4]: https://cursiveclojure.com/userguide/support.html
+[5]: https://github.com/cursiveclojure/cursive/issues/896
