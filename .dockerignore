@@ -1,0 +1,10 @@
+/target/
+/.lein-*
+/.nrepl-port
+/.env
+/*.iml
+/.idea/
+/test
+/dev
+/.git
+/.gitignore

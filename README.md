@@ -32,6 +32,15 @@ This application uses the following environment vars:
 If you have [foreman][1] installed you can create an `.env` file listing the
 environment vars specified above and just type `foreman start`.
 
+## Usage through Docker Container
+
+You have to start a database volume container, a database container and a 
+warehouse container linking them all together:
+
+    docker run --name lens-warehouse-db-vol akiel/lens-warehouse:db-latest
+    docker run -d --volumes-from lens-warehouse-db-vol -e ALT_HOST=lens-warehouse-db --name lens-warehouse-db akiel/datomic-free
+    docker run -d -p 8080:8080 --link lens-warehouse-db:db --name lens-warehouse akiel/lens-warehouse
+
 ## Develop
 
 Running a REPL will load the user namespace. Use `(startup)` to start the server
