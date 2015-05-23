@@ -39,7 +39,7 @@ warehouse container linking them all together:
 
     docker run --name lens-warehouse-db-vol akiel/lens-warehouse:db-latest
     docker run -d --volumes-from lens-warehouse-db-vol -e ALT_HOST=lens-warehouse-db --name lens-warehouse-db akiel/datomic-free
-    docker run -d -p 8080:8080 --link lens-warehouse-db:db --name lens-warehouse akiel/lens-warehouse
+    docker run -d -p 8080:80 --link lens-warehouse-db:db --name lens-warehouse akiel/lens-warehouse
 
 After starting all containers, a `curl http://localhost:8080` should show the
 service document of Lens Warehouse. 

@@ -10,6 +10,6 @@ WORKDIR /app
 RUN lein with-profile production,datomic-free deps
 RUN chmod +x start.sh
 
-EXPOSE 8080
+EXPOSE 80
 
 CMD ["./start.sh"]
