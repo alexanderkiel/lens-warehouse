@@ -758,17 +758,24 @@
     (resource-defaults)
 
     :exists? false
-    :existed? true
+
+    :existed?
+    (fnk [db]
+      (some->> (api/all-snapshots db)
+               (into [])
+               (sort-by :db/txInstant)
+               (last)
+               (hash-map :snapshot)))
+
     :moved-temporarily? true
 
     :handle-moved-temporarily
-    (fnk [db]
-      (->> (api/all-snapshots db)
-           (into [])
-           (sort-by :db/txInstant)
-           (last)
-           (snapshot-path path-for)
-           (to-location)))))
+    (fnk [snapshot]
+      (-> (snapshot-path path-for snapshot)
+          (to-location)))
+
+    :handle-not-found
+    (error-body path-for "No snapshot found.")))
 
 ;; ---- Query -----------------------------------------------------------------
 
