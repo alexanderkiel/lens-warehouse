@@ -5,19 +5,20 @@
             [datomic.api :as d]
             [clojure.core.reducers :as r]))
 
+(defn- connect [] (d/connect "datomic:mem:test"))
+
 (defn database-fixture [f]
-  (d/create-database "datomic:mem:test")
+  (do
+    (d/create-database "datomic:mem:test")
+    (load-base-schema (connect)))
   (f)
   (d/delete-database "datomic:mem:test"))
 
 (use-fixtures :each database-fixture)
 
-(defn- connect [] (d/connect "datomic:mem:test"))
-
 (deftest subject-test
   (let [conn (connect)]
-    (load-base-schema conn)
-    (d/transact conn [[:add-subject "id-142055"]])
+    @(d/transact conn [[:add-subject "id-142055"]])
     (testing "is found"
       (is (:db/id (subject (d/db conn) "id-142055"))))
     (testing "is not found"
@@ -25,7 +26,6 @@
 
 (deftest item-group-test
   (let [conn (connect)]
-    (load-base-schema conn)
     @(d/transact conn [[:add-form "f-184846"]])
     @(d/transact conn [[:add-item-group "ig-185204" "f-184846"]])
     (testing "is found"
@@ -35,7 +35,6 @@
 
 (deftest item-test
   (let [conn (connect)]
-    (load-base-schema conn)
     @(d/transact conn [[:add-form "f-184846"]])
     @(d/transact conn [[:add-item-group "ig-185204" "f-184846"]])
     @(d/transact conn [[:add-item "i-185700" "ig-185204"
@@ -47,7 +46,6 @@
 
 (deftest code-list-item-test
   (let [conn (connect)]
-    (load-base-schema conn)
     @(d/transact conn [[:add-form "f-184846"]])
     @(d/transact conn [[:add-item-group "ig-185204" "f-184846"]])
     @(d/transact conn [[:add-item "i-185700" "ig-185204"
@@ -63,7 +61,6 @@
 
 (deftest all-studies-test
   (let [conn (connect)]
-    (load-base-schema conn)
     (testing "with zero studies"
       (is (= #{} (->> (all-studies (d/db conn))
                       (r/map :study/id)
