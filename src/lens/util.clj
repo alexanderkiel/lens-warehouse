@@ -122,21 +122,6 @@
      (println (pr-str (merge {:type :timer :duration (duration start#)} ~m)))
      ret#))
 
-(defn- assoc-db-id [m]
-  (assoc m :db/id (d/tempid :db.part/db)))
-
-(defn make-attr
-  "Assocs :db/id and :db.install/_attribute to the attr map."
-  [attr]
-  (-> (assoc-db-id attr)
-      (assoc :db.install/_attribute :db.part/db)))
-
-(defn make-part
-  "Assocs :db/id and :db.install/_partition to the part map."
-  [part]
-  (-> (assoc-db-id part)
-      (assoc :db.install/_partition :db.part/db)))
-
 (defn paginate
   "Returns a reducible collection of all items belonging to one page.
 

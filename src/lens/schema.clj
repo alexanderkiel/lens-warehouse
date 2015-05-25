@@ -7,13 +7,54 @@
   (:use plumbing.core)
   (:require [slingshot.slingshot :refer [try+ throw+]]
             [clojure.tools.logging :refer [debug]]
-            [datomic.api :as d]
-            [lens.util :as util]))
+            [datomic.api :as d]))
+
+(defmacro func [name doc params code]
+  `{:db/ident ~name
+    :db/doc ~doc
+    :db/fn (d/function '{:lang "clojure" :params ~params :code ~code})})
+
+(def subject
+  {:partitions
+   [{:db/ident :part/subject}]
+
+   :attributes
+   [{:db/ident :subject/id
+     :db/valueType :db.type/string
+     :db/unique :db.unique/identity
+     :db/cardinality :db.cardinality/one
+     :db/doc "The identifier of a subject."}
+
+    {:db/ident :subject/birth-date
+     :db/valueType :db.type/instant
+     :db/cardinality :db.cardinality/one
+     :db/doc (str "The date of birth of a subject. One should use the 15th of "
+                  "a month if there are any privacy regulations in place.")}
+
+    {:db/ident :subject/sex
+     :db/valueType :db.type/ref
+     :db/cardinality :db.cardinality/one
+     :db/doc "The sex of a subject."}]
+
+   :functions
+   [(func :add-subject
+      "Adds a subject."
+      [_ id]
+      [{:db/id (d/tempid :part/subject)
+        :subject/id id}])
+    (func :retract-subject
+      "Retracts a subject including all its visits."
+      [db id]
+      (if-let [subject (d/entity db [:subject/id id])]
+        (->> (:visit/_subject subject)
+             (map #(vector :db.fn/retractEntity (:db/id %)))
+             (cons [:db.fn/retractEntity (:db/id subject)]))
+        (throw (ex-info (str "Unknown subject: " id)
+                        {:type :unknown-subject :id id}))))]})
 
 (def base-schema
   {:partitions
-   [{:db/ident :part/subject}
-    {:db/ident :part/meta-data}
+   [{:db/ident :part/meta-data}
     {:db/ident :part/visit}
     {:db/ident :part/data-point}]
 
@@ -29,25 +70,6 @@
      :db/fulltext true
      :db/cardinality :db.cardinality/one
      :db/doc "The human-readable description of some entity."}
-
-    ;; Subject
-
-    {:db/ident :subject/id
-     :db/valueType :db.type/string
-     :db/unique :db.unique/identity
-     :db/cardinality :db.cardinality/one
-     :db/doc "The identifier of a subject."}
-
-    {:db/ident :subject/birth-date
-     :db/valueType :db.type/instant
-     :db/cardinality :db.cardinality/one
-     :db/doc (str "The date of birth of a subject. One should use the 15th of "
-                  "a month if there are any privacy regulations in place.")}
-
-    {:db/ident :subject/sex
-     :db/valueType :db.type/ref
-     :db/cardinality :db.cardinality/one
-     :db/doc "The sex of a subject."}
 
     ;; Study
 
@@ -263,28 +285,6 @@ Which is one of :code-list-item/long-code or :code-list-item/string-code."}
 
    :functions
    [{:db/id (d/tempid :db.part/user)
-     :db/ident :add-subject
-     :db/fn
-     (d/function
-       '{:lang "clojure"
-         :params [_ id]
-         :code [{:db/id (d/tempid :part/subject)
-                 :subject/id id}]})}
-    {:db/id (d/tempid :db.part/user)
-     :db/ident :retract-subject
-     :db/doc "Retracts a subject including all its visits."
-     :db/fn
-     (d/function
-       '{:lang "clojure"
-         :params [db id]
-         :code
-         (if-let [subject (d/entity db [:subject/id id])]
-           (->> (:visit/_subject subject)
-                (map #(vector :db.fn/retractEntity (:db/id %)))
-                (cons [:db.fn/retractEntity (:db/id subject)]))
-           (throw (ex-info (str "Unknown subject: " id)
-                           {:type :unknown-subject :id id})))})}
-    {:db/id (d/tempid :db.part/user)
      :db/ident :add-study
      :db/fn
      (d/function
@@ -389,9 +389,37 @@ Which is one of :code-list-item/long-code or :code-list-item/string-code."}
           [:add-to-visit-stat item-group-ref visit-ref]
           [:add-to-visit-stat item-ref visit-ref]]})}]})
 
+(defn- assoc-tempid [m partition]
+  (assoc m :db/id (d/tempid partition)))
+
+(defn make-part
+  "Assocs :db/id and :db.install/_partition to the part map."
+  [part]
+  (-> (assoc-tempid part :db.part/db)
+      (assoc :db.install/_partition :db.part/db)))
+
+(defn make-attr
+  "Assocs :db/id and :db.install/_attribute to the attr map."
+  [attr]
+  (-> (assoc-tempid attr :db.part/db)
+      (assoc :db.install/_attribute :db.part/db)))
+
+(defn make-enum
+  "Assocs :db/id to the enum map."
+  [enum]
+  (assoc-tempid {:db/ident enum} :db.part/user))
+
+(defn make-func
+  "Assocs :db/id to the func map."
+  [func]
+  (assoc-tempid func :db.part/user))
+
 (defn prepare-schema [schema]
-  (-> (mapv util/make-part (:partitions schema))
-      (into (mapv util/make-attr (:attributes schema)))
+  (-> (mapv make-part (concat (:partitions subject)
+                              (:partitions schema)))
+      (into (mapv make-attr (concat (:attributes subject)
+                                    (:attributes schema))))
+      (into (mapv make-func (:functions subject)))
       (into (:functions schema))))
 
 (defn load-base-schema
