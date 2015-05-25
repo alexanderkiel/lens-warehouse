@@ -1,11 +1,12 @@
-__This software is ALPHA, lacks documentation and has to be deployed in conjunction with other Lens modules.__
+__Please start at the [Top-Level Lens Repo][6].__
 
 # Lens Warehouse Service
 
 [![Build Status](https://travis-ci.org/alexanderkiel/lens-warehouse.svg?branch=master)](https://travis-ci.org/alexanderkiel/lens-warehouse)
 
-The data warehouse component of the Lens system which is one of several backend
-services.
+The data warehouse service of the Lens system which is one of several backend
+services. The data warehouse service holds the medical study data which can be
+queried.
 
 ## Usage with Leiningen
 
@@ -67,8 +68,9 @@ Copyright © 2015 Alexander Kiel
 
 Distributed under the Eclipse Public License, the same as Clojure.
 
-[1]: https://github.com/ddollar/foreman
-[2]: https://www.jetbrains.com/idea/
-[3]: https://cursiveclojure.com
-[4]: https://cursiveclojure.com/userguide/support.html
-[5]: https://github.com/cursiveclojure/cursive/issues/896
+[1]: <https://github.com/ddollar/foreman>
+[2]: <https://www.jetbrains.com/idea/>
+[3]: <https://cursiveclojure.com>
+[4]: <https://cursiveclojure.com/userguide/support.html>
+[5]: <https://github.com/cursiveclojure/cursive/issues/896>
+[6]: <https://github.com/alexanderkiel/lens>
