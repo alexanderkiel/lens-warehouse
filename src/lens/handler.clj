@@ -177,7 +177,7 @@
        :type :subject
        :links
        {:up {:href (path-for :service-document-handler)}
-        :self {:href (path-for :subject-handler :id (:subject/id subject))}}})
+        :self {:href (path-for :get-subject-handler :id (:subject/id subject))}}})
 
     :handle-not-found
     (error-body path-for "Subject not found.")))
