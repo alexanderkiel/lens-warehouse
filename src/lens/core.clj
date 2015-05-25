@@ -35,13 +35,13 @@
     :validate [#(.startsWith % "datomic")
                "Database URI has to start with datomic."]]
    ["-c" "--context-path PATH"
-    "An optional context path under which the workbook service runs"
+    "An optional context path under which the warehouse service runs"
     :default "/"
     :parse-fn parse-path]
    ["-h" "--help" "Show this help"]])
 
 (defn usage [options-summary]
-  (->> ["Usage: lens-workbook [options]"
+  (->> ["Usage: lens-warehouse [options]"
         ""
         "Options:"
         options-summary
