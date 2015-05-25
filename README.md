@@ -45,10 +45,34 @@ warehouse container linking them all together:
 After starting all containers, a `curl http://localhost:8080` should show the
 service document of Lens Warehouse. 
 
-## Develop
+## Development
 
-Running a REPL will load the user namespace. Use `(startup)` to start the server
-and `(reset)` to reload after code changes.
+First you need a running Datomic database. The easiest way to bring one up is
+the following:
+
+    docker run -d --name datomic -p 4334-4336:4334-4336 akiel/datomic-free
+
+after that, create an `.env` file in the project root with the following
+content:
+
+    DB_URI=datomic:free://localhost:4334/lens-warehouse
+
+now you can start a REPL with `lein repl`. After it is up, go into the user
+namespace which is located in under `dev`. There is a comment block
+"Init Development". Just invoke the functions:
+
+    (startup)
+    (create-database)
+    (load-base-schema)
+
+one after each other. You should be able to see the Warehouse service running
+at port 8080. If you like to specify a different port, you can do it in the
+`.env` file.
+
+If you have already a database, a `(startup)` will be sufficient. If you make
+changes, a `(reset)` will reload the code. In order to get rid of the database,
+simply delete the Datomic container with `docker rm -f datomic` and start it
+again.
 
 If you use [Intellij IDEA][2] with [Cursive][3], you can add a Datomic stub JAR
 to your project dependencies as described [here][4]. The stub will provide

@@ -1,16 +1,9 @@
 (ns user
   (:use plumbing.core)
   (:use criterium.core)
-  (:require [clojure.java.io :as io]
-            [clojure.string :as str]
-            [clojure.set :as set]
-            [clojure.pprint :refer [pprint pp]]
+  (:require [clojure.pprint :refer [pprint pp]]
             [clojure.repl :refer :all]
-            [clojure.test :as test]
             [clojure.tools.namespace.repl :refer [refresh]]
-            [clojure.core.reducers :as r]
-            [clojure.core.cache :as cache]
-            [clojure.core.async :as async :refer [chan go go-loop <! <!! >! alts! close!]]
             [lens.schema :as schema]
             [lens.api :as api]
             [datomic.api :as d]
@@ -36,37 +29,29 @@
   (stop)
   (refresh :after 'user/startup))
 
-(comment
-  (startup)
-  (reset))
-
 (defn create-database []
   (d/create-database (:db-uri system)))
-
-(defn delete-database []
-  (d/delete-database (:db-uri system)))
 
 (defn connect []
   (d/connect (:db-uri system)))
 
-(defn study-event-col? [col]
-  (and (= "Prolog" (:group-name col))
-       (#{"gruppe" "grp"} (some-> (:alias col) (str/lower-case)))))
+(defn load-base-schema []
+  (schema/load-base-schema (connect)))
 
-(defn count-datoms [db]
-  (->> (d/datoms db :eavt)
-       (r/map (constantly 1))
-       (reduce +)))
-
-(comment
-  (time (count-datoms db)))
-
+;; Init Development
 (comment
   (startup)
+  (create-database)
+  (load-base-schema)
+  )
+
+;; Reset after making changes
+(comment
   (reset)
+  )
+
+;; Connection and Database in the REPL
+(comment
   (def conn (connect))
   (def db (d/db conn))
-  (create-database)
-  (delete-database)
-  (schema/load-base-schema conn)
   )
