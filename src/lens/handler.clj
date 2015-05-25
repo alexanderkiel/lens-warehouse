@@ -9,8 +9,8 @@
             [lens.reducers :as lr]
             [clojure.string :as str]
             [lens.util :as util]
-            [clj-time.coerce :as c]
             [clj-time.core :as t]
+            [clj-time.coerce :as tc]
             [clojure.edn :as edn]
             [datomic.api :as d])
   (:import [java.net URLEncoder]
@@ -787,9 +787,9 @@
 (defn age-at-visit [visit]
   (when-let [birth-date (-> visit :visit/subject :subject/birth-date)]
     (when-let [edat (:visit/edat visit)]
-      (if (t/after? (c/from-date edat) (c/from-date birth-date))
-        (t/in-years (t/interval (c/from-date birth-date) (c/from-date edat)))
-        (- (t/in-years (t/interval (c/from-date edat) (c/from-date birth-date))))))))
+      (if (t/after? (tc/from-date edat) (tc/from-date birth-date))
+        (t/in-years (t/interval (tc/from-date birth-date) (tc/from-date edat)))
+        (- (t/in-years (t/interval (tc/from-date edat) (tc/from-date birth-date))))))))
 
 (defn sex [visit]
   (some-> visit :visit/subject :subject/sex name keyword))

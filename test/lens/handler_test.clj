@@ -2,11 +2,11 @@
   (:require [clojure.test :refer :all]
             [lens.handler :refer :all]
             [clj-time.core :as t]
-            [clj-time.coerce :as c]))
+            [clj-time.coerce :as tc]))
 
 (defn- visit [birth-date edat]
-  {:visit/subject {:subject/birth-date (c/to-date birth-date)}
-   :visit/edat (c/to-date edat)})
+  {:visit/subject {:subject/birth-date (tc/to-date birth-date)}
+   :visit/edat (tc/to-date edat)})
 
 (deftest age-at-visit-test
   (testing "age of birth date edat is zero"
