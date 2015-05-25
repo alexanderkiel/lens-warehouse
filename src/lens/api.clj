@@ -95,7 +95,29 @@
     (-> (util/update-cache! cli-cache key (code-list-item' db item-eid code))
         (cache/lookup key))))
 
-;; ---- Retractors ------------------------------------------------------------
+;; ---- Subject ---------------------------------------------------------------
+
+(defn- create [conn partition fn]
+  (let [tid (d/tempid partition)
+        tx-result @(d/transact conn (fn tid))
+        db (:db-after tx-result)]
+    (d/entity db (d/resolve-tempid db (:tempids tx-result) tid))))
+
+(defn create-subject
+  "Creates the subject with the id and more.
+
+  More can be a map of :subject/sex and :subject/birth-date were :subject/sex
+  should be one of :subject.sex/male or :subject.sex/female and
+  :subject/birth-date should be a date.
+
+  Returns the created subject or false if there is already one with the id."
+  [conn id & [more]]
+  (try
+    (create conn :part/subject (fn [tid] [[:subject.fn/create tid id more]]))
+    (catch Exception e
+      (if (= :subject-exists-already (util/error-type e))
+        false
+        (throw e)))))
 
 (defn retract-subject
   "Retracts the subject with the id.
@@ -105,7 +127,7 @@
   [conn id]
   {:pre [conn (string? id)]}
   (try
-    @(d/transact-async conn [[:retract-subject id]])
+    @(d/transact-async conn [[:subject.fn/retract id]])
     true
     (catch Exception e
       (if (= :unknown-subject (util/error-type e))

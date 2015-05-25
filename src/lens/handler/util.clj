@@ -1,14 +1,22 @@
 (ns lens.handler.util
   (:use plumbing.core)
-  (:require [liberator.representation :refer [as-response]]))
+  (:require [liberator.representation :refer [Representation as-response]]))
 
 (defn error-body [path-for msg]
   {:links {:up {:href (path-for :service-document-handler)}}
    :error msg})
 
-(defn error [path-for status msg]
+(defn ring-error [path-for status msg]
   {:status status
    :body (error-body path-for msg)})
+
+(defrecord StatusResponse [status response]
+  Representation
+  (as-response [_ context]
+    (assoc (as-response response context) :status status)))
+
+(defn error [path-for status msg]
+  (->StatusResponse status (error-body path-for msg)))
 
 (defn handle-cache-control [resp opts]
   (if-let [cache-control (:cache-control opts)]

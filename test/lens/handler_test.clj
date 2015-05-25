@@ -5,7 +5,10 @@
             [clj-time.coerce :as tc]
             [datomic.api :as d]
             [lens.schema :refer [load-base-schema]]
-            [clojure.edn :as edn]))
+            [clojure.edn :as edn]
+            [lens.api :as api]))
+
+(defn- path-for [handler & args] {:handler handler :args args})
 
 (defn- connect [] (d/connect "datomic:mem:test"))
 
@@ -20,9 +23,8 @@
 
 (deftest get-subject-handler-test
   (testing "Body contains self link"
-    @(d/transact (connect) [[:add-subject "id-181341"]])
-    (let [path-for (fn [handler & args] {:handler handler :args args})
-          req {:request-method :get
+    (api/create-subject (connect) "id-181341")
+    (let [req {:request-method :get
                :headers {"accept" "application/edn"}
                :params {:id "id-181341"}
                :db (d/db (connect))}
@@ -31,6 +33,59 @@
       (let [self-link (:self (:links (edn/read-string (:body resp))))]
         (is (= :get-subject-handler (:handler (:href self-link))))
         (is (= [:id "id-181341"] (:args (:href self-link))))))))
+
+(deftest create-subject-handler-test
+  (testing "Create without id fails"
+    (let [req {:request-method :post
+               :params {}
+               :conn (connect)}]
+      (is (= 422 (:status ((create-subject-handler nil) req))))))
+  (testing "Create with invalid sex fails"
+    (let [req {:request-method :post
+               :params {:id "id-172029"
+                        :sex "foo"}
+               :conn (connect)}]
+      (is (= 422 (:status ((create-subject-handler nil) req))))))
+  (testing "Create with invalid birth-date fails"
+    (let [req {:request-method :post
+               :params {:id "id-172029"
+                        :birth-date "foo"}
+               :conn (connect)}]
+      (is (= 422 (:status ((create-subject-handler nil) req))))))
+  (testing "Create with id only"
+    (let [path-for (fn [_ _ id] id)
+          req {:request-method :post
+               :params {:id "id-165339"}
+               :conn (connect)}
+          resp ((create-subject-handler path-for) req)]
+      (is (= 201 (:status resp)))
+      (is (= "id-165339" (get-in resp [:headers "Location"])))
+      (is (nil? (:body resp)))))
+  (testing "Create with sex"
+    (let [req {:request-method :post
+               :params {:id "id-171917"
+                        :sex "male"}
+               :conn (connect)}
+          resp ((create-subject-handler path-for) req)]
+      (is (= 201 (:status resp)))
+      (is (= :subject.sex/male
+             (:subject/sex (api/subject (d/db (connect)) "id-171917"))))))
+  (testing "Create with birth-date"
+    (let [req {:request-method :post
+               :params {:id "id-173133"
+                        :birth-date "2015-05-25"}
+               :conn (connect)}
+          resp ((create-subject-handler path-for) req)]
+      (is (= 201 (:status resp)))
+      (is (= (tc/to-date (t/date-time 2015 5 25))
+             (:subject/birth-date (api/subject (d/db (connect)) "id-173133"))))))
+  (testing "Create with existing id fails"
+    (api/create-subject (connect) "id-182721")
+    (let [req {:request-method :post
+               :params {:id "id-182721"}
+               :conn (connect)}
+          resp ((create-subject-handler path-for) req)]
+      (is (= 409 (:status resp))))))
 
 (defn- visit [birth-date edat]
   {:visit/subject {:subject/birth-date (tc/to-date birth-date)}

@@ -11,6 +11,7 @@
             [lens.util :as util]
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
+            [clj-time.format :as tf]
             [clojure.edn :as edn]
             [datomic.api :as d])
   (:import [java.net URLEncoder]
@@ -66,7 +67,8 @@
                 (path-for :find-form-handler)
                 (path-for :find-item-group-handler)
                 (path-for :find-item-handler)
-                (path-for :most-recent-snapshot-handler))))
+                (path-for :most-recent-snapshot-handler)
+                (path-for :create-subject-handler))))
 
     :handle-ok
     {:name "Lens Warehouse"
@@ -95,7 +97,19 @@
        :method "GET"
        :params
        {:id
-        {:type :string}}}}}))
+        {:type :string}}}
+      :lens/create-subject
+      {:action (path-for :create-subject-handler)
+       :method "POST"
+       :params
+       {:id
+        {:type :string}
+        :sex
+        {:type :string
+         :description "One of male or female."}
+        :birth-date
+        {:type :string
+         :description "Date formatted like 2015-05-25."}}}}}))
 
 ;; ---- Study Events ----------------------------------------------------------
 
@@ -182,11 +196,45 @@
     :handle-not-found
     (error-body path-for "Subject not found.")))
 
+(defn create-subject-handler [path-for]
+  (resource
+    (resource-defaults)
+
+    :allowed-methods [:post]
+
+    :processable?
+    (fnk [[:request params]]
+      (and (:id params)
+           (or (nil? (:sex params))
+               (#{"male" "female"} (:sex params)))
+           (or (nil? (:birth-date params))
+               (re-matches #"\d{4}-\d{2}(-\d{2})?" (:birth-date params)))))
+
+    :post!
+    (fnk [conn [:request params]]
+      (let [sex (some->> (:sex params) (keyword "subject.sex"))
+            birth-date (some->> (:birth-date params)
+                                (tf/parse (tf/formatters :date))
+                                (tc/to-date))
+            opts (assoc-when {} :subject/sex sex :subject/birth-date birth-date)]
+        (if-let [subject (api/create-subject conn (:id params) opts)]
+          {:subject subject}
+          (throw (ex-info "" {:type ::conflict})))))
+
+    :location
+    (fnk [subject] (path-for :get-subject-handler :id (:subject/id subject)))
+
+    :handle-exception
+    (fnk [exception]
+      (if (= ::conflict (util/error-type exception))
+        (error path-for 409 "Subject exists already.")
+        (throw exception)))))
+
 (defn delete-subject-handler [path-for]
   (fnk [conn [:params id]]
     (if (api/retract-subject conn id)
       {:status 204}
-      (error path-for 404 "Subject not found."))))
+      (ring-error path-for 404 "Subject not found."))))
 
 ;; ---- Forms -----------------------------------------------------------------
 
@@ -853,6 +901,7 @@
    :all-study-events-handler (all-study-events-handler path-for)
    :study-event-handler (study-event-handler path-for)
    :get-subject-handler (get-subject-handler path-for)
+   :create-subject-handler (create-subject-handler path-for)
    :delete-subject-handler (delete-subject-handler path-for)
    :all-forms-handler (all-forms-handler path-for)
    :find-form-handler (find-form-handler path-for)

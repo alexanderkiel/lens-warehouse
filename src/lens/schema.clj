@@ -41,12 +41,17 @@
     :subject.sex/female]
 
    :functions
-   [(func :add-subject
-      "Adds a subject."
-      [_ id]
-      [{:db/id (d/tempid :part/subject)
-        :subject/id id}])
-    (func :retract-subject
+   [(func :subject.fn/create
+      "Creates a subject."
+      [db tid id more]
+      (if-not (d/entity db [:subject/id id])
+        [(merge
+           {:db/id tid
+            :subject/id id}
+           more)]
+        (throw (ex-info (str "Subject exists already: " id)
+                        {:type :subject-exists-already :id id}))))
+    (func :subject.fn/retract
       "Retracts a subject including all its visits."
       [db id]
       (if-let [subject (d/entity db [:subject/id id])]

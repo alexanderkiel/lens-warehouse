@@ -6,8 +6,10 @@
     "/study-events"
     {"" :all-study-events-handler
      ["/" :id] :study-event-handler}
-    ["/subjects/" :id] {:get :get-subject-handler
-                        :delete :delete-subject-handler}
+    "/subjects"
+    {"" :create-subject-handler
+     ["/" :id] {:get :get-subject-handler
+                :delete :delete-subject-handler}}
     "/forms"
     {"" :all-forms-handler
      ["/" :id] :form-handler

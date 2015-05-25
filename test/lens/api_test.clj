@@ -3,7 +3,11 @@
             [lens.api :refer :all]
             [lens.schema :refer [load-base-schema]]
             [datomic.api :as d]
-            [clojure.core.reducers :as r]))
+            [clojure.core.reducers :as r]
+            [clj-time.core :as t]
+            [clj-time.coerce :as tc]))
+
+(def date (tc/to-date (t/date-time 2015)))
 
 (defn- connect [] (d/connect "datomic:mem:test"))
 
@@ -20,18 +24,32 @@
 
 (deftest subject-test
   (let [conn (connect)]
-    @(d/transact conn [[:add-subject "id-142055"]])
+    (create-subject conn "id-142055")
     (testing "is found"
       (is (:db/id (subject (d/db conn) "id-142055"))))
     (testing "is not found"
       (is (nil? (subject (d/db conn) "other-id-142447"))))))
 
+(deftest create-subject-test
+  (let [conn (connect)]
+    (testing "create with id only"
+      (is (= "id-142850" (:subject/id (create-subject conn "id-142850")))))
+    (testing "create with id and sex"
+      (is (create-subject conn "id-145037" {:subject/sex :subject.sex/male}))
+      (is (= :subject.sex/male (:subject/sex (subject (d/db conn) "id-145037")))))
+    (testing "create with id and birth-date"
+      (is (create-subject conn "id-162309" {:subject/birth-date date}))
+      (is (= date (:subject/birth-date (subject (d/db conn) "id-162309")))))
+    (testing "create with existing id fails"
+      (create-subject conn "id-143440")
+      (is (false? (create-subject conn "id-143440"))))))
+
 (deftest retract-subject-test
   (let [conn (connect)]
-    @(d/transact conn [[:add-subject "id-142055"]])
+    (create-subject conn "id-170655")
     (testing "is retracted"
-      (is (retract-subject conn "id-142055"))
-      (is (nil? (subject (d/db conn) "id-142055"))))
+      (is (retract-subject conn "id-170655"))
+      (is (nil? (subject (d/db conn) "id-170655"))))
     (testing "is not found"
       (is (false? (retract-subject conn "other-id-142447"))))))
 
