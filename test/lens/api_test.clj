@@ -5,7 +5,8 @@
             [datomic.api :as d]
             [clojure.core.reducers :as r]
             [clj-time.core :as t]
-            [clj-time.coerce :as tc]))
+            [clj-time.coerce :as tc]
+            [lens.api :as api]))
 
 (def date (tc/to-date (t/date-time 2015)))
 
@@ -120,12 +121,12 @@
                       (r/map :study/id)
                       (into #{})))))
     (testing "with one study"
-      @(d/transact conn [[:study.fn/create (d/tempid :part/meta-data) "id-144922" {}]])
+      (api/create-study conn "id-144922" "name-225358")
       (is (= #{"id-144922"} (->> (all-studies (d/db conn))
                                  (r/map :study/id)
                                  (into #{})))))
     (testing "with two studies"
-      @(d/transact conn [[:study.fn/create (d/tempid :part/meta-data) "id-150211" {}]])
+      (api/create-study conn "id-150211" "name-225425")
       (is (= #{"id-144922"
                "id-150211"} (->> (all-studies (d/db conn))
                                  (r/map :study/id)
