@@ -16,6 +16,8 @@
 
 (use-fixtures :each database-fixture)
 
+;; ---- Subject ---------------------------------------------------------------
+
 (deftest subject-test
   (let [conn (connect)]
     @(d/transact conn [[:add-subject "id-142055"]])
@@ -23,6 +25,17 @@
       (is (:db/id (subject (d/db conn) "id-142055"))))
     (testing "is not found"
       (is (nil? (subject (d/db conn) "other-id-142447"))))))
+
+(deftest retract-subject-test
+  (let [conn (connect)]
+    @(d/transact conn [[:add-subject "id-142055"]])
+    (testing "is retracted"
+      (is (retract-subject conn "id-142055"))
+      (is (nil? (subject (d/db conn) "id-142055"))))
+    (testing "is not found"
+      (is (false? (retract-subject conn "other-id-142447"))))))
+
+;; ---- Item Group ------------------------------------------------------------
 
 (deftest item-group-test
   (let [conn (connect)]
