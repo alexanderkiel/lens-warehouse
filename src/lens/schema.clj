@@ -36,6 +36,10 @@
      :db/cardinality :db.cardinality/one
      :db/doc "The sex of a subject."}]
 
+   :enums
+   [:subject.sex/male
+    :subject.sex/female]
+
    :functions
    [(func :add-subject
       "Adds a subject."
@@ -405,7 +409,7 @@ Which is one of :code-list-item/long-code or :code-list-item/string-code."}
       (assoc :db.install/_attribute :db.part/db)))
 
 (defn make-enum
-  "Assocs :db/id to the enum map."
+  "Assocs :db/id to the enum."
   [enum]
   (assoc-tempid {:db/ident enum} :db.part/user))
 
@@ -417,9 +421,10 @@ Which is one of :code-list-item/long-code or :code-list-item/string-code."}
 (defn prepare-schema [schema]
   (-> (mapv make-part (concat (:partitions subject)
                               (:partitions schema)))
-      (into (mapv make-attr (concat (:attributes subject)
+      (into (map make-attr (concat (:attributes subject)
                                     (:attributes schema))))
-      (into (mapv make-func (:functions subject)))
+      (into (map make-enum (:enums subject)))
+      (into (map make-func (:functions subject)))
       (into (:functions schema))))
 
 (defn load-base-schema
