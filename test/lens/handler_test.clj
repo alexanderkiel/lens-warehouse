@@ -87,6 +87,57 @@
           resp ((create-subject-handler path-for) req)]
       (is (= 409 (:status resp))))))
 
+(deftest get-study-handler-test
+  (testing "Body contains self link"
+    (api/create-study (connect) "id-224127" "name-224123")
+    (let [req {:request-method :get
+               :headers {"accept" "application/edn"}
+               :params {:id "id-224127"}
+               :db (d/db (connect))}
+          resp ((get-study-handler path-for) req)]
+      (is (= 200 (:status resp)))
+      (let [self-link (:self (:links (edn/read-string (:body resp))))]
+        (is (= :get-study-handler (:handler (:href self-link))))
+        (is (= [:id "id-224127"] (:args (:href self-link))))))))
+
+(deftest create-study-handler-test
+  (testing "Create without id and name fails"
+    (let [req {:request-method :post
+               :params {}
+               :conn (connect)}]
+      (is (= 422 (:status ((create-study-handler nil) req))))))
+  (testing "Create without name fails"
+    (let [req {:request-method :post
+               :params {:id "id-224305"}
+               :conn (connect)}]
+      (is (= 422 (:status ((create-study-handler nil) req))))))
+  (testing "Create with id and name only"
+    (let [path-for (fn [_ _ id] id)
+          req {:request-method :post
+               :params {:id "id-224211" :name "name-224240"}
+               :conn (connect)}
+          resp ((create-study-handler path-for) req)]
+      (is (= 201 (:status resp)))
+      (is (= "id-224211" (get-in resp [:headers "Location"])))
+      (is (nil? (:body resp)))))
+  (testing "Create with description"
+    (let [req {:request-method :post
+               :params {:id "id-224401"
+                        :name "name-224330"
+                        :description "description-224339"}
+               :conn (connect)}
+          resp ((create-study-handler path-for) req)]
+      (is (= 201 (:status resp)))
+      (is (= "description-224339"
+             (:description (api/study (d/db (connect)) "id-224401"))))))
+  (testing "Create with existing id fails"
+    (api/create-study (connect) "id-224419" "name-224431")
+    (let [req {:request-method :post
+               :params {:id "id-224419" :name "name-224439"}
+               :conn (connect)}
+          resp ((create-study-handler path-for) req)]
+      (is (= 409 (:status resp))))))
+
 (defn- visit [birth-date edat]
   {:visit/subject {:subject/birth-date (tc/to-date birth-date)}
    :visit/edat (tc/to-date edat)})

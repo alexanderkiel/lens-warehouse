@@ -134,6 +134,23 @@
         false
         (throw e)))))
 
+;; ---- Study -----------------------------------------------------------------
+
+(defn create-study
+  "Creates the study with the id, name and more.
+
+  More can be a map of :description were :description should be a string.
+
+  Returns the created study or false if there is already one with the id."
+  [conn id name & [more]]
+  (try
+    (create conn :part/meta-data (fn [tid] [[:study.fn/create tid id name
+                                             more]]))
+    (catch Exception e
+      (if (= :study-exists-already (util/error-type e))
+        false
+        (throw e)))))
+
 ;; ---- Lists -----------------------------------------------------------------
 
 (defn- list-all [q db & inputs]

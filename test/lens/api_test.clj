@@ -53,6 +53,29 @@
     (testing "is not found"
       (is (false? (retract-subject conn "other-id-142447"))))))
 
+;; ---- Study -----------------------------------------------------------------
+
+(deftest study-test
+  (let [conn (connect)]
+    (create-study conn "id-221714" "name-222216")
+    (testing "is found"
+      (is (:db/id (study (d/db conn) "id-221714"))))
+    (testing "is not found"
+      (is (nil? (study (d/db conn) "other-id-221735"))))))
+
+(deftest create-study-test
+  (let [conn (connect)]
+    (testing "create with id and name only"
+      (is (= "id-221752" (:study/id (create-study conn "id-221752"
+                                                  "name-222227")))))
+    (testing "create with id, name and description"
+      (is (= "desc-222413" (-> (create-study conn "id-222745" "name-222227"
+                                             {:description "desc-222413"})
+                               (:description)))))
+    (testing "create with existing id fails"
+      (create-study conn "id-221808" "name-222238")
+      (is (false? (create-study conn "id-221808" "name-222247"))))))
+
 ;; ---- Item Group ------------------------------------------------------------
 
 (deftest item-group-test
@@ -97,12 +120,12 @@
                       (r/map :study/id)
                       (into #{})))))
     (testing "with one study"
-      (d/transact conn [[:add-study "id-144922"]])
+      @(d/transact conn [[:study.fn/create (d/tempid :part/meta-data) "id-144922" {}]])
       (is (= #{"id-144922"} (->> (all-studies (d/db conn))
                                  (r/map :study/id)
                                  (into #{})))))
     (testing "with two studies"
-      (d/transact conn [[:add-study "id-150211"]])
+      @(d/transact conn [[:study.fn/create (d/tempid :part/meta-data) "id-150211" {}]])
       (is (= #{"id-144922"
                "id-150211"} (->> (all-studies (d/db conn))
                                  (r/map :study/id)

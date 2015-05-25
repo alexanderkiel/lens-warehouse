@@ -61,6 +61,27 @@
         (throw (ex-info (str "Unknown subject: " id)
                         {:type :unknown-subject :id id}))))]})
 
+(def study
+  {:attributes
+   [{:db/ident :study/id
+     :db/valueType :db.type/string
+     :db/unique :db.unique/identity
+     :db/cardinality :db.cardinality/one
+     :db/doc "The id of a study."}]
+   
+   :functions
+   [(func :study.fn/create
+      "Creates a study."
+      [db tid id name more]
+      (if-not (d/entity db [:study/id id])
+        [(merge
+           {:db/id tid
+            :study/id id
+            :name name}
+           more)]
+        (throw (ex-info (str "Study exists already: " id)
+                        {:type :study-exists-already :id id}))))]})
+
 (def base-schema
   {:partitions
    [{:db/ident :part/meta-data}
@@ -79,14 +100,6 @@
      :db/fulltext true
      :db/cardinality :db.cardinality/one
      :db/doc "The human-readable description of some entity."}
-
-    ;; Study
-
-    {:db/ident :study/id
-     :db/valueType :db.type/string
-     :db/unique :db.unique/identity
-     :db/cardinality :db.cardinality/one
-     :db/doc "The id of a study."}
 
     ;; Study-Event
 
@@ -294,14 +307,6 @@ Which is one of :code-list-item/long-code or :code-list-item/string-code."}
 
    :functions
    [{:db/id (d/tempid :db.part/user)
-     :db/ident :add-study
-     :db/fn
-     (d/function
-       '{:lang "clojure"
-         :params [_ id]
-         :code [{:db/id (d/tempid :part/meta-data)
-                 :study/id id}]})}
-    {:db/id (d/tempid :db.part/user)
      :db/ident :add-study-event
      :db/fn
      (d/function
@@ -427,9 +432,11 @@ Which is one of :code-list-item/long-code or :code-list-item/string-code."}
   (-> (mapv make-part (concat (:partitions subject)
                               (:partitions schema)))
       (into (map make-attr (concat (:attributes subject)
-                                    (:attributes schema))))
+                                   (:attributes study)
+                                   (:attributes schema))))
       (into (map make-enum (:enums subject)))
-      (into (map make-func (:functions subject)))
+      (into (map make-func (concat (:functions subject)
+                                   (:functions study))))
       (into (:functions schema))))
 
 (defn load-base-schema

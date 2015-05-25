@@ -10,6 +10,9 @@
     {"" :create-subject-handler
      ["/" :id] {:get :get-subject-handler
                 :delete :delete-subject-handler}}
+    "/studies"
+    {"" :create-study-handler
+     ["/" :id] {:get :get-study-handler}}
     "/forms"
     {"" :all-forms-handler
      ["/" :id] :form-handler

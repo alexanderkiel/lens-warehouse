@@ -68,7 +68,8 @@
                 (path-for :find-item-group-handler)
                 (path-for :find-item-handler)
                 (path-for :most-recent-snapshot-handler)
-                (path-for :create-subject-handler))))
+                (path-for :create-subject-handler)
+                (path-for :create-study-handler))))
 
     :handle-ok
     {:name "Lens Warehouse"
@@ -109,7 +110,17 @@
          :description "One of male or female."}
         :birth-date
         {:type :string
-         :description "Date formatted like 2015-05-25."}}}}}))
+         :description "Date formatted like 2015-05-25."}}}
+      :lens/create-study
+      {:action (path-for :create-study-handler)
+       :method "POST"
+       :params
+       {:id
+        {:type :string}
+        :name
+        {:type :string}
+        :description
+        {:type :string}}}}}))
 
 ;; ---- Study Events ----------------------------------------------------------
 
@@ -235,6 +246,56 @@
     (if (api/retract-subject conn id)
       {:status 204}
       (ring-error path-for 404 "Subject not found."))))
+
+;; ---- Study ---------------------------------------------------------------
+
+(defn get-study-handler [path-for]
+  (resource
+    (resource-defaults)
+
+    :exists?
+    (fnk [db [:request [:params id]]]
+      (when-let [study (api/study db id)]
+        {:study study}))
+
+    :handle-ok
+    (fnk [study]
+      (-> {:id (:study/id study)
+           :type :study
+           :name (:name study)
+           :links
+           {:up {:href (path-for :service-document-handler)}
+            :self {:href (path-for :get-study-handler :id (:study/id study))}}}
+          (assoc-when :description (:description study))))
+
+    :handle-not-found
+    (error-body path-for "Study not found.")))
+
+(defn create-study-handler [path-for]
+  (resource
+    (resource-defaults)
+
+    :allowed-methods [:post]
+
+    :processable?
+    (fnk [[:request params]]
+      (and (:id params) (:name params)))
+
+    :post!
+    (fnk [conn [:request params]]
+      (let [opts (select-keys params [:description])]
+        (if-let [study (api/create-study conn (:id params) (:name params) opts)]
+          {:study study}
+          (throw (ex-info "" {:type ::conflict})))))
+
+    :location
+    (fnk [study] (path-for :get-study-handler :id (:study/id study)))
+
+    :handle-exception
+    (fnk [exception]
+      (if (= ::conflict (util/error-type exception))
+        (error path-for 409 "Study exists already.")
+        (throw exception)))))
 
 ;; ---- Forms -----------------------------------------------------------------
 
@@ -903,6 +964,8 @@
    :get-subject-handler (get-subject-handler path-for)
    :create-subject-handler (create-subject-handler path-for)
    :delete-subject-handler (delete-subject-handler path-for)
+   :get-study-handler (get-study-handler path-for)
+   :create-study-handler (create-study-handler path-for)
    :all-forms-handler (all-forms-handler path-for)
    :find-form-handler (find-form-handler path-for)
    :form-handler (form-handler path-for)
