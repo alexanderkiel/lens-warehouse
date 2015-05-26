@@ -98,7 +98,16 @@
       (is (= 200 (:status resp)))
       (let [self-link (:self (:links (edn/read-string (:body resp))))]
         (is (= :get-study-handler (:handler (:href self-link))))
-        (is (= [:id "id-224127"] (:args (:href self-link))))))))
+        (is (= [:id "id-224127"] (:args (:href self-link)))))))
+  (testing "Response contains an ETag"
+    (api/create-study (connect) "id-175847" "name-175850")
+    (let [req {:request-method :get
+               :headers {"accept" "application/edn"}
+               :params {:id "id-175847"}
+               :db (d/db (connect))}
+          resp ((get-study-handler path-for) req)]
+      (is (= "\"7f67d4915049005c2ec5bdc0c0af7c96\""
+             (get-in resp [:headers "ETag"]))))))
 
 (deftest create-study-handler-test
   (testing "Create without id and name fails"

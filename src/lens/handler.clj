@@ -256,6 +256,9 @@
 
 ;; ---- Study ---------------------------------------------------------------
 
+(defn- study-path [path-for study]
+  (path-for :get-study-handler :id (:study/id study)))
+
 (defn get-study-handler [path-for]
   (resource
     (resource-defaults)
@@ -265,6 +268,14 @@
       (when-let [study (api/study db id)]
         {:study study}))
 
+    :etag
+    (fnk [[:representation media-type] study]
+      (md5 (str media-type
+                (path-for :service-document-handler)
+                (study-path path-for study)
+                (:name study)
+                (:description study))))
+
     :handle-ok
     (fnk [study]
       (-> {:id (:study/id study)
@@ -272,7 +283,7 @@
            :name (:name study)
            :links
            {:up {:href (path-for :service-document-handler)}
-            :self {:href (path-for :get-study-handler :id (:study/id study))}}}
+            :self {:href (study-path path-for study)}}}
           (assoc-when :description (:description study))))
 
     :handle-not-found
@@ -296,7 +307,7 @@
           (throw (ex-info "" {:type ::conflict})))))
 
     :location
-    (fnk [study] (path-for :get-study-handler :id (:study/id study)))
+    (fnk [study] (study-path path-for study))
 
     :handle-exception
     (fnk [exception]
