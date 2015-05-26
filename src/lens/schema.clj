@@ -68,7 +68,7 @@
      :db/unique :db.unique/identity
      :db/cardinality :db.cardinality/one
      :db/doc "The id of a study."}]
-   
+
    :functions
    [(func :study.fn/create
       "Creates a study."

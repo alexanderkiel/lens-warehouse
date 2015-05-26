@@ -286,16 +286,16 @@
      (starts-with-ignore-case ?id ?filter)]])
 
 (defn list-matching-forms
- "Returns a seq of forms matching the filter expression sorted by :form/id."
- [db filter]
+  "Returns a seq of forms matching the filter expression sorted by :form/id."
+  [db filter]
   {:pre [(string? filter)]}
   (util/timer
-   {:fn 'list-matching-forms :args {:filter filter}}
-   (when-not (str/blank? filter)
-     (->> (d/q '[:find [?f ...] :in $ % ?filter :where (form-search ?filter ?f)]
-               db matching-rules filter)
-          (map #(d/entity db %))
-          (sort-by :form/id)))))
+    {:fn 'list-matching-forms :args {:filter filter}}
+    (when-not (str/blank? filter)
+      (->> (d/q '[:find [?f ...] :in $ % ?filter :where (form-search ?filter ?f)]
+                db matching-rules filter)
+           (map #(d/entity db %))
+           (sort-by :form/id)))))
 
 (defn list-matching-item-groups
   "Returns a seq of item-groups of a form matching the filter expression sorted
@@ -303,15 +303,15 @@
   [form filter]
   {:pre [(entity? form) (string? filter)]}
   (util/timer
-   {:fn 'list-matching-item-groups :args {:form (:form/id form)
-                                          :filter filter}}
-   (when-not (str/blank? filter)
-     (let [db (d/entity-db form)]
-       (->> (d/q '[:find [?ig ...] :in $ % ?f ?filter
-                   :where (item-group-search ?filter ?f ?ig)]
-                 db matching-rules (:db/id form) filter)
-            (map #(d/entity db %))
-            (sort-by :item-group/rank))))))
+    {:fn 'list-matching-item-groups :args {:form (:form/id form)
+                                           :filter filter}}
+    (when-not (str/blank? filter)
+      (let [db (d/entity-db form)]
+        (->> (d/q '[:find [?ig ...] :in $ % ?f ?filter
+                    :where (item-group-search ?filter ?f ?ig)]
+                  db matching-rules (:db/id form) filter)
+             (map #(d/entity db %))
+             (sort-by :item-group/rank))))))
 
 (defn list-matching-items
   "Returns a seq of items of an item-group matching the filter expression
@@ -319,15 +319,15 @@
   [item-group filter]
   {:pre [(entity? item-group) (string? filter)]}
   (util/timer
-   {:fn 'list-matching-items :args {:item-group (:name item-group)
-                                    :filter filter}}
-   (when-not (str/blank? filter)
-     (let [db (d/entity-db item-group)]
-       (->> (d/q '[:find [?i ...] :in $ % ?ig ?filter
-                   :where (item-search ?filter ?ig ?i)]
-                 db matching-rules (:db/id item-group) filter)
-            (map #(d/entity db %))
-            (sort-by :item/rank))))))
+    {:fn 'list-matching-items :args {:item-group (:name item-group)
+                                     :filter filter}}
+    (when-not (str/blank? filter)
+      (let [db (d/entity-db item-group)]
+        (->> (d/q '[:find [?i ...] :in $ % ?ig ?filter
+                    :where (item-search ?filter ?ig ?i)]
+                  db matching-rules (:db/id item-group) filter)
+             (map #(d/entity db %))
+             (sort-by :item/rank))))))
 
 ;; ---- Subject-Stat ----------------------------------------------------------
 

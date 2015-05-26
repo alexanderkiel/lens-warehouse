@@ -12,27 +12,27 @@
       (clojure.core.protocols/coll-reduce this f1 (f1)))
     (coll-reduce [_ f1 init]
       (let [result (clojure.core.protocols/coll-reduce
-                    coll
-                    (fn [accum v]
-                      (let [r (f v)
-                            vs (:vs accum)]
-                        (cond
-                          (= r (:last accum))
-                          (assoc! accum :vs (conj! vs v))
+                     coll
+                     (fn [accum v]
+                       (let [r (f v)
+                             vs (:vs accum)]
+                         (cond
+                           (= r (:last accum))
+                           (assoc! accum :vs (conj! vs v))
 
-                          (nil? vs)
-                          (-> accum
-                              (assoc! :vs (transient [v]))
-                              (assoc! :last r))
+                           (nil? vs)
+                           (-> accum
+                               (assoc! :vs (transient [v]))
+                               (assoc! :last r))
 
-                          :else
-                          (let [ret (f1 (:ret accum) (persistent! vs))]
-                            (if (reduced? ret)
-                              (reduced {:ret @ret})
-                              (assoc! accum :ret ret
-                                      :vs (transient [v])
-                                      :last r))))))
-                    (transient {:ret init}))]
+                           :else
+                           (let [ret (f1 (:ret accum) (persistent! vs))]
+                             (if (reduced? ret)
+                               (reduced {:ret @ret})
+                               (assoc! accum :ret ret
+                                       :vs (transient [v])
+                                       :last r))))))
+                     (transient {:ret init}))]
         (if (:vs result)
           (f1 (:ret result) (persistent! (:vs result)))
           (:ret result))))))

@@ -429,12 +429,12 @@
     :handle-ok
     (fnk [form]
       {:id (:form/id form)
-           :alias (:form/alias form)
-           :name (:name form)
-           :type :form
-           :links
-           {:up {:href (path-for :all-forms-handler)}
-            :self {:href (path-for :form-handler :id (:form/id form))}}})
+       :alias (:form/alias form)
+       :name (:name form)
+       :type :form
+       :links
+       {:up {:href (path-for :all-forms-handler)}
+        :self {:href (path-for :form-handler :id (:form/id form))}}})
 
     :handle-not-found
     (error-body path-for "Form not found.")))
@@ -501,7 +501,7 @@
 
 (defn assoc-code-list-link [m item]
   (assoc-when m :lens/code-list
-                (some-> (:item/code-list item) (code-list-link))))
+              (some-> (:item/code-list item) (code-list-link))))
 
 (defn render-embedded-item [path-for timeout item]
   (-> {:id (:item/id item)
@@ -637,7 +637,7 @@
          :type :code-list-item}
         (assoc-count
           (util/try-until timeout (api/num-code-list-item-subjects
-                                              code-list-item))
+                                    code-list-item))
           (path-for :item-code-list-item-count-handler :id id :code code))
         (assoc-when :item-name (:name item)))))
 
@@ -657,29 +657,29 @@
 
     :handle-ok
     (fnk [item]
-     (-> {:id (:item/id item)
-          :type :item
-          :value-type (value-type item)
-          :links
-          (-> {:up
-               {:href (path-for :item-group-handler :id
-                                (:item-group/id (:item/item-group item)))}
-               :self
-               {:href (path-for :item-handler :id (:item/id item))}}
-              (assoc-code-list-link item))}
-         (assoc-when
-           :embedded
-           (when-let [code-list (:item/code-list item)]
-             {:lens/item-code-list-items
-              (->> (api/code-list-items code-list)
-                   ;; TODO: use :code-list-item/rank instead
-                   (sort-by (:code-list/attr code-list))
-                   (render-embedded-item-code-list-items path-for (timeout 100)
-                                                         item))}))
-         (assoc-when :name (:name item))
-         (assoc-when :question (:item/question item))
-         (assoc-when :value-histogram (when (numeric? item)
-                                        (api/value-histogram item)))))
+      (-> {:id (:item/id item)
+           :type :item
+           :value-type (value-type item)
+           :links
+           (-> {:up
+                {:href (path-for :item-group-handler :id
+                                 (:item-group/id (:item/item-group item)))}
+                :self
+                {:href (path-for :item-handler :id (:item/id item))}}
+               (assoc-code-list-link item))}
+          (assoc-when
+            :embedded
+            (when-let [code-list (:item/code-list item)]
+              {:lens/item-code-list-items
+               (->> (api/code-list-items code-list)
+                    ;; TODO: use :code-list-item/rank instead
+                    (sort-by (:code-list/attr code-list))
+                    (render-embedded-item-code-list-items path-for (timeout 100)
+                                                          item))}))
+          (assoc-when :name (:name item))
+          (assoc-when :question (:item/question item))
+          (assoc-when :value-histogram (when (numeric? item)
+                                         (api/value-histogram item)))))
 
     :handle-not-found
     (error-body path-for "Item not found.")))

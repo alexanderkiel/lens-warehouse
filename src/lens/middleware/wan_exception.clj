@@ -11,5 +11,5 @@
         (pst-on *err* false e)
         {:status 500
          :body
-         {:links {:up {:href "/"}} ;;TODO: use context path here
+         {:links {:up {:href "/"}}                          ;;TODO: use context path here
           :error (.getMessage e)}}))))

@@ -62,12 +62,12 @@
   [f ch]
   (let [out (async/chan)]
     (async/thread
-     (loop []
-       (if-let [v (<!! ch)]
-         (do
-           (>!! out (catch-err (f v)))
-           (recur))
-         (close! out))))
+      (loop []
+        (if-let [v (<!! ch)]
+          (do
+            (>!! out (catch-err (f v)))
+            (recur))
+          (close! out))))
     out))
 
 (defn process-parallel
@@ -84,11 +84,11 @@
 (defn spool [coll]
   (let [out (async/chan)]
     (async/thread
-     (reduce
-      (fn [_ v] (>!! out v))
-      nil
-      coll)
-     (close! out))
+      (reduce
+        (fn [_ v] (>!! out v))
+        nil
+        coll)
+      (close! out))
     out))
 
 (defn expired? [timeout]
