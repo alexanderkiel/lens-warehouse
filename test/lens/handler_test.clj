@@ -6,7 +6,18 @@
             [datomic.api :as d]
             [lens.schema :refer [load-base-schema]]
             [clojure.edn :as edn]
-            [lens.api :as api]))
+            [clojure.java.io :as io]
+            [cognitect.transit :as transit]
+            [lens.api :as api])
+  (:import [java.io ByteArrayOutputStream]))
+
+(defn- str->is [s]
+  (io/input-stream (.getBytes s "utf-8")))
+
+(defn- transit->is [o]
+  (let [out (ByteArrayOutputStream.)]
+    (transit/write (transit/writer out :json) o)
+    (io/input-stream (.toByteArray out))))
 
 (defn- path-for [handler & args] {:handler handler :args args})
 
@@ -87,27 +98,152 @@
           resp ((create-subject-handler path-for) req)]
       (is (= 409 (:status resp))))))
 
-(deftest get-study-handler-test
-  (testing "Body contains self link"
-    (api/create-study (connect) "id-224127" "name-224123")
-    (let [req {:request-method :get
-               :headers {"accept" "application/edn"}
-               :params {:id "id-224127"}
-               :db (d/db (connect))}
-          resp ((get-study-handler path-for) req)]
-      (is (= 200 (:status resp)))
-      (let [self-link (:self (:links (edn/read-string (:body resp))))]
-        (is (= :get-study-handler (:handler (:href self-link))))
-        (is (= [:id "id-224127"] (:args (:href self-link)))))))
-  (testing "Response contains an ETag"
-    (api/create-study (connect) "id-175847" "name-175850")
-    (let [req {:request-method :get
-               :headers {"accept" "application/edn"}
-               :params {:id "id-175847"}
-               :db (d/db (connect))}
-          resp ((get-study-handler path-for) req)]
-      (is (= "\"7f67d4915049005c2ec5bdc0c0af7c96\""
-             (get-in resp [:headers "ETag"]))))))
+(deftest study-handler-test
+  (letfn [(study [id] (api/study (d/db (connect)) id))
+          (create-study
+            ([id name] (api/create-study (connect) id name))
+            ([id name desc]
+             (api/create-study (connect) id name {:description desc})))]
+
+    (testing "Body contains self link"
+      (create-study "id-224127" "name-224123")
+      (let [req {:request-method :get
+                 :headers {"accept" "application/edn"}
+                 :params {:id "id-224127"}
+                 :db (d/db (connect))}
+            resp ((study-handler path-for) req)]
+        (is (= 200 (:status resp)))
+        (let [self-link (:self (:links (edn/read-string (:body resp))))]
+          (is (= :study-handler (:handler (:href self-link))))
+          (is (= [:id "id-224127"] (:args (:href self-link)))))))
+
+    (testing "Response contains an ETag"
+      (create-study "id-175847" "name-175850")
+      (let [req {:request-method :get
+                 :headers {"accept" "application/edn"}
+                 :params {:id "id-175847"}
+                 :db (d/db (connect))}
+            resp ((study-handler path-for) req)]
+        (is (= "\"23a61f1f52398fcd599d61672a63815d\""
+               (get-in resp [:headers "ETag"])))))
+
+    (testing "Non-conditional update fails"
+      (create-study "id-093946" "name-201516")
+      (let [req {:request-method :put
+                 :headers {"accept" "application/json"
+                           "content-type" "application/json"}
+                 :params {:id "id-093946"}
+                 :db (d/db (connect))}
+            resp ((study-handler path-for) req)]
+        (is (= 400 (:status resp)))
+        (is (= "Require conditional update." (:body resp)))))
+
+    (testing "Update with missing body fails"
+      (create-study "id-201514" "name-201516")
+      (let [req {:request-method :put
+                 :headers {"accept" "application/json"
+                           "content-type" "application/json"
+                           "if-match" "\"foo\""}
+                 :params {:id "id-201514"}
+                 :db (d/db (connect))}
+            resp ((study-handler path-for) req)]
+        (is (= 400 (:status resp)))
+        (is (= "Missing request body." (:body resp)))))
+
+    (testing "Update with invalid body fails"
+      (create-study "id-201514" "name-201516")
+      (let [req {:request-method :put
+                 :headers {"accept" "application/json"
+                           "content-type" "application/json"
+                           "if-match" "\"foo\""}
+                 :params {:id "id-201514"}
+                 :body (str->is "{")
+                 :db (d/db (connect))}
+            resp ((study-handler path-for) req)]
+        (is (= 400 (:status resp)))
+        (is (= "Invalid request body." (:body resp)))))
+
+    (testing "Update fails on ETag missmatch"
+      (create-study "id-201514" "name-201516")
+      (let [req {:request-method :put
+                 :headers {"accept" "application/json"
+                           "content-type" "application/json"
+                           "if-match" "\"foo\""}
+                 :params {:id "id-201514"}
+                 :body (str->is "{\"name\": \"name-202906\"}")
+                 :db (d/db (connect))}
+            resp ((study-handler path-for) req)]
+        (is (= 412 (:status resp)))))
+
+    (testing "Update fails on missing name"
+      (create-study "id-174709" "name-202034")
+      (let [req {:request-method :put
+                 :headers {"accept" "application/json"
+                           "content-type" "application/json"
+                           "if-match" "\"foo\""}
+                 :params {:id "id-174709"}
+                 :body (str->is "{}")
+                 :conn (connect)
+                 :db (d/db (connect))}
+            resp ((study-handler path-for) req)]
+        (is (= 422 (:status resp)))))
+
+    (testing "Update fails in-transaction on name missmatch"
+      (create-study "id-202032" "name-202034")
+      (let [req {:request-method :put
+                 :headers {"accept" "application/json"
+                           "content-type" "application/json"
+                           "if-match" "\"aff8423a097f1e8ebcfcf63319d86f83\""}
+                 :params {:id "id-202032"}
+                 :body (str->is "{\"name\": \"name-202906\"}")
+                 :db (d/db (connect))}
+            _ (api/update-study! (connect) "id-202032" {:name "name-202034"}
+                                 {:name "name-203308"})
+            req (assoc req :conn (connect))
+            resp ((study-handler path-for) req)]
+        (is (= 409 (:status resp)))))
+
+    (testing "Update with JSON succeeds"
+      (create-study "id-203855" "name-202034")
+      (let [req {:request-method :put
+                 :headers {"accept" "application/json"
+                           "content-type" "application/json"
+                           "if-match" "\"a5f78306eefab2042ff77d3a67567e1b\""}
+                 :params {:id "id-203855"}
+                 :body (str->is "{\"name\": \"name-202906\"}")
+                 :conn (connect)
+                 :db (d/db (connect))}
+            resp ((study-handler path-for) req)]
+        (is (= 204 (:status resp)))
+        (is (= "name-202906" (:name (study "id-203855"))))))
+
+    (testing "Update with Transit succeeds"
+      (create-study "id-143317" "name-143321")
+      (let [req {:request-method :put
+                 :headers {"accept" "application/transit+json"
+                           "content-type" "application/transit+json"
+                           "if-match" "\"ee42fd30011f499d4f9147fb2491deb7\""}
+                 :params {:id "id-143317"}
+                 :body (transit->is {:name "name-143536"})
+                 :conn (connect)
+                 :db (d/db (connect))}
+            resp ((study-handler path-for) req)]
+        (is (= 204 (:status resp)))
+        (is (= "name-143536" (:name (study "id-143317"))))))
+
+    (testing "Update can remove description"
+      (create-study "id-143317" "name-143321" "desc-155658")
+      (let [req {:request-method :put
+                 :headers {"accept" "application/transit+json"
+                           "content-type" "application/transit+json"
+                           "if-match" "\"e5d89c09239bde70472e7c250170429b\""}
+                 :params {:id "id-143317"}
+                 :body (transit->is {:name "name-143536"})
+                 :conn (connect)
+                 :db (d/db (connect))}
+            resp ((study-handler path-for) req)]
+        (is (= 204 (:status resp)))
+        (is (nil? (:description (study "id-143317"))))))))
 
 (deftest create-study-handler-test
   (testing "Create without id and name fails"

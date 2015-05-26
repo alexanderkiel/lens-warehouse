@@ -12,7 +12,7 @@
                 :delete :delete-subject-handler}}
     "/studies"
     {"" :create-study-handler
-     ["/" :id] {:get :get-study-handler}}
+     ["/" :id] :study-handler}
     "/forms"
     {"" :all-forms-handler
      ["/" :id] :form-handler

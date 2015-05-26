@@ -80,7 +80,24 @@
             :name name}
            more)]
         (throw (ex-info (str "Study exists already: " id)
-                        {:type :study-exists-already :id id}))))]})
+                        {:type :study-exists-already :id id}))))
+
+    (func :study.fn/update
+      "Updates the study with the id.
+
+      Ensures that the values in old-props are still current in the version of
+      the in-transaction study."
+      [db id old-props new-props]
+      (if-let [study (d/entity db [:study/id id])]
+        (if (= (select-keys study (keys old-props)) old-props)
+          (concat (for [[prop old-val] study
+                        :when (not= :study/id prop)
+                        :when (nil? (prop new-props))]
+                    [:db/retract (:db/id study) prop old-val])
+                  (for [[prop val] new-props]
+                    [:db/add (:db/id study) prop val]))
+          (throw (ex-info "Conflict!" {:type :conflict})))
+        (throw (ex-info "Study not found." {:type :not-found}))))]})
 
 (def base-schema
   {:partitions

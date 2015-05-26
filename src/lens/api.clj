@@ -151,6 +151,18 @@
         false
         (throw e)))))
 
+(defn update-study!
+  "Updates the study with the id.
+
+  Ensures that the values in old-props are still current in the version of the
+  in-transaction study."
+  [conn id old-props new-props]
+  {:pre [conn]}
+  (try
+    @(d/transact conn [[:study.fn/update id old-props new-props]])
+    nil
+    (catch Exception e (if-let [t (util/error-type e)] t (throw e)))))
+
 ;; ---- Lists -----------------------------------------------------------------
 
 (defn- list-all [q db & inputs]

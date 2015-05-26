@@ -2,7 +2,8 @@
   (:use plumbing.core)
   (:require [clojure.core.async :refer [timeout]]
             [clojure.core.reducers :as r]
-            [liberator.core :refer [resource to-location]]
+            [clojure.data.json :as json]
+            [liberator.core :as l :refer [resource to-location]]
             [pandect.algo.md5 :refer [md5]]
             [lens.handler.util :refer :all]
             [lens.api :as api]
@@ -13,6 +14,7 @@
             [clj-time.coerce :as tc]
             [clj-time.format :as tf]
             [clojure.edn :as edn]
+            [cognitect.transit :as transit]
             [datomic.api :as d])
   (:import [java.net URLEncoder]
            [java.util UUID]))
@@ -254,27 +256,74 @@
       {:status 204}
       (ring-error path-for 404 "Subject not found."))))
 
-;; ---- Study ---------------------------------------------------------------
+;; ---- Study -----------------------------------------------------------------
 
 (defn- study-path [path-for study]
-  (path-for :get-study-handler :id (:study/id study)))
+  (path-for :study-handler :id (:study/id study)))
 
-(defn get-study-handler [path-for]
+(defn parse-study [content-type body]
+  (condp = content-type
+    "application/json"
+    (json/read-str (slurp body) :key-fn keyword)
+    "application/transit+json"
+    (transit/read (transit/reader body :json))))
+
+(defn study-handler
+  "Handler for GET and PUT on a study.
+
+  Implementation note on PUT:
+
+  The resource compares the current ETag with the If-Match header based on a
+  possibly old version of the study taken from a database outside of the
+  transaction. The update transaction is than tried with name and description
+  from that possibly old study as reference. The transaction only succeeds if
+  the name and description are still the same on the in-transaction study."
+  [path-for]
   (resource
     (resource-defaults)
+
+    :allowed-methods [:get :put]
+
+    :malformed?
+    (fnk [request :as ctx]
+      (if (or (l/=method :get ctx) (l/header-exists? "if-match" ctx))
+        (when (= :put (:request-method request))
+          (if-let [body (:body request)]
+            (let [content-type (get-in request [:headers "content-type"])]
+              (try
+                [false {:new-study (parse-study content-type body)}]
+                (catch Exception _ {:error "Invalid request body."})))
+            {:error "Missing request body."}))
+        {:error "Require conditional update."}))
+
+    :processable?
+    (fn [ctx]
+      (or (l/=method :get ctx) (-> ctx :new-study :name)))
 
     :exists?
     (fnk [db [:request [:params id]]]
       (when-let [study (api/study db id)]
         {:study study}))
 
+    ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
-    (fnk [[:representation media-type] study]
-      (md5 (str media-type
-                (path-for :service-document-handler)
-                (study-path path-for study)
-                (:name study)
-                (:description study))))
+    (fnk [representation {status 200} :as ctx]
+      (when (= 200 status)
+        (md5 (str (:media-type representation)
+                  (path-for :service-document-handler)
+                  (study-path path-for (:study ctx))
+                  (:name (:study ctx))
+                  (:description (:study ctx))))))
+
+    :can-put-to-missing? false
+    :new? false
+
+    :put!
+    (fnk [conn study new-study]
+      (letfn [(select-props [study] (select-keys study [:name :description]))]
+        {:update-error (api/update-study! conn (:study/id study)
+                                          (select-props study)
+                                          (select-props new-study))}))
 
     :handle-ok
     (fnk [study]
@@ -286,8 +335,22 @@
             :self {:href (study-path path-for study)}}}
           (assoc-when :description (:description study))))
 
+    :handle-no-content
+    (fnk [update-error]
+      (condp = update-error
+        :not-found (error path-for 404 "Study not found.")
+        :conflict (error path-for 409 "Conflict")
+        nil))
+
+    :handle-malformed
+    (fnk [error] error)
+
     :handle-not-found
-    (error-body path-for "Study not found.")))
+    (error-body path-for "Study not found.")
+
+    :handle-exception
+    (fnk [exception]
+      (println exception))))
 
 (defn create-study-handler [path-for]
   (resource
@@ -982,8 +1045,8 @@
    :get-subject-handler (get-subject-handler path-for)
    :create-subject-handler (create-subject-handler path-for)
    :delete-subject-handler (delete-subject-handler path-for)
-   :find-study-handler (get-study-handler path-for)
-   :get-study-handler (get-study-handler path-for)
+   :find-study-handler (study-handler path-for)
+   :study-handler (study-handler path-for)
    :create-study-handler (create-study-handler path-for)
    :all-forms-handler (all-forms-handler path-for)
    :find-form-handler (find-form-handler path-for)

@@ -77,6 +77,41 @@
       (create-study conn "id-221808" "name-222238")
       (is (false? (create-study conn "id-221808" "name-222247"))))))
 
+(deftest update-study-test
+  (let [conn (connect)]
+    (create-study conn "id-195829" "name-195834")
+
+    (testing "not found"
+      (is (= :not-found (update-study! conn "id-200608"
+                                       {:name "name-195834"}
+                                       {:name "name-195920"}))))
+
+    (testing "conflict"
+      (is (= :conflict (update-study! conn "id-195829"
+                                      {:name "name-200730"}
+                                      {:name "name-195920"}))))
+
+    (testing "update with matching name"
+      (is (nil? (update-study! conn "id-195829" {:name "name-195834"}
+                               {:name "name-195920"})))
+      (is (= "name-195920" (:name (study (d/db conn) "id-195829")))))
+
+    (create-study conn "id-170349" "name-195834")
+
+    (testing "update can add description"
+      (is (nil? (update-study! conn "id-170349" {:name "name-195834"}
+                               {:name "name-195920"
+                                :description "desc-164555"})))
+      (is (= "desc-164555" (:description (study (d/db conn) "id-170349")))))
+
+    (create-study conn "id-162717" "name-162720" {:description "desc-162727"})
+
+    (testing "update can remove description"
+      (is (nil? (update-study! conn "id-162717" {:name "name-162720"
+                                                 :description "desc-162727"}
+                               {:name "name-162720"})))
+      (is (nil? (:description (study (d/db conn) "id-195829")))))))
+
 ;; ---- Item Group ------------------------------------------------------------
 
 (deftest item-group-test
