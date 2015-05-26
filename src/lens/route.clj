@@ -35,6 +35,7 @@
      ["/" :id] :snapshot-handler
      ["/" :id "/query"] :query-handler}
     "/most-recent-snapshot" :most-recent-snapshot-handler
+    "/find-study" :find-study-handler
     "/find-form" :find-form-handler
     "/find-item-group" :find-item-group-handler
     "/find-item" :find-item-handler}])

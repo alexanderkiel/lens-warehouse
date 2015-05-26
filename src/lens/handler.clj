@@ -69,7 +69,8 @@
                 (path-for :find-item-handler)
                 (path-for :most-recent-snapshot-handler)
                 (path-for :create-subject-handler)
-                (path-for :create-study-handler))))
+                (path-for :create-study-handler)
+                (path-for :find-study-handler))))
 
     :handle-ok
     {:name "Lens Warehouse"
@@ -81,7 +82,13 @@
       :lens/all-snapshots {:href (path-for :all-snapshots-handler)}
       :lens/most-recent-snapshot {:href (path-for :most-recent-snapshot-handler)}}
      :forms
-     {:lens/find-form
+     {:lens/find-study
+      {:action (path-for :find-study-handler)
+       :method "GET"
+       :params
+       {:id
+        {:type :string}}}
+      :lens/find-form
       {:action (path-for :find-form-handler)
        :method "GET"
        :params
@@ -964,6 +971,7 @@
    :get-subject-handler (get-subject-handler path-for)
    :create-subject-handler (create-subject-handler path-for)
    :delete-subject-handler (delete-subject-handler path-for)
+   :find-study-handler (get-study-handler path-for)
    :get-study-handler (get-study-handler path-for)
    :create-study-handler (create-study-handler path-for)
    :all-forms-handler (all-forms-handler path-for)
