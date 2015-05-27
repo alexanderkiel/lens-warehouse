@@ -87,6 +87,14 @@ You need a license to be able to use the Pro Edition of Datomic. The Leiningen
 project file contains two profiles, one for the Free Edition (datomic-free) and
 one for the Pro Edition (datomic-pro).
 
+## Metadata Model
+
+The metadata model used in Lens Warehouse is based on the [CDISC ODM][7] standard.
+The goal is to implement a sufficent subset of the ODM concepts to be able to
+import metadata from ODM files. Lens Warehouse will not directly contain an ODM
+importer. Instead there will be a command line client called [lens-import][8] which
+reads ODM files and uses the REST API of Lens Warehouse to create metadata entities.
+
 ## License
 
 Copyright © 2015 Alexander Kiel
@@ -99,3 +107,5 @@ Distributed under the Eclipse Public License, the same as Clojure.
 [4]: <https://cursiveclojure.com/userguide/support.html>
 [5]: <https://github.com/cursiveclojure/cursive/issues/896>
 [6]: <https://github.com/alexanderkiel/lens>
+[7]: <http://cdisc.org/odm>
+[8]: <https://github.com/alexanderkiel/lens-import>
