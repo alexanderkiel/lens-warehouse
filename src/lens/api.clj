@@ -141,15 +141,13 @@
 
   More can be a map of :description were :description should be a string.
 
-  Returns the created study or false if there is already one with the id."
+  Returns the created study or nil if there is already one with the id."
   [conn id name & [more]]
   (try
     (create conn :part/meta-data (fn [tid] [[:study.fn/create tid id name
                                              more]]))
     (catch Exception e
-      (if (= :study-exists-already (util/error-type e))
-        false
-        (throw e)))))
+      (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
 (defn update-study!
   "Updates the study with the id.

@@ -367,14 +367,14 @@
       (let [opts (select-keys params [:description])]
         (if-let [study (api/create-study conn (:id params) (:name params) opts)]
           {:study study}
-          (throw (ex-info "" {:type ::conflict})))))
+          (throw (ex-info "Duplicate!" {:type ::duplicate})))))
 
     :location
     (fnk [study] (study-path path-for study))
 
     :handle-exception
     (fnk [exception]
-      (if (= ::conflict (util/error-type exception))
+      (if (= ::duplicate (util/error-type exception))
         (error path-for 409 "Study exists already.")
         (throw exception)))))
 

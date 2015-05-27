@@ -79,8 +79,7 @@
             :study/id id
             :name name}
            more)]
-        (throw (ex-info (str "Study exists already: " id)
-                        {:type :study-exists-already :id id}))))
+        (throw (ex-info "Duplicate." {:type :duplicate}))))
 
     (func :study.fn/update
       "Updates the study with the id.

@@ -75,7 +75,7 @@
                                (:description)))))
     (testing "create with existing id fails"
       (create-study conn "id-221808" "name-222238")
-      (is (false? (create-study conn "id-221808" "name-222247"))))))
+      (is (not (create-study conn "id-221808" "name-222247"))))))
 
 (deftest update-study-test
   (let [conn (connect)]
