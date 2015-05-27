@@ -357,11 +357,7 @@
     (fnk [error] error)
 
     :handle-not-found
-    (error-body path-for "Study not found.")
-
-    :handle-exception
-    (fnk [exception]
-      (println exception))))
+    (error-body path-for "Study not found.")))
 
 (defn create-study-handler [path-for]
   (resource
