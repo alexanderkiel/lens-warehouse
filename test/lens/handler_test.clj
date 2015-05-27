@@ -32,6 +32,8 @@
 
 (use-fixtures :each database-fixture)
 
+;; ---- Subject ---------------------------------------------------------------
+
 (deftest get-subject-handler-test
   (testing "Body contains self link"
     (api/create-subject (connect) "id-181341")
@@ -51,18 +53,21 @@
                :params {}
                :conn (connect)}]
       (is (= 422 (:status ((create-subject-handler nil) req))))))
+
   (testing "Create with invalid sex fails"
     (let [req {:request-method :post
                :params {:id "id-172029"
                         :sex "foo"}
                :conn (connect)}]
       (is (= 422 (:status ((create-subject-handler nil) req))))))
+
   (testing "Create with invalid birth-date fails"
     (let [req {:request-method :post
                :params {:id "id-172029"
                         :birth-date "foo"}
                :conn (connect)}]
       (is (= 422 (:status ((create-subject-handler nil) req))))))
+
   (testing "Create with id only"
     (let [path-for (fn [_ _ id] id)
           req {:request-method :post
@@ -72,6 +77,7 @@
       (is (= 201 (:status resp)))
       (is (= "id-165339" (get-in resp [:headers "Location"])))
       (is (nil? (:body resp)))))
+
   (testing "Create with sex"
     (let [req {:request-method :post
                :params {:id "id-171917"
@@ -81,6 +87,7 @@
       (is (= 201 (:status resp)))
       (is (= :subject.sex/male
              (:subject/sex (api/subject (d/db (connect)) "id-171917"))))))
+
   (testing "Create with birth-date"
     (let [req {:request-method :post
                :params {:id "id-173133"
@@ -90,6 +97,7 @@
       (is (= 201 (:status resp)))
       (is (= (tc/to-date (t/date-time 2015 5 25))
              (:subject/birth-date (api/subject (d/db (connect)) "id-173133"))))))
+
   (testing "Create with existing id fails"
     (api/create-subject (connect) "id-182721")
     (let [req {:request-method :post
@@ -97,6 +105,8 @@
                :conn (connect)}
           resp ((create-subject-handler path-for) req)]
       (is (= 409 (:status resp))))))
+
+;; ---- Study -----------------------------------------------------------------
 
 (deftest study-handler-test
   (letfn [(study [id] (api/study (d/db (connect)) id))
@@ -251,11 +261,13 @@
                :params {}
                :conn (connect)}]
       (is (= 422 (:status ((create-study-handler nil) req))))))
+
   (testing "Create without name fails"
     (let [req {:request-method :post
                :params {:id "id-224305"}
                :conn (connect)}]
       (is (= 422 (:status ((create-study-handler nil) req))))))
+
   (testing "Create with id and name only"
     (let [path-for (fn [_ _ id] id)
           req {:request-method :post
@@ -265,6 +277,7 @@
       (is (= 201 (:status resp)))
       (is (= "id-224211" (get-in resp [:headers "Location"])))
       (is (nil? (:body resp)))))
+
   (testing "Create with description"
     (let [req {:request-method :post
                :params {:id "id-224401"
@@ -275,6 +288,7 @@
       (is (= 201 (:status resp)))
       (is (= "description-224339"
              (:description (api/study (d/db (connect)) "id-224401"))))))
+
   (testing "Create with existing id fails"
     (api/create-study (connect) "id-224419" "name-224431")
     (let [req {:request-method :post
@@ -282,6 +296,8 @@
                :conn (connect)}
           resp ((create-study-handler path-for) req)]
       (is (= 409 (:status resp))))))
+
+;; ----------------------------------------------------------------------------
 
 (defn- visit [birth-date edat]
   {:visit/subject {:subject/birth-date (tc/to-date birth-date)}
