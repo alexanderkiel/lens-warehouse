@@ -135,6 +135,41 @@
       (create-form conn "id-221808" "name-222238")
       (is (not (create-form conn "id-221808" "name-222247"))))))
 
+(deftest update-form-test
+  (let [conn (connect)]
+    (create-form conn "id-195829" "name-195834")
+
+    (testing "not found"
+      (is (= :not-found (update-form! conn "id-200608"
+                                      {:name "name-195834"}
+                                      {:name "name-195920"}))))
+
+    (testing "conflict"
+      (is (= :conflict (update-form! conn "id-195829"
+                                     {:name "name-200730"}
+                                     {:name "name-195920"}))))
+
+    (testing "update with matching name"
+      (is (nil? (update-form! conn "id-195829" {:name "name-195834"}
+                              {:name "name-195920"})))
+      (is (= "name-195920" (:name (form (d/db conn) "id-195829")))))
+
+    (create-form conn "id-170349" "name-195834")
+
+    (testing "update can add description"
+      (is (nil? (update-form! conn "id-170349" {:name "name-195834"}
+                              {:name "name-195920"
+                               :description "desc-164555"})))
+      (is (= "desc-164555" (:description (form (d/db conn) "id-170349")))))
+
+    (create-form conn "id-162717" "name-162720" {:description "desc-162727"})
+
+    (testing "update can remove description"
+      (is (nil? (update-form! conn "id-162717" {:name "name-162720"
+                                                :description "desc-162727"}
+                              {:name "name-162720"})))
+      (is (nil? (:description (form (d/db conn) "id-195829")))))))
+
 ;; ---- Item Group ------------------------------------------------------------
 
 (deftest item-group-test

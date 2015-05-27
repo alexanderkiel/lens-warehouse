@@ -2,7 +2,6 @@
   (:use plumbing.core)
   (:require [clojure.core.async :refer [timeout]]
             [clojure.core.reducers :as r]
-            [clojure.data.json :as json]
             [liberator.core :as l :refer [resource to-location]]
             [pandect.algo.md5 :refer [md5]]
             [lens.handler.util :refer :all]
@@ -14,7 +13,6 @@
             [clj-time.coerce :as tc]
             [clj-time.format :as tf]
             [clojure.edn :as edn]
-            [cognitect.transit :as transit]
             [datomic.api :as d])
   (:import [java.net URLEncoder]
            [java.util UUID]))
@@ -272,13 +270,6 @@
 (defn- study-path [path-for study]
   (path-for :study-handler :id (:study/id study)))
 
-(defn parse-study [content-type body]
-  (condp = content-type
-    "application/json"
-    (json/read-str (slurp body) :key-fn keyword)
-    "application/transit+json"
-    (transit/read (transit/reader body :json))))
-
 (defn study-handler
   "Handler for GET and PUT on a study.
 
@@ -291,30 +282,9 @@
   the name and description are still the same on the in-transaction study."
   [path-for]
   (resource
-    (resource-defaults)
+    (standard-entity-resource-defaults path-for)
 
-    :allowed-methods [:get :put]
-
-    :malformed?
-    (fnk [request :as ctx]
-      (if (or (l/=method :get ctx) (l/header-exists? "if-match" ctx))
-        (when (= :put (:request-method request))
-          (if-let [body (:body request)]
-            (let [content-type (get-in request [:headers "content-type"])]
-              (try
-                [false {:new-study (parse-study content-type body)}]
-                (catch Exception _ {:error "Invalid request body."})))
-            {:error "Missing request body."}))
-        {:error "Require conditional update."}))
-
-    :processable?
-    (fn [ctx]
-      (or (l/=method :get ctx) (-> ctx :new-study :name)))
-
-    :exists?
-    (fnk [db [:request [:params id]]]
-      (when-let [study (api/study db id)]
-        {:study study}))
+    :exists? (entity-exists :study api/study)
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
@@ -326,15 +296,12 @@
                   (:name (:study ctx))
                   (:description (:study ctx))))))
 
-    :can-put-to-missing? false
-    :new? false
-
     :put!
-    (fnk [conn study new-study]
+    (fnk [conn study new-entity]
       (letfn [(select-props [study] (select-keys study [:name :description]))]
         {:update-error (api/update-study! conn (:study/id study)
                                           (select-props study)
-                                          (select-props new-study))}))
+                                          (select-props new-entity))}))
 
     :handle-ok
     (fnk [study]
@@ -344,20 +311,7 @@
            :links
            {:up {:href (path-for :service-document-handler)}
             :self {:href (study-path path-for study)}}}
-          (assoc-when :description (:description study))))
-
-    :handle-no-content
-    (fnk [update-error]
-      (condp = update-error
-        :not-found (error path-for 404 "Study not found.")
-        :conflict (error path-for 409 "Conflict")
-        nil))
-
-    :handle-malformed
-    (fnk [error] error)
-
-    :handle-not-found
-    (error-body path-for "Study not found.")))
+          (assoc-when :description (:description study))))))
 
 (defn create-study-handler [path-for]
   (resource
@@ -480,13 +434,36 @@
   (pmap #(render-embedded-item-group path-for timeout %) item-groups))
 
 (defn form-handler [path-for]
-  (resource
-    (resource-defaults)
+  "Handler for GET and PUT on a form.
 
-    :exists?
-    (fnk [db [:request [:params id]]]
-      (when-let [form (api/form db id)]
-        {:form form}))
+  Implementation note on PUT:
+
+  The resource compares the current ETag with the If-Match header based on a
+  possibly old version of the study taken from a database outside of the
+  transaction. The update transaction is than tried with name and description
+  from that possibly old form as reference. The transaction only succeeds if
+  the name and description are still the same on the in-transaction form."
+  (resource
+    (standard-entity-resource-defaults path-for)
+
+    :exists? (entity-exists :form api/form)
+
+    ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
+    :etag
+    (fnk [representation {status 200} :as ctx]
+      (when (= 200 status)
+        (md5 (str (:media-type representation)
+                  (path-for :service-document-handler)
+                  (form-path path-for (:form ctx))
+                  (:name (:form ctx))
+                  (:description (:form ctx))))))
+
+    :put!
+    (fnk [conn form new-entity]
+      (letfn [(select-props [form] (select-keys form [:name :description]))]
+        {:update-error (api/update-form! conn (:form/id form)
+                                         (select-props form)
+                                         (select-props new-entity))}))
 
     :handle-ok
     (fnk [form]
@@ -503,10 +480,7 @@
        {:lens/item-groups
         (->> (api/item-groups form)
              (sort-by :item-group/rank)
-             (render-embedded-item-groups path-for (timeout 100)))}})
-
-    :handle-not-found
-    (error-body path-for "Form not found.")))
+             (render-embedded-item-groups path-for (timeout 100)))}})))
 
 (defn find-form-handler [path-for]
   (resource
@@ -516,6 +490,15 @@
     (fnk [db [:request [:params id]]]
       (when-let [form (api/form db id)]
         {:form form}))
+
+    :etag
+    (fnk [representation {status 200} :as ctx]
+      (when (= 200 status)
+        (md5 (str (:media-type representation)
+                  (path-for :service-document-handler)
+                  (form-path path-for (:form ctx))
+                  (:name (:form ctx))
+                  (:description (:form ctx))))))
 
     :handle-ok
     (fnk [form]

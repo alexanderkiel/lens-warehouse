@@ -127,7 +127,24 @@
             :form/id id
             :name name}
            more)]
-        (throw (ex-info "Duplicate." {:type :duplicate}))))]})
+        (throw (ex-info "Duplicate." {:type :duplicate}))))
+
+    (func :form.fn/update
+      "Updates the form with the id.
+
+      Ensures that the values in old-props are still current in the version of
+      the in-transaction form."
+      [db id old-props new-props]
+      (if-let [form (d/entity db [:form/id id])]
+        (if (= (select-keys form (keys old-props)) old-props)
+          (concat (for [[prop old-val] form
+                        :when (not= :form/id prop)
+                        :when (nil? (prop new-props))]
+                    [:db/retract (:db/id form) prop old-val])
+                  (for [[prop val] new-props]
+                    [:db/add (:db/id form) prop val]))
+          (throw (ex-info "Conflict!" {:type :conflict})))
+        (throw (ex-info "Form not found." {:type :not-found}))))]})
 
 (def base-schema
   {:partitions

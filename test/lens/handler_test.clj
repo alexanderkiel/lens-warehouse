@@ -299,6 +299,176 @@
 
 ;; ---- Form ------------------------------------------------------------------
 
+(defn form [id] (api/form (d/db (connect)) id))
+
+(defn create-form
+  ([id name] (api/create-form (connect) id name))
+  ([id name desc] (api/create-form (connect) id name {:description desc})))
+
+(deftest find-form-handler-test
+  (testing "Body contains self link"
+    (create-form "id-224127" "name-224123")
+    (let [req {:request-method :get
+               :headers {"accept" "application/edn"}
+               :params {:id "id-224127"}
+               :db (d/db (connect))}
+          resp ((find-form-handler path-for) req)]
+      (is (= 200 (:status resp)))
+      (let [self-link (:self (:links (edn/read-string (:body resp))))]
+        (is (= :form-handler (:handler (:href self-link))))
+        (is (= [:id "id-224127"] (:args (:href self-link)))))))
+
+  (testing "Response contains an ETag"
+    (create-form "id-175847" "name-175850")
+    (let [req {:request-method :get
+               :headers {"accept" "application/edn"}
+               :params {:id "id-175847"}
+               :db (d/db (connect))}
+          resp ((find-form-handler path-for) req)]
+      (is (= "\"6997dfb4d1f435d2e161fcf215a32fe4\""
+             (get-in resp [:headers "ETag"]))))))
+
+(deftest form-handler-test
+  (testing "Body contains self link"
+    (create-form "id-224127" "name-224123")
+    (let [req {:request-method :get
+               :headers {"accept" "application/edn"}
+               :params {:id "id-224127"}
+               :db (d/db (connect))}
+          resp ((form-handler path-for) req)]
+      (is (= 200 (:status resp)))
+      (let [self-link (:self (:links (edn/read-string (:body resp))))]
+        (is (= :form-handler (:handler (:href self-link))))
+        (is (= [:id "id-224127"] (:args (:href self-link)))))))
+
+  (testing "Response contains an ETag"
+    (create-form "id-175847" "name-175850")
+    (let [req {:request-method :get
+               :headers {"accept" "application/edn"}
+               :params {:id "id-175847"}
+               :db (d/db (connect))}
+          resp ((form-handler path-for) req)]
+      (is (= "\"6997dfb4d1f435d2e161fcf215a32fe4\""
+             (get-in resp [:headers "ETag"])))))
+
+  (testing "Non-conditional update fails"
+    (create-form "id-093946" "name-201516")
+    (let [req {:request-method :put
+               :headers {"accept" "application/json"
+                         "content-type" "application/json"}
+               :params {:id "id-093946"}
+               :db (d/db (connect))}
+          resp ((form-handler path-for) req)]
+      (is (= 400 (:status resp)))
+      (is (= "Require conditional update." (:body resp)))))
+
+  (testing "Update with missing body fails"
+    (create-form "id-201514" "name-201516")
+    (let [req {:request-method :put
+               :headers {"accept" "application/json"
+                         "content-type" "application/json"
+                         "if-match" "\"foo\""}
+               :params {:id "id-201514"}
+               :db (d/db (connect))}
+          resp ((form-handler path-for) req)]
+      (is (= 400 (:status resp)))
+      (is (= "Missing request body." (:body resp)))))
+
+  (testing "Update with invalid body fails"
+    (create-form "id-201514" "name-201516")
+    (let [req {:request-method :put
+               :headers {"accept" "application/json"
+                         "content-type" "application/json"
+                         "if-match" "\"foo\""}
+               :params {:id "id-201514"}
+               :body (str->is "{")
+               :db (d/db (connect))}
+          resp ((form-handler path-for) req)]
+      (is (= 400 (:status resp)))
+      (is (= "Invalid request body." (:body resp)))))
+
+  (testing "Update fails on ETag missmatch"
+    (create-form "id-201514" "name-201516")
+    (let [req {:request-method :put
+               :headers {"accept" "application/json"
+                         "content-type" "application/json"
+                         "if-match" "\"foo\""}
+               :params {:id "id-201514"}
+               :body (str->is "{\"name\": \"name-202906\"}")
+               :db (d/db (connect))}
+          resp ((form-handler path-for) req)]
+      (is (= 412 (:status resp)))))
+
+  (testing "Update fails on missing name"
+    (create-form "id-174709" "name-202034")
+    (let [req {:request-method :put
+               :headers {"accept" "application/json"
+                         "content-type" "application/json"
+                         "if-match" "\"foo\""}
+               :params {:id "id-174709"}
+               :body (str->is "{}")
+               :conn (connect)
+               :db (d/db (connect))}
+          resp ((form-handler path-for) req)]
+      (is (= 422 (:status resp)))))
+
+  (testing "Update fails in-transaction on name missmatch"
+    (create-form "id-202032" "name-202034")
+    (let [req {:request-method :put
+               :headers {"accept" "application/json"
+                         "content-type" "application/json"
+                         "if-match" "\"f09e6579ee40674b38da3f7777747e36\""}
+               :params {:id "id-202032"}
+               :body (str->is "{\"name\": \"name-202906\"}")
+               :db (d/db (connect))}
+          _ (api/update-form! (connect) "id-202032" {:name "name-202034"}
+                              {:name "name-203308"})
+          req (assoc req :conn (connect))
+          resp ((form-handler path-for) req)]
+      (is (= 409 (:status resp)))))
+
+  (testing "Update with JSON succeeds"
+    (create-form "id-203855" "name-202034")
+    (let [req {:request-method :put
+               :headers {"accept" "application/json"
+                         "content-type" "application/json"
+                         "if-match" "\"01f74e047f503c893083a7acf693b0f1\""}
+               :params {:id "id-203855"}
+               :body (str->is "{\"name\": \"name-202906\"}")
+               :conn (connect)
+               :db (d/db (connect))}
+          resp ((form-handler path-for) req)]
+      (is (= 204 (:status resp)))
+      (is (= "name-202906" (:name (form "id-203855"))))))
+
+  (testing "Update with Transit succeeds"
+    (create-form "id-143317" "name-143321")
+    (let [req {:request-method :put
+               :headers {"accept" "application/transit+json"
+                         "content-type" "application/transit+json"
+                         "if-match" "\"8db0a5ad5f6cbdadb65482297956de1d\""}
+               :params {:id "id-143317"}
+               :body (transit->is {:name "name-143536"})
+               :conn (connect)
+               :db (d/db (connect))}
+          resp ((form-handler path-for) req)]
+      (is (= 204 (:status resp)))
+      (is (= "name-143536" (:name (form "id-143317"))))))
+
+  (testing "Update can remove description"
+    (create-form "id-143317" "name-143321" "desc-155658")
+    (let [req {:request-method :put
+               :headers {"accept" "application/transit+json"
+                         "content-type" "application/transit+json"
+                         "if-match" "\"63878026fe2a438b7b67d9a96ad721bb\""}
+               :params {:id "id-143317"}
+               :body (transit->is {:name "name-143536"})
+               :conn (connect)
+               :db (d/db (connect))}
+          resp ((form-handler path-for) req)]
+      (is (= 204 (:status resp)))
+      (is (nil? (:description (form "id-143317")))))))
+
 (deftest create-form-handler-test
   (testing "Create without id and name fails"
     (let [req {:request-method :post
