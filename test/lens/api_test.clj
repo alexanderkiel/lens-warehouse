@@ -112,11 +112,34 @@
                                {:name "name-162720"})))
       (is (nil? (:description (study (d/db conn) "id-195829")))))))
 
+;; ---- Form -----------------------------------------------------------------
+
+(deftest form-test
+  (let [conn (connect)]
+    (create-form conn "id-221714" "name-222216")
+    (testing "is found"
+      (is (:db/id (form (d/db conn) "id-221714"))))
+    (testing "is not found"
+      (is (nil? (form (d/db conn) "other-id-221735"))))))
+
+(deftest create-form-test
+  (let [conn (connect)]
+    (testing "create with id and name only"
+      (is (= "id-221752" (:form/id (create-form conn "id-221752"
+                                                  "name-222227")))))
+    (testing "create with id, name and description"
+      (is (= "desc-222413" (-> (create-form conn "id-222745" "name-222227"
+                                             {:description "desc-222413"})
+                               (:description)))))
+    (testing "create with existing id fails"
+      (create-form conn "id-221808" "name-222238")
+      (is (not (create-form conn "id-221808" "name-222247"))))))
+
 ;; ---- Item Group ------------------------------------------------------------
 
 (deftest item-group-test
   (let [conn (connect)]
-    @(d/transact conn [[:add-form "f-184846"]])
+    (create-form conn "f-184846" "name-184720")
     @(d/transact conn [[:add-item-group "ig-185204" "f-184846"]])
     (testing "is found"
       (is (:db/id (item-group (d/db conn) "ig-185204"))))
@@ -125,7 +148,7 @@
 
 (deftest item-test
   (let [conn (connect)]
-    @(d/transact conn [[:add-form "f-184846"]])
+    (create-form conn "f-184846" "name-184720")
     @(d/transact conn [[:add-item-group "ig-185204" "f-184846"]])
     @(d/transact conn [[:add-item "i-185700" "ig-185204"
                         :data-point/long-value]])
@@ -136,7 +159,7 @@
 
 (deftest code-list-item-test
   (let [conn (connect)]
-    @(d/transact conn [[:add-form "f-184846"]])
+    (create-form conn "f-184846" "name-184720")
     @(d/transact conn [[:add-item-group "ig-185204" "f-184846"]])
     @(d/transact conn [[:add-item "i-185700" "ig-185204"
                         :data-point/long-value]])

@@ -72,7 +72,8 @@
                 (path-for :most-recent-snapshot-handler)
                 (path-for :create-subject-handler)
                 (path-for :create-study-handler)
-                (path-for :find-study-handler))))
+                (path-for :find-study-handler)
+                (path-for :create-form-handler))))
 
     :handle-ok
     {:name "Lens Warehouse"
@@ -122,6 +123,16 @@
          :description "Date formatted like 2015-05-25."}}}
       :lens/create-study
       {:action (path-for :create-study-handler)
+       :method "POST"
+       :params
+       {:id
+        {:type :string}
+        :name
+        {:type :string}
+        :description
+        {:type :string}}}
+      :lens/create-form
+      {:action (path-for :create-form-handler)
        :method "POST"
        :params
        {:id
@@ -380,6 +391,9 @@
 
 ;; ---- Forms -----------------------------------------------------------------
 
+(defn- form-path [path-for form]
+  (path-for :form-handler :id (:form/id form)))
+
 (defn search-item-groups-form [form]
   {:action (str "/forms/" (:form/id form) "/search-item-groups")
    :method "GET"
@@ -396,7 +410,7 @@
        :type :form
        :links
        {:self
-        {:href (path-for :form-handler :id (:form/id form))}
+        {:href (form-path path-for form)}
         :lens/item-groups
         {:href (str "/forms/" (:form/id form) "/item-groups")}}
        :forms
@@ -486,7 +500,7 @@
        :type :form
        :links
        {:up {:href (path-for :all-forms-handler)}
-        :self {:href (path-for :form-handler :id (:form/id form))}}
+        :self {:href (form-path path-for form)}}
        :forms
        {:lens/search-item-groups (search-item-groups-form form)}
        :embedded
@@ -515,7 +529,7 @@
        :type :form
        :links
        {:up {:href (path-for :all-forms-handler)}
-        :self {:href (path-for :form-handler :id (:form/id form))}}})
+        :self {:href (form-path path-for form)}}})
 
     :handle-not-found
     (error-body path-for "Form not found.")))
@@ -533,11 +547,37 @@
     (fnk [form]
       {:value (api/num-form-subjects form)
        :links
-       {:up {:href (path-for :form-handler :id (:form/id form))}
+       {:up {:href (form-path path-for form)}
         :self {:href (path-for :form-count-handler :id (:form/id form))}}})
 
     :handle-not-found
     (error-body path-for "Form not found.")))
+
+(defn create-form-handler [path-for]
+  (resource
+    (resource-defaults)
+
+    :allowed-methods [:post]
+
+    :processable?
+    (fnk [[:request params]]
+      (and (:id params) (:name params)))
+
+    :post!
+    (fnk [conn [:request params]]
+      (let [opts (select-keys params [:description])]
+        (if-let [form (api/create-form conn (:id params) (:name params) opts)]
+          {:form form}
+          (throw (ex-info "Duplicate!" {:type ::duplicate})))))
+
+    :location
+    (fnk [form] (form-path path-for form))
+
+    :handle-exception
+    (fnk [exception]
+      (if (= ::duplicate (util/error-type exception))
+        (error path-for 409 "Form exists already.")
+        (throw exception)))))
 
 ;; ---- Search Item-Groups ----------------------------------------------------
 
@@ -556,7 +596,7 @@
 
     :handle-ok
     (fnk [form [:request [:params query]]]
-      {:links {:up {:href (path-for :form-handler :id (:form/id form))}}
+      {:links {:up {:href (form-path path-for form)}}
        :forms
        {:lens/search-item-groups (search-item-groups-form form)}
        :embedded
@@ -617,7 +657,7 @@
          :type :item-group
          :links
          {:up (let [form (:item-group/form item-group)]
-                {:href (path-for :form-handler :id (:form/id form))
+                {:href (form-path path-for form)
                  :title (:name form)})
           :self {:href (path-for :item-group-handler :id id)}}
          :forms
@@ -648,7 +688,7 @@
          :type :item-group
          :links
          {:up (let [form (:item-group/form item-group)]
-                {:href (path-for :form-handler :id (:form/id form))
+                {:href (form-path path-for form)
                  :title (:name form)})
           :self {:href (path-for :item-group-handler :id id)}}}))
 
@@ -1052,6 +1092,7 @@
    :find-form-handler (find-form-handler path-for)
    :form-handler (form-handler path-for)
    :form-count-handler (form-count-handler path-for)
+   :create-form-handler (create-form-handler path-for)
    :search-item-groups-handler (search-item-groups-handler path-for)
    :find-item-group-handler (find-item-group-handler path-for)
    :item-group-handler (item-group-handler path-for)

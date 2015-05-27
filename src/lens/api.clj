@@ -161,6 +161,21 @@
     nil
     (catch Exception e (if-let [t (util/error-type e)] t (throw e)))))
 
+;; ---- Form -----------------------------------------------------------------
+
+(defn create-form
+  "Creates a form with the id, name and more.
+
+  More can be a map of :description were :description should be a string.
+
+  Returns the created form or nil if there is already one with the id."
+  [conn id name & [more]]
+  (try
+    (create conn :part/meta-data (fn [tid] [[:form.fn/create tid id name
+                                             more]]))
+    (catch Exception e
+      (when-not (= :duplicate (util/error-type e)) (throw e)))))
+
 ;; ---- Lists -----------------------------------------------------------------
 
 (defn- list-all [q db & inputs]

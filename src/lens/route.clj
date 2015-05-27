@@ -14,7 +14,8 @@
     {"" :create-study-handler
      ["/" :id] :study-handler}
     "/forms"
-    {"" :all-forms-handler
+    {"" {:get :all-forms-handler
+         :post :create-form-handler}
      ["/" :id] :form-handler
      ["/" :id "/count"] :form-count-handler
      ["/" :id "/search-item-groups"] :search-item-groups-handler}

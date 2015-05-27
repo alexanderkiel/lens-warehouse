@@ -98,6 +98,37 @@
           (throw (ex-info "Conflict!" {:type :conflict})))
         (throw (ex-info "Study not found." {:type :not-found}))))]})
 
+(def form
+  {:attributes
+   [{:db/ident :form/id
+     :db/valueType :db.type/string
+     :db/unique :db.unique/identity
+     :db/cardinality :db.cardinality/one
+     :db/doc "The id of a form."}
+
+    {:db/ident :form/alias
+     :db/valueType :db.type/string
+     :db/cardinality :db.cardinality/one
+     :db/doc (str "A more meaningful but also short and technical version of "
+                  "the :form/id.")}
+
+    {:db/ident :form/studies
+     :db/valueType :db.type/ref
+     :db/cardinality :db.cardinality/many
+     :db/doc "A reference to all studies of a form."}]
+
+   :functions
+   [(func :form.fn/create
+      "Creates a form."
+      [db tid id name more]
+      (if-not (d/entity db [:form/id id])
+        [(merge
+           {:db/id tid
+            :form/id id
+            :name name}
+           more)]
+        (throw (ex-info "Duplicate." {:type :duplicate}))))]})
+
 (def base-schema
   {:partitions
    [{:db/ident :part/meta-data}
@@ -124,25 +155,6 @@
      :db/unique :db.unique/identity
      :db/cardinality :db.cardinality/one
      :db/doc "The id of a study-event."}
-
-    ;; Form
-
-    {:db/ident :form/id
-     :db/valueType :db.type/string
-     :db/unique :db.unique/identity
-     :db/cardinality :db.cardinality/one
-     :db/doc "The id of a form."}
-
-    {:db/ident :form/alias
-     :db/valueType :db.type/string
-     :db/cardinality :db.cardinality/one
-     :db/doc (str "A more meaningful but also short and technical version of "
-                  "the :form/id.")}
-
-    {:db/ident :form/studies
-     :db/valueType :db.type/ref
-     :db/cardinality :db.cardinality/many
-     :db/doc "A reference to all studies of a form."}
 
     ;; Item-Group
 
@@ -331,14 +343,6 @@ Which is one of :code-list-item/long-code or :code-list-item/string-code."}
          :code [{:db/id (d/tempid :part/meta-data)
                  :study-event/id id}]})}
     {:db/id (d/tempid :db.part/user)
-     :db/ident :add-form
-     :db/fn
-     (d/function
-       '{:lang "clojure"
-         :params [_ id]
-         :code [{:db/id (d/tempid :part/meta-data)
-                 :form/id id}]})}
-    {:db/id (d/tempid :db.part/user)
      :db/ident :add-item-group
      :db/fn
      (d/function
@@ -449,10 +453,12 @@ Which is one of :code-list-item/long-code or :code-list-item/string-code."}
                               (:partitions schema)))
       (into (map make-attr (concat (:attributes subject)
                                    (:attributes study)
+                                   (:attributes form)
                                    (:attributes schema))))
       (into (map make-enum (:enums subject)))
       (into (map make-func (concat (:functions subject)
-                                   (:functions study))))
+                                   (:functions study)
+                                   (:functions form))))
       (into (:functions schema))))
 
 (defn load-base-schema

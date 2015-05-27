@@ -297,6 +297,50 @@
           resp ((create-study-handler path-for) req)]
       (is (= 409 (:status resp))))))
 
+;; ---- Form ------------------------------------------------------------------
+
+(deftest create-form-handler-test
+  (testing "Create without id and name fails"
+    (let [req {:request-method :post
+               :params {}
+               :conn (connect)}]
+      (is (= 422 (:status ((create-form-handler nil) req))))))
+
+  (testing "Create without name fails"
+    (let [req {:request-method :post
+               :params {:id "id-224305"}
+               :conn (connect)}]
+      (is (= 422 (:status ((create-form-handler nil) req))))))
+
+  (testing "Create with id and name only"
+    (let [path-for (fn [_ _ id] id)
+          req {:request-method :post
+               :params {:id "id-224211" :name "name-224240"}
+               :conn (connect)}
+          resp ((create-form-handler path-for) req)]
+      (is (= 201 (:status resp)))
+      (is (= "id-224211" (get-in resp [:headers "Location"])))
+      (is (nil? (:body resp)))))
+
+  (testing "Create with description"
+    (let [req {:request-method :post
+               :params {:id "id-224401"
+                        :name "name-224330"
+                        :description "description-224339"}
+               :conn (connect)}
+          resp ((create-form-handler path-for) req)]
+      (is (= 201 (:status resp)))
+      (is (= "description-224339"
+             (:description (api/form (d/db (connect)) "id-224401"))))))
+
+  (testing "Create with existing id fails"
+    (api/create-form (connect) "id-224419" "name-224431")
+    (let [req {:request-method :post
+               :params {:id "id-224419" :name "name-224439"}
+               :conn (connect)}
+          resp ((create-form-handler path-for) req)]
+      (is (= 409 (:status resp))))))
+
 ;; ----------------------------------------------------------------------------
 
 (defn- visit [birth-date edat]
