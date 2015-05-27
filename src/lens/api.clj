@@ -137,7 +137,7 @@
 ;; ---- Study -----------------------------------------------------------------
 
 (defn create-study
-  "Creates the study with the id, name and more.
+  "Creates a study with the id, name and more.
 
   More can be a map of :description were :description should be a string.
 
