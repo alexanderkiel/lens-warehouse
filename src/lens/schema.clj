@@ -146,6 +146,24 @@
           (throw (ex-info "Conflict!" {:type :conflict})))
         (throw (ex-info "Form not found." {:type :not-found}))))]})
 
+(def item-group
+  {:attributes
+   [{:db/ident :item-group/id
+     :db/valueType :db.type/string
+     :db/unique :db.unique/identity
+     :db/cardinality :db.cardinality/one
+     :db/doc "The id of an item."}
+
+    {:db/ident :item-group/form
+     :db/valueType :db.type/ref
+     :db/cardinality :db.cardinality/one
+     :db/doc "A reference to the form of an item group."}
+
+    {:db/ident :item-group/rank
+     :db/valueType :db.type/long
+     :db/cardinality :db.cardinality/one
+     :db/doc "The rank of an item group relative to its form."}]})
+
 (def base-schema
   {:partitions
    [{:db/ident :part/meta-data}
@@ -172,24 +190,6 @@
      :db/unique :db.unique/identity
      :db/cardinality :db.cardinality/one
      :db/doc "The id of a study-event."}
-
-    ;; Item-Group
-
-    {:db/ident :item-group/id
-     :db/valueType :db.type/string
-     :db/unique :db.unique/identity
-     :db/cardinality :db.cardinality/one
-     :db/doc "The id of an item."}
-
-    {:db/ident :item-group/form
-     :db/valueType :db.type/ref
-     :db/cardinality :db.cardinality/one
-     :db/doc "A reference to the form of an item group."}
-
-    {:db/ident :item-group/rank
-     :db/valueType :db.type/long
-     :db/cardinality :db.cardinality/one
-     :db/doc "The rank of an item group relative to its form."}
 
     ;; Item
 
@@ -471,6 +471,7 @@ Which is one of :code-list-item/long-code or :code-list-item/string-code."}
       (into (map make-attr (concat (:attributes subject)
                                    (:attributes study)
                                    (:attributes form)
+                                   (:attributes item-group)
                                    (:attributes schema))))
       (into (map make-enum (:enums subject)))
       (into (map make-func (concat (:functions subject)
