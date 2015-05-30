@@ -11,6 +11,10 @@
             [clojure.core.reducers :as r])
   (:refer-clojure :exclude [alias]))
 
+(defn- enum [enum]
+  {:db/id (d/tempid :db.part/user)
+   :db/ident enum})
+
 (defmacro func [name doc params code]
   `{:db/id (d/tempid :db.part/user)
     :db/ident ~name
@@ -210,6 +214,15 @@
    [:data-type :ref]
    [:question :string :fulltext]
    [:code-list :ref]
+
+   (enum :data-type/text)
+   (enum :data-type/integer)
+   (enum :data-type/float)
+   (enum :data-type/date)
+   (enum :data-type/time)
+   (enum :data-type/datetime)
+   (enum :data-type/string)
+   (enum :data-type/boolean)
 
    (func :item.fn/create
      "Creates an item.

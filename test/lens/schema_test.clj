@@ -17,6 +17,9 @@
 (defn- transact [tx-data]
   @(d/transact (connect) tx-data))
 
+(defn- entity [eid]
+  (d/entity (d/db (connect)) eid))
+
 (defn- pull [pattern eid]
   (d/pull (d/db (connect)) pattern eid))
 
@@ -51,3 +54,13 @@
           form-refs (:study-event/form-refs study-event)]
       (is (= "study-event-100948" (:study-event/id study-event)))
       (is (= "form-101251" (:form/id (:form-ref/form (first form-refs))))))))
+
+(deftest data-type-enums
+  (is (entity :data-type/text))
+  (is (entity :data-type/integer))
+  (is (entity :data-type/float))
+  (is (entity :data-type/date))
+  (is (entity :data-type/time))
+  (is (entity :data-type/datetime))
+  (is (entity :data-type/string))
+  (is (entity :data-type/boolean)))
