@@ -267,6 +267,7 @@
   [[:id :string "The id of an item. Unique within a study."]
    [:aliases :ref :many :comp]
    [:data-type :ref]
+   [:sds-var :ref]
    [:question :string :fulltext]
    [:code-list :ref]
 
@@ -278,6 +279,8 @@
    (enum :data-type/datetime)
    (enum :data-type/string)
    (enum :data-type/boolean)
+
+   (enum :sds-var/sex)
 
    (func create
      "Creates an item.
