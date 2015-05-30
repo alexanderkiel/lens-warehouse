@@ -175,7 +175,35 @@
              :name name}
             more)]
          (throw (ex-info "Duplicate!" {:type :duplicate})))
-       (throw (ex-info "Study not found." {:type :study-not-found}))))])
+       (throw (ex-info "Study not found." {:type :study-not-found}))))
+
+   (func find
+     "Returns the form with study-id and form-id or nil if not found."
+     [db study-id form-id]
+     (some->> (d/q '[:find ?f . :in $ ?sid ?fid
+                     :where
+                     [?s :study/id ?sid]
+                     [?f :form/id ?fid]
+                     [?s :study/forms ?f]]
+                   db study-id form-id)
+              (d/entity db)))
+
+   (func update
+     "Updates the form with the id.
+
+     Ensures that the values in old-props are still current in the version of
+     the in-transaction form."
+     [db study-id form-id old-props new-props]
+     (if-let [form (d/invoke db :form.fn/find db study-id form-id)]
+       (if (= (select-keys form (keys old-props)) old-props)
+         (concat (for [[prop old-val] form
+                       :when (not= :form/id prop)
+                       :when (nil? (prop new-props))]
+                   [:db/retract (:db/id form) prop old-val])
+                 (for [[prop val] new-props]
+                   [:db/add (:db/id form) prop val]))
+         (throw (ex-info "Conflict!" {:type :conflict})))
+       (throw (ex-info "Form not found." {:type :not-found}))))])
 
 (def item-group-ref
   "A reference to a ItemGroupDef as it occurs within a specific FormDef. The
@@ -324,54 +352,6 @@
              (cons [:db.fn/retractEntity (:db/id subject)]))
         (throw (ex-info (str "Unknown subject: " id)
                         {:type :unknown-subject :id id}))))]})
-
-(def form'
-  {:attributes
-   [{:db/ident :form/id
-     :db/valueType :db.type/string
-     :db/unique :db.unique/identity
-     :db/cardinality :db.cardinality/one
-     :db/doc "The id of a form."}
-
-    {:db/ident :form/alias
-     :db/valueType :db.type/string
-     :db/cardinality :db.cardinality/one
-     :db/doc (str "A more meaningful but also short and technical version of "
-                  "the :form/id.")}
-
-    {:db/ident :form/studies
-     :db/valueType :db.type/ref
-     :db/cardinality :db.cardinality/many
-     :db/doc "A reference to all studies of a form."}]
-
-   :functions
-   [(func :form.fn/create
-      "Creates a form."
-      [db tid id name more]
-      (if-not (d/entity db [:form/id id])
-        [(merge
-           {:db/id tid
-            :form/id id
-            :name name}
-           more)]
-        (throw (ex-info "Duplicate." {:type :duplicate}))))
-
-    (func :form.fn/update
-      "Updates the form with the id.
-
-      Ensures that the values in old-props are still current in the version of
-      the in-transaction form."
-      [db id old-props new-props]
-      (if-let [form (d/entity db [:form/id id])]
-        (if (= (select-keys form (keys old-props)) old-props)
-          (concat (for [[prop old-val] form
-                        :when (not= :form/id prop)
-                        :when (nil? (prop new-props))]
-                    [:db/retract (:db/id form) prop old-val])
-                  (for [[prop val] new-props]
-                    [:db/add (:db/id form) prop val]))
-          (throw (ex-info "Conflict!" {:type :conflict})))
-        (throw (ex-info "Form not found." {:type :not-found}))))]})
 
 (def base-schema
   {:partitions
