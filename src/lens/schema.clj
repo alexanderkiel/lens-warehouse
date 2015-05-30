@@ -69,6 +69,7 @@
 (def study
   "A clinical or epidemiological study. "
   [[:id :string :unique "The id of a study. Same as the study OID in ODM."]
+   [:protocol :ref :comp]
    [:study-events :ref :many :comp]
    [:forms :ref :many :comp]
    [:item-groups :ref :many :comp]
@@ -102,6 +103,23 @@
                    [:db/add (:db/id study) prop val]))
          (throw (ex-info "Conflict!" {:type :conflict})))
        (throw (ex-info "Study not found." {:type :not-found}))))])
+
+(def protocol
+  "The Protocol lists the kinds of study events that can occur within a specific
+  version of a study. All clinical data must occur within one of these study
+  events.
+
+  A study whose metadata does not contain a protocol definition cannot have any
+  clinical data. Such studies can serve as common metadata dictionaries --
+  allowing sharing of metadata across studies."
+  [[:study-event-refs :ref :many :comp]])
+
+(def study-event-ref
+  "A reference to a FormDef as it occurs within a specific StudyEventDef. The
+  list of FormRefs identifies the types of forms that are allowed to occur
+  within this type of study event."
+  [[:study-event :ref]
+   [:rank :long]])
 
 (def study-event
   "A StudyEventDef packages a set of forms."
@@ -637,6 +655,8 @@ Which is one of :code-list-item/long-code or :code-list-item/string-code."}
   "Loads the base schema in one transaction and derefs the result."
   [conn]
   (->> (into (build-tx {:study study
+                        :protocol protocol
+                        :study-event-ref study-event-ref
                         :study-event study-event
                         :form-ref form-ref
                         :form form
