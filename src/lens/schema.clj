@@ -17,7 +17,7 @@
 
 (defmacro func [name doc params code]
   `{:db/id (d/tempid :db.part/user)
-    :db/ident ~name
+    :db/ident (keyword '~name)
     :db/doc ~doc
     :db/fn (d/function '{:lang "clojure" :params ~params :code ~code})})
 
@@ -39,21 +39,29 @@
                      [(butlast more) (last more)]
                      [more nil])]
     (-> {:db/id (d/tempid :db.part/db)
-         :db/ident (keyword (name entity-name) (name attr))
+         :db/ident (keyword entity-name (name attr))
          :db/valueType (keyword "db.type" (name type))
          :db/cardinality :db.cardinality/one
          :db.install/_attribute :db.part/db}
         (assoc-opts opts)
         (assoc-when :db/doc doc))))
 
+(defn build-function [entity-name def-item]
+  (update-in def-item [:db/ident] #(keyword (str entity-name ".fn") (name %))))
+
 (defn- def-item-tx-builder [entity-name]
   (fn [def-item]
-    (if (sequential? def-item)
+    (cond
+      (sequential? def-item)
       (build-attr-map entity-name def-item)
-      def-item)))
+
+      (:db/fn def-item)
+      (build-function entity-name def-item)
+
+      :else def-item)))
 
 (defn- build-entity-tx [tx name def]
-  (into tx (r/map (def-item-tx-builder name) def)))
+  (into tx (r/map (def-item-tx-builder (clojure.core/name name)) def)))
 
 (defn- build-tx [entities]
   (reduce-kv build-entity-tx [] entities))
@@ -67,7 +75,7 @@
    [:items :ref :many :comp]
    [:code-lists :ref :many :comp]
 
-   (func :study.fn/create
+   (func create
      "Creates a study."
      [db tid id name more]
      (if-not (d/entity db [:study/id id])
@@ -78,7 +86,7 @@
           more)]
        (throw (ex-info "Duplicate." {:type :duplicate}))))
 
-   (func :study.fn/update
+   (func update
      "Updates the study with the id.
 
      Ensures that the values in old-props are still current in the version of
@@ -101,7 +109,7 @@
    [:aliases :ref :many :comp]
    [:form-refs :ref :many :comp]
 
-   (func :study-event.fn/create
+   (func create
      "Creates a study event.
 
      Ensures id uniquness within its study."
@@ -117,7 +125,7 @@
          (throw (ex-info "Duplicate!" {:type :duplicate})))
        (throw (ex-info "Study not found." {:type :study-not-found}))))
 
-   (func :study-event.fn/add-form
+   (func add-form
      "Adds a reference to a form to this study event.
 
      Ensures uniquness of forms within this study-event."
@@ -149,21 +157,21 @@
 
 (def form
   "A FormDef describes a type of form that can occur in a study."
-  [[:id :string "The id of a form. Unique within a study."]
+  [[:id :string :index "The id of a form. Unique within a study."]
    [:aliases :ref :many :comp]
    [:item-group-refs :ref :many :comp]
 
-   (func :form.fn/create
+   (func create
      "Creates a form.
 
      Ensures id uniquness within its study."
-     [db tid study-id id name more]
+     [db tid study-id form-id name more]
      (if-let [study (d/entity db [:study/id study-id])]
-       (if-not (some #{id} (-> study :study/forms :form/id))
+       (if-not (some #{form-id} (-> study :study/forms :form/id))
          [[:db/add (:db/id study) :study/forms tid]
           (merge
             {:db/id tid
-             :form/id id
+             :form/id form-id
              :name name}
             more)]
          (throw (ex-info "Duplicate!" {:type :duplicate})))
@@ -182,7 +190,7 @@
    [:aliases :ref :many :comp]
    [:item-refs :ref :many :comp]
 
-   (func :item-group.fn/create
+   (func create
      "Creates an item group.
 
      Ensures id uniquness within its study."
@@ -224,7 +232,7 @@
    (enum :data-type/string)
    (enum :data-type/boolean)
 
-   (func :item.fn/create
+   (func create
      "Creates an item.
 
      Ensures id uniquness within its study."
@@ -254,7 +262,7 @@
    [:aliases :ref :many :comp]
    [:data-type :ref]
 
-   (func :code-list.fn/create
+   (func create
      "Creates a code-list.
 
      Ensures id uniquness within its study."
