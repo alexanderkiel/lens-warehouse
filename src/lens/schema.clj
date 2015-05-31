@@ -15,11 +15,11 @@
   {:db/id (d/tempid :db.part/user)
    :db/ident enum})
 
-(defmacro func [name doc params code]
+(defmacro func [name doc params & code]
   `{:db/id (d/tempid :db.part/user)
     :db/ident (keyword '~name)
     :db/doc ~doc
-    :db/fn (d/function '{:lang "clojure" :params ~params :code ~code})})
+    :db/fn (d/function '{:lang "clojure" :params ~params :code (do ~@code)})})
 
 (defn- assoc-opt [opt]
   (condp = opt
@@ -121,7 +121,7 @@
   [[:study-event :ref]
    [:rank :long]])
 
-(def study-event
+(def study-event-def
   "A StudyEventDef packages a set of forms."
   [[:id :string :index "The id of a study-event. Unique within a study."]
    [:aliases :ref :many :comp]
@@ -131,17 +131,18 @@
      "Creates a study event.
 
      Ensures id uniquness within its study."
-     [db tid study-id id name more]
-     (if-let [study (d/entity db [:study/id study-id])]
+     [db tid study-eid id name more]
+     (let [study (d/entity db study-eid)]
+       (when-not (:study/id study)
+         (throw (ex-info "Study not found." {:type :study-not-found})))
        (if-not (some #{id} (-> study :study/study-events :study-event/id))
          [[:db/add (:db/id study) :study/study-events tid]
           (merge
             {:db/id tid
-             :study-event/id id
+             :study-event-def/id id
              :name name}
             more)]
-         (throw (ex-info "Duplicate!" {:type :duplicate})))
-       (throw (ex-info "Study not found." {:type :study-not-found}))))
+         (throw (ex-info "Duplicate!" {:type :duplicate})))))
 
    (func find
      "Returns the study-event with study-id and study-event-id or nil if not 
@@ -192,9 +193,10 @@
   [[:form :ref]
    [:rank :long]])
 
-(def form
+(def form-def
   "A FormDef describes a type of form that can occur in a study."
   [[:id :string :index "The id of a form. Unique within a study."]
+   [:repeating :boolean]
    [:aliases :ref :many :comp]
    [:item-group-refs :ref :many :comp]
 
@@ -202,17 +204,19 @@
      "Creates a form.
 
      Ensures id uniquness within its study."
-     [db tid study-id form-id name more]
-     (if-let [study (d/entity db [:study/id study-id])]
-       (if-not (some #{form-id} (-> study :study/forms :form/id))
+     [db tid study-eid form-id name more]
+     (let [study (d/entity db study-eid)]
+       (when-not (:study/id study)
+         (throw (ex-info "Study not found." {:type :study-not-found})))
+       (if-not (some #{form-id} (map :form-def/id (:study/forms study)))
          [[:db/add (:db/id study) :study/forms tid]
           (merge
             {:db/id tid
-             :form/id form-id
-             :name name}
+             :form-def/id form-id
+             :name name
+             :form-def/repeating false}
             more)]
-         (throw (ex-info "Duplicate!" {:type :duplicate})))
-       (throw (ex-info "Study not found." {:type :study-not-found}))))
+         (throw (ex-info "Duplicate!" {:type :duplicate})))))
 
    (func find
      "Returns the form with study-id and form-id or nil if not found."
@@ -226,21 +230,22 @@
               (d/entity db)))
 
    (func update
-     "Updates the form with the id.
+     "Updates the form def.
 
      Ensures that the values in old-props are still current in the version of
      the in-transaction form."
-     [db study-id form-id old-props new-props]
-     (if-let [form (d/invoke db :form.fn/find db study-id form-id)]
-       (if (= (select-keys form (keys old-props)) old-props)
-         (concat (for [[prop old-val] form
-                       :when (not= :form/id prop)
-                       :when (nil? (prop new-props))]
-                   [:db/retract (:db/id form) prop old-val])
-                 (for [[prop val] new-props]
-                   [:db/add (:db/id form) prop val]))
-         (throw (ex-info "Conflict!" {:type :conflict})))
-       (throw (ex-info "Form not found." {:type :not-found}))))])
+     [db form-def-eid old-props new-props]
+     (let [form-def (d/entity db form-def-eid)]
+       (if (:form-def/id form-def)
+         (if (= (select-keys form-def (keys old-props)) old-props)
+           (concat (for [[prop old-val] form-def
+                         :when (not= :form-def/id prop)
+                         :when (nil? (prop new-props))]
+                     [:db/retract (:db/id form-def) prop old-val])
+                   (for [[prop val] new-props]
+                     [:db/add (:db/id form-def) prop val]))
+           (throw (ex-info "Conflict!" {:type :conflict})))
+         (throw (ex-info "Form not found." {:type :not-found})))))])
 
 (def item-group-ref
   "A reference to a ItemGroupDef as it occurs within a specific FormDef. The
@@ -249,7 +254,7 @@
   [[:item-group :ref]
    [:rank :long]])
 
-(def item-group
+(def item-group-def
   "An ItemGroupDef describes a type of item group that can occur within a study."
   [[:id :string "The id of an item group. Unique within a study."]
    [:aliases :ref :many :comp]
@@ -278,7 +283,7 @@
   [[:item :ref]
    [:rank :long]])
 
-(def item
+(def item-def
   "An ItemDef describes a type of item that can occur within a study. Item
   properties include name, datatype, measurement units, range or codelist
   restrictions, and several other properties."
@@ -347,57 +352,109 @@
        (throw (ex-info "Study not found." {:type :study-not-found}))))])
 
 (def subject
-  {:partitions
-   [{:db/ident :part/subject}]
+  "A subject is a patient participating in the study."
+  [[:study :ref]
+   [:id :string :index "The id of the subject unique within its study."]
 
-   :attributes
-   [{:db/ident :subject/id
-     :db/valueType :db.type/string
-     :db/unique :db.unique/identity
-     :db/cardinality :db.cardinality/one
-     :db/doc "The identifier of a subject."}
+   (func create
+     "Creates a subject."
+     [db tid study-eid id]
+     (when-not (:study/id (d/entity db study-eid))
+       (throw (ex-info "Study not found." {:type :study-not-found})))
+     (if-not (d/q '[:find ?sub . :in $ ?s ?id :where [?sub :subject/id ?id]
+                    [?sub :subject/study ?s]] db study-eid id)
+       [{:db/id tid
+         :subject/study study-eid
+         :subject/id id}]
+       (throw (ex-info "Duplicate!" {:type :duplicate}))))])
 
-    {:db/ident :subject/birth-date
-     :db/valueType :db.type/instant
-     :db/cardinality :db.cardinality/one
-     :db/doc (str "The date of birth of a subject. One should use the 15th of "
-                  "a month if there are any privacy regulations in place.")}
+(def study-event
+  "A study event is a reusable package of forms usually corresponding to a study
+  data-collection event."
+  [[:subject :ref "Concrete study events are linked to a subject."]
+   [:def :ref]
+   [:repeat-key :string "A key used to distinguish between repeats of the same
+                        type of study event for a single subject. (optional)"]
 
-    {:db/ident :subject/sex
-     :db/valueType :db.type/ref
-     :db/cardinality :db.cardinality/one
-     :db/doc "The sex of a subject."}]
+   (func create
+     ""
+     [db tid subject-eid study-event-def-eid]
+     (when-not (:subject/id (d/entity db subject-eid))
+       (throw (ex-info "Subject not found." {:type :subject-not-found})))
+     (when-not (:study-event-def/id (d/entity db study-event-def-eid))
+       (throw (ex-info "Study event def not found."
+                       {:type :study-event-def-not-found})))
+     (when (d/q '[:find ?se . :in $ ?s ?sed :where [?se :study-event/subject ?s]
+                  [?se :study-event/def ?sed]]
+                db subject-eid study-event-def-eid)
+       (throw (ex-info "Duplicate!" {:type :duplicate})))
+     [{:db/id tid
+       :study-event/subject subject-eid
+       :study-event/def study-event-def-eid}])])
 
-   :enums
-   [:subject.sex/male
-    :subject.sex/female]
+(def form
+  "A form is analogous to a page in a paper CRF book or electronic CRF screen. A
+  form generally collects a set of logically and temporally related information.
+  A series of forms is collected as part of a study event."
+  [[:study-event :ref "Concrete forms are linked to a study-event."]
+   [:def :ref]
+   [:repeat-key :string "A key used to distinguish between repeats of the same
+                         type of form within a single study event. (optional)"]
 
-   :functions
-   [(func :subject.fn/create
-      "Creates a subject."
-      [db tid id more]
-      (if-not (d/entity db [:subject/id id])
-        [(merge
-           {:db/id tid
-            :subject/id id}
-           more)]
-        (throw (ex-info (str "Subject exists already: " id)
-                        {:type :subject-exists-already :id id}))))
-    (func :subject.fn/retract
-      "Retracts a subject including all its visits."
-      [db id]
-      (if-let [subject (d/entity db [:subject/id id])]
-        (->> (:visit/_subject subject)
-             (map #(vector :db.fn/retractEntity (:db/id %)))
-             (cons [:db.fn/retractEntity (:db/id subject)]))
-        (throw (ex-info (str "Unknown subject: " id)
-                        {:type :unknown-subject :id id}))))]})
+   (func create
+     ""
+     [db tid study-event-eid form-def-eid]
+     (when-not (:study-event/subject (d/entity db study-event-eid))
+       (throw (ex-info "Study event not found." {:type :study-event-not-found})))
+     (when-not (:form-def/id (d/entity db form-def-eid))
+       (throw (ex-info "Form def not found." {:type :form-def-not-found})))
+     (when (d/q '[:find ?f . :in $ ?se ?fd :where [?f :form/study-event ?se]
+                  [?f :form/def ?fd]]
+                db study-event-eid form-def-eid)
+       (throw (ex-info "Duplicate!" {:type :duplicate})))
+     [{:db/id tid
+       :form/study-event study-event-eid
+       :form/def form-def-eid}])
+
+   (func create-repeating
+     ""
+     [db tid study-event-eid form-def-eid repeat-key]
+     (when-not (:study-event/subject (d/entity db study-event-eid))
+       (throw (ex-info "Study event not found." {:type :study-event-not-found})))
+     (when-not (:form-def/id (d/entity db form-def-eid))
+       (throw (ex-info "Form def not found." {:type :form-def-not-found})))
+     (when (d/q '[:find ?f . :in $ ?se ?fd ?rk :where [?f :form/study-event ?se]
+                  [?f :form/def ?fd] [?f :form/repeat-key ?rk]]
+                db study-event-eid form-def-eid repeat-key)
+       (throw (ex-info "Duplicate!" {:type :duplicate})))
+     [{:db/id tid
+       :form/study-event study-event-eid
+       :form/def form-def-eid
+       :form/repeat-key repeat-key}])])
+
+(def item-group
+  "An item group is a closely related set of items that are generally analyzed
+  together. (Item groups are sometimes referred to as records and are associated
+  with panels or tables.) Item groups are aggregated into forms."
+  [[:form :ref "Concrete item groups are linked to a form."]
+   [:def :ref]
+   [:repeat-key :string "A key used to distinguish between repeats of the same
+                         type of item group within a single form. (optional)"]])
+
+(def item
+  "An item is an individual clinical data item, such as a single systolic blood
+  pressure reading. Items are collected together into item groups."
+  [[:form :ref "Concrete items are linked to a item group."]
+   [:def :ref]
+   [:string-value :string]
+   [:integer-value :long]])
 
 (def base-schema
   {:partitions
    [{:db/ident :part/meta-data}
-    {:db/ident :part/visit}
-    {:db/ident :part/data-point}]
+    {:db/ident :part/subject}
+    {:db/ident :part/study-event}
+    {:db/ident :part/form}]
 
    :attributes
    [{:db/ident :name
@@ -657,15 +714,20 @@ Which is one of :code-list-item/long-code or :code-list-item/string-code."}
   (->> (into (build-tx {:study study
                         :protocol protocol
                         :study-event-ref study-event-ref
-                        :study-event study-event
+                        :study-event-def study-event-def
                         :form-ref form-ref
-                        :form form
+                        :form-def form-def
                         :item-group-ref item-group-ref
-                        :item-group item-group
+                        :item-group-def item-group-def
                         :item-ref item-ref
-                        :item item
+                        :item-def item-def
                         :alias alias
-                        :code-list code-list})
+                        :code-list code-list
+                        :subject subject
+                        :study-event study-event
+                        :form form
+                        :item-group item-group
+                        :item item})
              (prepare-schema base-schema))
        (d/transact conn)
        (deref)))

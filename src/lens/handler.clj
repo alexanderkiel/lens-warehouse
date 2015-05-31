@@ -64,7 +64,7 @@
                 (path-for :all-study-events-handler)
                 (path-for :all-forms-handler)
                 (path-for :all-snapshots-handler)
-                (path-for :find-form-handler)
+                (path-for :find-form-def-handler)
                 (path-for :find-item-group-handler)
                 (path-for :find-item-handler)
                 (path-for :most-recent-snapshot-handler)
@@ -90,10 +90,12 @@
        {:id
         {:type :string}}}
       :lens/find-form
-      {:action (path-for :find-form-handler)
+      {:action (path-for :find-form-def-handler)
        :method "GET"
        :params
-       {:id
+       {:study-id
+        {:type :string}
+        :form-def-id
         {:type :string}}}
       :lens/find-item-group
       {:action (path-for :find-item-group-handler)
@@ -139,6 +141,147 @@
         {:type :string}
         :description
         {:type :string}}}}}))
+
+;; ---- Study -----------------------------------------------------------------
+
+(defn- study-path [path-for study]
+  (path-for :study-handler :id (:study/id study)))
+
+(defn study-handler
+  "Handler for GET and PUT on a study.
+
+  Implementation note on PUT:
+
+  The resource compares the current ETag with the If-Match header based on a
+  possibly old version of the study taken from a database outside of the
+  transaction. The update transaction is than tried with name and description
+  from that possibly old study as reference. The transaction only succeeds if
+  the name and description are still the same on the in-transaction study."
+  [path-for]
+  (resource
+    (standard-entity-resource-defaults path-for)
+
+    :exists? (entity-exists :study api/study)
+
+    ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
+    :etag
+    (fnk [representation {status 200} :as ctx]
+      (when (= 200 status)
+        (md5 (str (:media-type representation)
+                  (path-for :service-document-handler)
+                  (study-path path-for (:study ctx))
+                  (:name (:study ctx))
+                  (:description (:study ctx))))))
+
+    :put!
+    (fnk [conn study new-entity]
+      (letfn [(select-props [study] (select-keys study [:name :description]))]
+        {:update-error (api/update-study conn (:study/id study)
+                                         (select-props study)
+                                         (select-props new-entity))}))
+
+    :handle-ok
+    (fnk [study]
+      (-> {:id (:study/id study)
+           :type :study
+           :name (:name study)
+           :links
+           {:up {:href (path-for :service-document-handler)}
+            :self {:href (study-path path-for study)}}}
+          (assoc-when :description (:description study))))))
+
+(defn create-study-handler [path-for]
+  (resource
+    (resource-defaults)
+
+    :allowed-methods [:post]
+
+    :processable?
+    (fnk [[:request params]]
+      (and (:id params) (:name params)))
+
+    :post!
+    (fnk [conn [:request params]]
+      (let [opts (select-keys params [:description])]
+        (if-let [study (api/create-study conn (:id params) (:name params) opts)]
+          {:study study}
+          (throw (ex-info "Duplicate!" {:type ::duplicate})))))
+
+    :location
+    (fnk [study] (study-path path-for study))
+
+    :handle-exception
+    (fnk [exception]
+      (if (= ::duplicate (util/error-type exception))
+        (error path-for 409 "Study exists already.")
+        (throw exception)))))
+
+;; ---- Subject ---------------------------------------------------------------
+
+(defn subject-path [path-for subject]
+  (path-for :get-subject-handler :study-id (:study/id (:subject/study subject))
+            :subject-id (:subject/id subject)))
+
+(defn get-subject-handler [path-for]
+  (resource
+    (resource-defaults)
+
+    :processable?
+    (fnk [[:request params]]
+      (and (:study-id params) (:subject-id params)))
+
+    :exists?
+    (fnk [db [:request [:params study-id subject-id]]]
+      (when-let [subject (some-> (api/study db study-id)
+                                 (api/find-subject subject-id))]
+        {:subject subject}))
+
+    :handle-ok
+    (fnk [subject]
+      {:id (:subject/id subject)
+       :type :subject
+       :links
+       {:up {:href (path-for :service-document-handler)}
+        :self {:href (subject-path path-for subject)}}})
+
+    :handle-not-found
+    (error-body path-for "Subject not found.")))
+
+(defn create-subject-handler [path-for]
+  (resource
+    (resource-defaults)
+
+    :allowed-methods [:post]
+
+    :processable?
+    (fnk [[:request params]]
+      (and (:study-id params) (:id params)))
+
+    :exists?
+    (fnk [db [:request [:params study-id]]]
+      (when-let [study (api/study db study-id)]
+        {:study study}))
+
+    :post!
+    (fnk [conn study [:request [:params id]]]
+      (if-let [subject (api/create-subject conn study id)]
+        {:subject subject}
+        (throw (ex-info "" {:type ::conflict}))))
+
+    :location
+    (fnk [subject] (subject-path path-for subject))
+
+    :handle-exception
+    (fnk [exception]
+      (if (= ::conflict (util/error-type exception))
+        (error path-for 409 "Subject exists already.")
+        (throw exception)))))
+
+(defn delete-subject-handler [path-for]
+  (fnk [conn [:params id]]
+    (if (api/retract-subject conn id)
+      {:status 204}
+      (ring-error path-for 404 "Subject not found."))))
 
 ;; ---- Study Events ----------------------------------------------------------
 
@@ -203,146 +346,11 @@
     :handle-not-found
     (error-body path-for "Study event not found.")))
 
-;; ---- Subject ---------------------------------------------------------------
-
-(defn get-subject-handler [path-for]
-  (resource
-    (resource-defaults)
-
-    :exists?
-    (fnk [db [:request [:params id]]]
-      (when-let [subject (api/subject db id)]
-        {:subject subject}))
-
-    :handle-ok
-    (fnk [subject]
-      {:id (:subject/id subject)
-       :type :subject
-       :links
-       {:up {:href (path-for :service-document-handler)}
-        :self {:href (path-for :get-subject-handler :id (:subject/id subject))}}})
-
-    :handle-not-found
-    (error-body path-for "Subject not found.")))
-
-(defn create-subject-handler [path-for]
-  (resource
-    (resource-defaults)
-
-    :allowed-methods [:post]
-
-    :processable?
-    (fnk [[:request params]]
-      (and (:id params)
-           (or (nil? (:sex params))
-               (#{"male" "female"} (:sex params)))
-           (or (nil? (:birth-date params))
-               (re-matches #"\d{4}-\d{2}(-\d{2})?" (:birth-date params)))))
-
-    :post!
-    (fnk [conn [:request params]]
-      (let [sex (some->> (:sex params) (keyword "subject.sex"))
-            birth-date (some->> (:birth-date params)
-                                (tf/parse (tf/formatters :date))
-                                (tc/to-date))
-            opts (assoc-when {} :subject/sex sex :subject/birth-date birth-date)]
-        (if-let [subject (api/create-subject conn (:id params) opts)]
-          {:subject subject}
-          (throw (ex-info "" {:type ::conflict})))))
-
-    :location
-    (fnk [subject] (path-for :get-subject-handler :id (:subject/id subject)))
-
-    :handle-exception
-    (fnk [exception]
-      (if (= ::conflict (util/error-type exception))
-        (error path-for 409 "Subject exists already.")
-        (throw exception)))))
-
-(defn delete-subject-handler [path-for]
-  (fnk [conn [:params id]]
-    (if (api/retract-subject conn id)
-      {:status 204}
-      (ring-error path-for 404 "Subject not found."))))
-
-;; ---- Study -----------------------------------------------------------------
-
-(defn- study-path [path-for study]
-  (path-for :study-handler :id (:study/id study)))
-
-(defn study-handler
-  "Handler for GET and PUT on a study.
-
-  Implementation note on PUT:
-
-  The resource compares the current ETag with the If-Match header based on a
-  possibly old version of the study taken from a database outside of the
-  transaction. The update transaction is than tried with name and description
-  from that possibly old study as reference. The transaction only succeeds if
-  the name and description are still the same on the in-transaction study."
-  [path-for]
-  (resource
-    (standard-entity-resource-defaults path-for)
-
-    :exists? (entity-exists :study api/study)
-
-    ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
-    :etag
-    (fnk [representation {status 200} :as ctx]
-      (when (= 200 status)
-        (md5 (str (:media-type representation)
-                  (path-for :service-document-handler)
-                  (study-path path-for (:study ctx))
-                  (:name (:study ctx))
-                  (:description (:study ctx))))))
-
-    :put!
-    (fnk [conn study new-entity]
-      (letfn [(select-props [study] (select-keys study [:name :description]))]
-        {:update-error (api/update-study! conn (:study/id study)
-                                          (select-props study)
-                                          (select-props new-entity))}))
-
-    :handle-ok
-    (fnk [study]
-      (-> {:id (:study/id study)
-           :type :study
-           :name (:name study)
-           :links
-           {:up {:href (path-for :service-document-handler)}
-            :self {:href (study-path path-for study)}}}
-          (assoc-when :description (:description study))))))
-
-(defn create-study-handler [path-for]
-  (resource
-    (resource-defaults)
-
-    :allowed-methods [:post]
-
-    :processable?
-    (fnk [[:request params]]
-      (and (:id params) (:name params)))
-
-    :post!
-    (fnk [conn [:request params]]
-      (let [opts (select-keys params [:description])]
-        (if-let [study (api/create-study conn (:id params) (:name params) opts)]
-          {:study study}
-          (throw (ex-info "Duplicate!" {:type ::duplicate})))))
-
-    :location
-    (fnk [study] (study-path path-for study))
-
-    :handle-exception
-    (fnk [exception]
-      (if (= ::duplicate (util/error-type exception))
-        (error path-for 409 "Study exists already.")
-        (throw exception)))))
-
 ;; ---- Forms -----------------------------------------------------------------
 
-(defn- form-path [path-for form]
-  (path-for :form-handler :id (:form/id form)))
+(defn- form-def-path [path-for form-def]
+  (path-for :form-def-handler :study-id (:study/id (:study/_forms form-def))
+            :form-def-id (:form-def/id form-def)))
 
 (defn search-item-groups-form [form]
   {:action (str "/forms/" (:form/id form) "/search-item-groups")
@@ -360,7 +368,7 @@
        :type :form
        :links
        {:self
-        {:href (form-path path-for form)}
+        {:href (form-def-path path-for form)}
         :lens/item-groups
         {:href (str "/forms/" (:form/id form) "/item-groups")}}
        :forms
@@ -446,7 +454,11 @@
   (resource
     (standard-entity-resource-defaults path-for)
 
-    :exists? (entity-exists :form api/form)
+    :exists?
+    (fnk [db [:request [:params study-id form-def-id]]]
+      (when-let [form-def (some-> (api/study db study-id)
+                                  (api/find-form-def form-def-id))]
+        {:form-def form-def}))
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
@@ -454,61 +466,63 @@
       (when (= 200 status)
         (md5 (str (:media-type representation)
                   (path-for :service-document-handler)
-                  (form-path path-for (:form ctx))
-                  (:name (:form ctx))
-                  (:description (:form ctx))))))
+                  (form-def-path path-for (:form-def ctx))
+                  (:name (:form-def ctx))
+                  (:description (:form-def ctx))))))
 
     :put!
-    (fnk [conn form new-entity]
-      (letfn [(select-props [form] (select-keys form [:name :description]))]
-        {:update-error (api/update-form! conn (:form/id form)
-                                         (select-props form)
-                                         (select-props new-entity))}))
+    (fnk [conn form-def new-entity]
+      (letfn [(select-props [form-def]
+                            (select-keys form-def [:name :description]))]
+        {:update-error (api/update-form-def conn (:form-def/id form-def)
+                                            (select-props form-def)
+                                            (select-props new-entity))}))
 
     :handle-ok
-    (fnk [form]
-      {:id (:form/id form)
-       :alias (:form/alias form)
-       :name (:name form)
+    (fnk [form-def]
+      {:id (:form/id form-def)
+       ;;TODO: alias
+       :name (:name form-def)
        :type :form
        :links
        {:up {:href (path-for :all-forms-handler)}
-        :self {:href (form-path path-for form)}}
+        :self {:href (form-def-path path-for form-def)}}
        :forms
-       {:lens/search-item-groups (search-item-groups-form form)}
+       {:lens/search-item-groups (search-item-groups-form form-def)}
        :embedded
        {:lens/item-groups
-        (->> (api/item-groups form)
+        (->> (api/item-groups form-def)
              (sort-by :item-group/rank)
              (render-embedded-item-groups path-for (timeout 100)))}})))
 
-(defn find-form-handler [path-for]
+(defn find-form-def-handler [path-for]
   (resource
     (resource-defaults)
 
     :exists?
-    (fnk [db [:request [:params id]]]
-      (when-let [form (api/form db id)]
-        {:form form}))
+    (fnk [db [:request [:params study-id form-def-id]]]
+      (when-let [form-def (some-> (api/study db study-id)
+                                  (api/find-form-def form-def-id))]
+        {:form-def form-def}))
 
     :etag
     (fnk [representation {status 200} :as ctx]
       (when (= 200 status)
         (md5 (str (:media-type representation)
                   (path-for :service-document-handler)
-                  (form-path path-for (:form ctx))
+                  (form-def-path path-for (:form ctx))
                   (:name (:form ctx))
                   (:description (:form ctx))))))
 
     :handle-ok
-    (fnk [form]
-      {:id (:form/id form)
-       :alias (:form/alias form)
-       :name (:name form)
-       :type :form
+    (fnk [form-def]
+      {:id (:form-def/id form-def)
+       ;;TODO: alias
+       :name (:name form-def)
+       :type :form-def
        :links
        {:up {:href (path-for :all-forms-handler)}
-        :self {:href (form-path path-for form)}}})
+        :self {:href (form-def-path path-for form-def)}}})
 
     :handle-not-found
     (error-body path-for "Form not found.")))
@@ -519,14 +533,14 @@
 
     :exists?
     (fnk [db [:request [:params id]]]
-      (when-let [form (api/form db id)]
+      (when-let [form (api/find-form-def db id)]
         {:form form}))
 
     :handle-ok
     (fnk [form]
       {:value (api/num-form-subjects form)
        :links
-       {:up {:href (form-path path-for form)}
+       {:up {:href (form-def-path path-for form)}
         :self {:href (path-for :form-count-handler :id (:form/id form))}}})
 
     :handle-not-found
@@ -545,12 +559,12 @@
     :post!
     (fnk [conn [:request params]]
       (let [opts (select-keys params [:description])]
-        (if-let [form (api/create-form conn (:id params) (:name params) opts)]
+        (if-let [form (api/create-form-def conn (:id params) (:name params) opts)]
           {:form form}
           (throw (ex-info "Duplicate!" {:type ::duplicate})))))
 
     :location
-    (fnk [form] (form-path path-for form))
+    (fnk [form] (form-def-path path-for form))
 
     :handle-exception
     (fnk [exception]
@@ -566,7 +580,7 @@
 
     :exists?
     (fnk [db [:request [:params id]]]
-      (when-let [form (api/form db id)]
+      (when-let [form (api/find-form-def db id)]
         {:form form}))
 
     :processable?
@@ -575,7 +589,7 @@
 
     :handle-ok
     (fnk [form [:request [:params query]]]
-      {:links {:up {:href (form-path path-for form)}}
+      {:links {:up {:href (form-def-path path-for form)}}
        :forms
        {:lens/search-item-groups (search-item-groups-form form)}
        :embedded
@@ -636,7 +650,7 @@
          :type :item-group
          :links
          {:up (let [form (:item-group/form item-group)]
-                {:href (form-path path-for form)
+                {:href (form-def-path path-for form)
                  :title (:name form)})
           :self {:href (path-for :item-group-handler :id id)}}
          :forms
@@ -667,7 +681,7 @@
          :type :item-group
          :links
          {:up (let [form (:item-group/form item-group)]
-                {:href (form-path path-for form)
+                {:href (form-def-path path-for form)
                  :title (:name form)})
           :self {:href (path-for :item-group-handler :id id)}}}))
 
@@ -1068,8 +1082,8 @@
    :study-handler (study-handler path-for)
    :create-study-handler (create-study-handler path-for)
    :all-forms-handler (all-forms-handler path-for)
-   :find-form-handler (find-form-handler path-for)
-   :form-handler (form-handler path-for)
+   :find-form-def-handler (find-form-def-handler path-for)
+   :form-def-handler (form-handler path-for)
    :form-count-handler (form-count-handler path-for)
    :create-form-handler (create-form-handler path-for)
    :search-item-groups-handler (search-item-groups-handler path-for)

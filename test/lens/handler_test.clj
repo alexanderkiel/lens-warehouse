@@ -32,228 +32,158 @@
 
 (use-fixtures :each database-fixture)
 
-;; ---- Subject ---------------------------------------------------------------
-
-(deftest get-subject-handler-test
-  (testing "Body contains self link"
-    (api/create-subject (connect) "id-181341")
-    (let [req {:request-method :get
-               :headers {"accept" "application/edn"}
-               :params {:id "id-181341"}
-               :db (d/db (connect))}
-          resp ((get-subject-handler path-for) req)]
-      (is (= 200 (:status resp)))
-      (let [self-link (:self (:links (edn/read-string (:body resp))))]
-        (is (= :get-subject-handler (:handler (:href self-link))))
-        (is (= [:id "id-181341"] (:args (:href self-link))))))))
-
-(deftest create-subject-handler-test
-  (testing "Create without id fails"
-    (let [req {:request-method :post
-               :params {}
-               :conn (connect)}]
-      (is (= 422 (:status ((create-subject-handler nil) req))))))
-
-  (testing "Create with invalid sex fails"
-    (let [req {:request-method :post
-               :params {:id "id-172029"
-                        :sex "foo"}
-               :conn (connect)}]
-      (is (= 422 (:status ((create-subject-handler nil) req))))))
-
-  (testing "Create with invalid birth-date fails"
-    (let [req {:request-method :post
-               :params {:id "id-172029"
-                        :birth-date "foo"}
-               :conn (connect)}]
-      (is (= 422 (:status ((create-subject-handler nil) req))))))
-
-  (testing "Create with id only"
-    (let [path-for (fn [_ _ id] id)
-          req {:request-method :post
-               :params {:id "id-165339"}
-               :conn (connect)}
-          resp ((create-subject-handler path-for) req)]
-      (is (= 201 (:status resp)))
-      (is (= "id-165339" (get-in resp [:headers "Location"])))
-      (is (nil? (:body resp)))))
-
-  (testing "Create with sex"
-    (let [req {:request-method :post
-               :params {:id "id-171917"
-                        :sex "male"}
-               :conn (connect)}
-          resp ((create-subject-handler path-for) req)]
-      (is (= 201 (:status resp)))
-      (is (= :subject.sex/male
-             (:subject/sex (api/subject (d/db (connect)) "id-171917"))))))
-
-  (testing "Create with birth-date"
-    (let [req {:request-method :post
-               :params {:id "id-173133"
-                        :birth-date "2015-05-25"}
-               :conn (connect)}
-          resp ((create-subject-handler path-for) req)]
-      (is (= 201 (:status resp)))
-      (is (= (tc/to-date (t/date-time 2015 5 25))
-             (:subject/birth-date (api/subject (d/db (connect)) "id-173133"))))))
-
-  (testing "Create with existing id fails"
-    (api/create-subject (connect) "id-182721")
-    (let [req {:request-method :post
-               :params {:id "id-182721"}
-               :conn (connect)}
-          resp ((create-subject-handler path-for) req)]
-      (is (= 409 (:status resp))))))
-
 ;; ---- Study -----------------------------------------------------------------
 
+(defn study [id]
+  (api/study (d/db (connect)) id))
+
+(defn- create-study
+  ([id] (create-study id "name-172037"))
+  ([id name]
+   (api/create-study (connect) id name))
+  ([id name description]
+   (api/create-study (connect) id name {:description description})))
+
 (deftest study-handler-test
-  (letfn [(study [id] (api/study (d/db (connect)) id))
-          (create-study
-            ([id name] (api/create-study (connect) id name))
-            ([id name desc]
-             (api/create-study (connect) id name {:description desc})))]
+  (testing "Body contains self link"
+    (create-study "id-224127")
+    (let [req {:request-method :get
+               :headers {"accept" "application/edn"}
+               :params {:id "id-224127"}
+               :db (d/db (connect))}
+          resp ((study-handler path-for) req)]
+      (is (= 200 (:status resp)))
+      (let [self-link (:self (:links (edn/read-string (:body resp))))]
+        (is (= :study-handler (:handler (:href self-link))))
+        (is (= [:id "id-224127"] (:args (:href self-link)))))))
 
-    (testing "Body contains self link"
-      (create-study "id-224127" "name-224123")
-      (let [req {:request-method :get
-                 :headers {"accept" "application/edn"}
-                 :params {:id "id-224127"}
-                 :db (d/db (connect))}
-            resp ((study-handler path-for) req)]
-        (is (= 200 (:status resp)))
-        (let [self-link (:self (:links (edn/read-string (:body resp))))]
-          (is (= :study-handler (:handler (:href self-link))))
-          (is (= [:id "id-224127"] (:args (:href self-link)))))))
+  (testing "Response contains an ETag"
+    (create-study "id-175847" "name-175850")
+    (let [req {:request-method :get
+               :headers {"accept" "application/edn"}
+               :params {:id "id-175847"}
+               :db (d/db (connect))}
+          resp ((study-handler path-for) req)]
+      (is (= "\"23a61f1f52398fcd599d61672a63815d\""
+             (get-in resp [:headers "ETag"])))))
 
-    (testing "Response contains an ETag"
-      (create-study "id-175847" "name-175850")
-      (let [req {:request-method :get
-                 :headers {"accept" "application/edn"}
-                 :params {:id "id-175847"}
-                 :db (d/db (connect))}
-            resp ((study-handler path-for) req)]
-        (is (= "\"23a61f1f52398fcd599d61672a63815d\""
-               (get-in resp [:headers "ETag"])))))
+  (testing "Non-conditional update fails"
+    (create-study "id-093946" "name-201516")
+    (let [req {:request-method :put
+               :headers {"accept" "application/json"
+                         "content-type" "application/json"}
+               :params {:id "id-093946"}
+               :db (d/db (connect))}
+          resp ((study-handler path-for) req)]
+      (is (= 400 (:status resp)))
+      (is (= "Require conditional update." (:body resp)))))
 
-    (testing "Non-conditional update fails"
-      (create-study "id-093946" "name-201516")
-      (let [req {:request-method :put
-                 :headers {"accept" "application/json"
-                           "content-type" "application/json"}
-                 :params {:id "id-093946"}
-                 :db (d/db (connect))}
-            resp ((study-handler path-for) req)]
-        (is (= 400 (:status resp)))
-        (is (= "Require conditional update." (:body resp)))))
+  (testing "Update with missing body fails"
+    (create-study "id-201514" "name-201516")
+    (let [req {:request-method :put
+               :headers {"accept" "application/json"
+                         "content-type" "application/json"
+                         "if-match" "\"foo\""}
+               :params {:id "id-201514"}
+               :db (d/db (connect))}
+          resp ((study-handler path-for) req)]
+      (is (= 400 (:status resp)))
+      (is (= "Missing request body." (:body resp)))))
 
-    (testing "Update with missing body fails"
-      (create-study "id-201514" "name-201516")
-      (let [req {:request-method :put
-                 :headers {"accept" "application/json"
-                           "content-type" "application/json"
-                           "if-match" "\"foo\""}
-                 :params {:id "id-201514"}
-                 :db (d/db (connect))}
-            resp ((study-handler path-for) req)]
-        (is (= 400 (:status resp)))
-        (is (= "Missing request body." (:body resp)))))
+  (testing "Update with invalid body fails"
+    (create-study "id-201514" "name-201516")
+    (let [req {:request-method :put
+               :headers {"accept" "application/json"
+                         "content-type" "application/json"
+                         "if-match" "\"foo\""}
+               :params {:id "id-201514"}
+               :body (str->is "{")
+               :db (d/db (connect))}
+          resp ((study-handler path-for) req)]
+      (is (= 400 (:status resp)))
+      (is (= "Invalid request body." (:body resp)))))
 
-    (testing "Update with invalid body fails"
-      (create-study "id-201514" "name-201516")
-      (let [req {:request-method :put
-                 :headers {"accept" "application/json"
-                           "content-type" "application/json"
-                           "if-match" "\"foo\""}
-                 :params {:id "id-201514"}
-                 :body (str->is "{")
-                 :db (d/db (connect))}
-            resp ((study-handler path-for) req)]
-        (is (= 400 (:status resp)))
-        (is (= "Invalid request body." (:body resp)))))
+  (testing "Update fails on ETag missmatch"
+    (create-study "id-201514" "name-201516")
+    (let [req {:request-method :put
+               :headers {"accept" "application/json"
+                         "content-type" "application/json"
+                         "if-match" "\"foo\""}
+               :params {:id "id-201514"}
+               :body (str->is "{\"name\": \"name-202906\"}")
+               :db (d/db (connect))}
+          resp ((study-handler path-for) req)]
+      (is (= 412 (:status resp)))))
 
-    (testing "Update fails on ETag missmatch"
-      (create-study "id-201514" "name-201516")
-      (let [req {:request-method :put
-                 :headers {"accept" "application/json"
-                           "content-type" "application/json"
-                           "if-match" "\"foo\""}
-                 :params {:id "id-201514"}
-                 :body (str->is "{\"name\": \"name-202906\"}")
-                 :db (d/db (connect))}
-            resp ((study-handler path-for) req)]
-        (is (= 412 (:status resp)))))
+  (testing "Update fails on missing name"
+    (create-study "id-174709" "name-202034")
+    (let [req {:request-method :put
+               :headers {"accept" "application/json"
+                         "content-type" "application/json"
+                         "if-match" "\"foo\""}
+               :params {:id "id-174709"}
+               :body (str->is "{}")
+               :conn (connect)
+               :db (d/db (connect))}
+          resp ((study-handler path-for) req)]
+      (is (= 422 (:status resp)))))
 
-    (testing "Update fails on missing name"
-      (create-study "id-174709" "name-202034")
-      (let [req {:request-method :put
-                 :headers {"accept" "application/json"
-                           "content-type" "application/json"
-                           "if-match" "\"foo\""}
-                 :params {:id "id-174709"}
-                 :body (str->is "{}")
-                 :conn (connect)
-                 :db (d/db (connect))}
-            resp ((study-handler path-for) req)]
-        (is (= 422 (:status resp)))))
+  (testing "Update fails in-transaction on name missmatch"
+    (create-study "id-202032" "name-202034")
+    (let [req {:request-method :put
+               :headers {"accept" "application/json"
+                         "content-type" "application/json"
+                         "if-match" "\"aff8423a097f1e8ebcfcf63319d86f83\""}
+               :params {:id "id-202032"}
+               :body (str->is "{\"name\": \"name-202906\"}")
+               :db (d/db (connect))}
+          _ (api/update-study (connect) "id-202032" {:name "name-202034"}
+                               {:name "name-203308"})
+          req (assoc req :conn (connect))
+          resp ((study-handler path-for) req)]
+      (is (= 409 (:status resp)))))
 
-    (testing "Update fails in-transaction on name missmatch"
-      (create-study "id-202032" "name-202034")
-      (let [req {:request-method :put
-                 :headers {"accept" "application/json"
-                           "content-type" "application/json"
-                           "if-match" "\"aff8423a097f1e8ebcfcf63319d86f83\""}
-                 :params {:id "id-202032"}
-                 :body (str->is "{\"name\": \"name-202906\"}")
-                 :db (d/db (connect))}
-            _ (api/update-study! (connect) "id-202032" {:name "name-202034"}
-                                 {:name "name-203308"})
-            req (assoc req :conn (connect))
-            resp ((study-handler path-for) req)]
-        (is (= 409 (:status resp)))))
+  (testing "Update with JSON succeeds"
+    (create-study "id-203855" "name-202034")
+    (let [req {:request-method :put
+               :headers {"accept" "application/json"
+                         "content-type" "application/json"
+                         "if-match" "\"a5f78306eefab2042ff77d3a67567e1b\""}
+               :params {:id "id-203855"}
+               :body (str->is "{\"name\": \"name-202906\"}")
+               :conn (connect)
+               :db (d/db (connect))}
+          resp ((study-handler path-for) req)]
+      (is (= 204 (:status resp)))
+      (is (= "name-202906" (:name (study "id-203855"))))))
 
-    (testing "Update with JSON succeeds"
-      (create-study "id-203855" "name-202034")
-      (let [req {:request-method :put
-                 :headers {"accept" "application/json"
-                           "content-type" "application/json"
-                           "if-match" "\"a5f78306eefab2042ff77d3a67567e1b\""}
-                 :params {:id "id-203855"}
-                 :body (str->is "{\"name\": \"name-202906\"}")
-                 :conn (connect)
-                 :db (d/db (connect))}
-            resp ((study-handler path-for) req)]
-        (is (= 204 (:status resp)))
-        (is (= "name-202906" (:name (study "id-203855"))))))
+  (testing "Update with Transit succeeds"
+    (create-study "id-143317" "name-143321")
+    (let [req {:request-method :put
+               :headers {"accept" "application/transit+json"
+                         "content-type" "application/transit+json"
+                         "if-match" "\"ee42fd30011f499d4f9147fb2491deb7\""}
+               :params {:id "id-143317"}
+               :body (transit->is {:name "name-143536"})
+               :conn (connect)
+               :db (d/db (connect))}
+          resp ((study-handler path-for) req)]
+      (is (= 204 (:status resp)))
+      (is (= "name-143536" (:name (study "id-143317"))))))
 
-    (testing "Update with Transit succeeds"
-      (create-study "id-143317" "name-143321")
-      (let [req {:request-method :put
-                 :headers {"accept" "application/transit+json"
-                           "content-type" "application/transit+json"
-                           "if-match" "\"ee42fd30011f499d4f9147fb2491deb7\""}
-                 :params {:id "id-143317"}
-                 :body (transit->is {:name "name-143536"})
-                 :conn (connect)
-                 :db (d/db (connect))}
-            resp ((study-handler path-for) req)]
-        (is (= 204 (:status resp)))
-        (is (= "name-143536" (:name (study "id-143317"))))))
-
-    (testing "Update can remove description"
-      (create-study "id-143317" "name-143321" "desc-155658")
-      (let [req {:request-method :put
-                 :headers {"accept" "application/transit+json"
-                           "content-type" "application/transit+json"
-                           "if-match" "\"e5d89c09239bde70472e7c250170429b\""}
-                 :params {:id "id-143317"}
-                 :body (transit->is {:name "name-143536"})
-                 :conn (connect)
-                 :db (d/db (connect))}
-            resp ((study-handler path-for) req)]
-        (is (= 204 (:status resp)))
-        (is (nil? (:description (study "id-143317"))))))))
+  (testing "Update can remove description"
+    (create-study "id-143317" "name-143321" "desc-155658")
+    (let [req {:request-method :put
+               :headers {"accept" "application/transit+json"
+                         "content-type" "application/transit+json"
+                         "if-match" "\"e5d89c09239bde70472e7c250170429b\""}
+               :params {:id "id-143317"}
+               :body (transit->is {:name "name-143536"})
+               :conn (connect)
+               :db (d/db (connect))}
+          resp ((study-handler path-for) req)]
+      (is (= 204 (:status resp)))
+      (is (nil? (:description (study "id-143317")))))))
 
 (deftest create-study-handler-test
   (testing "Create without id and name fails"
@@ -297,90 +227,142 @@
           resp ((create-study-handler path-for) req)]
       (is (= 409 (:status resp))))))
 
-;; ---- Form ------------------------------------------------------------------
+;; ---- Subject ---------------------------------------------------------------
 
-(defn form [id] (api/form (d/db (connect)) id))
+(defn- create-subject [study id]
+  (api/create-subject (connect) study id))
 
-(defn create-form
-  ([id name] (api/create-form (connect) id name))
-  ([id name desc] (api/create-form (connect) id name {:description desc})))
+(deftest get-subject-handler-test
+  (let [study (create-study "s-172046")]
+    (create-subject study "sub-172208")
+    (testing "Body contains self link"
+      (let [req {:request-method :get
+                 :headers {"accept" "application/edn"}
+                 :params {:study-id "s-172046" :subject-id "sub-172208"}
+                 :db (d/db (connect))}
+            resp ((get-subject-handler path-for) req)]
+        (is (= 200 (:status resp)))
+        (let [self-link (:self (:links (edn/read-string (:body resp))))]
+          (is (= :get-subject-handler (:handler (:href self-link))))
+          (is (= [:study-id "s-172046" :subject-id "sub-172208"]
+                 (:args (:href self-link)))))))))
 
-(deftest find-form-handler-test
-  (testing "Body contains self link"
-    (create-form "id-224127" "name-224123")
-    (let [req {:request-method :get
-               :headers {"accept" "application/edn"}
-               :params {:id "id-224127"}
-               :db (d/db (connect))}
-          resp ((find-form-handler path-for) req)]
-      (is (= 200 (:status resp)))
+(deftest create-subject-handler-test
+  (let [study (create-study "s-174305")]
+    (testing "Create without study id fails"
+      (let [req {:request-method :post
+                 :params {}
+                 :conn (connect)
+                 :db (d/db (connect))}]
+        (is (= 422 (:status ((create-subject-handler nil) req))))))
+
+    (testing "Create without id fails"
+      (let [req {:request-method :post
+                 :params {:study-id "s-174305"}
+                 :conn (connect)
+                 :db (d/db (connect))}]
+        (is (= 422 (:status ((create-subject-handler nil) req))))))
+
+    (testing "Create with id only"
+      (let [req {:request-method :post
+                 :params {:study-id "s-174305" :id "id-165339"}
+                 :conn (connect)
+                 :db (d/db (connect))}
+            resp ((create-subject-handler path-for) req)]
+        (is (= 201 (:status resp)))
+        (let [location (edn/read-string (get-in resp [:headers "Location"]))]
+          (is (= "s-174305" (nth (:args location) 1)))
+          (is (= "id-165339" (nth (:args location) 3))))
+        (is (nil? (:body resp)))))
+
+    (testing "Create with existing id fails"
+      (create-subject study "id-182721")
+      (let [req {:request-method :post
+                 :params {:study-id "s-174305" :id "id-182721"}
+                 :conn (connect)
+                 :db (d/db (connect))}
+            resp ((create-subject-handler path-for) req)]
+        (is (= 409 (:status resp)))))))
+
+;; ---- Form Def --------------------------------------------------------------
+
+(defn create-form-def
+  ([study id] (create-form-def study id "name-182856"))
+  ([study id name] (api/create-form-def (connect) study id name))
+  ([study id name desc]
+   (api/create-form-def (connect) study id name {:description desc})))
+
+(deftest find-form-def-handler-test
+  (-> (create-study "s-183549")
+      (create-form-def "id-224127"))
+
+  (let [req {:request-method :get
+             :headers {"accept" "application/edn"}
+             :params {:study-id "s-183549" :form-def-id "id-224127"}
+             :db (d/db (connect))}
+        resp ((find-form-def-handler path-for) req)]
+
+    (is (= 200 (:status resp)))
+
+    (testing "Body contains self link"
       (let [self-link (:self (:links (edn/read-string (:body resp))))]
-        (is (= :form-handler (:handler (:href self-link))))
-        (is (= [:id "id-224127"] (:args (:href self-link)))))))
+        (is (= :form-def-handler (:handler (:href self-link))))
+        (is (= [:study-id "s-183549" :form-def-id "id-224127"]
+               (:args (:href self-link))))))
 
-  (testing "Response contains an ETag"
-    (create-form "id-175847" "name-175850")
-    (let [req {:request-method :get
-               :headers {"accept" "application/edn"}
-               :params {:id "id-175847"}
-               :db (d/db (connect))}
-          resp ((find-form-handler path-for) req)]
-      (is (= "\"6997dfb4d1f435d2e161fcf215a32fe4\""
+    (testing "Response contains an ETag"
+      (is (= "\"d6c752651c6ece3c991b7df3946b3495\""
              (get-in resp [:headers "ETag"]))))))
 
-(deftest form-handler-test
-  (testing "Body contains self link"
-    (create-form "id-224127" "name-224123")
-    (let [req {:request-method :get
-               :headers {"accept" "application/edn"}
-               :params {:id "id-224127"}
-               :db (d/db (connect))}
-          resp ((form-handler path-for) req)]
-      (is (= 200 (:status resp)))
-      (let [self-link (:self (:links (edn/read-string (:body resp))))]
-        (is (= :form-handler (:handler (:href self-link))))
-        (is (= [:id "id-224127"] (:args (:href self-link)))))))
+(deftest form-def-handler-test
+  (-> (create-study "s-183549")
+      (create-form-def "id-224127"))
 
-  (testing "Response contains an ETag"
-    (create-form "id-175847" "name-175850")
-    (let [req {:request-method :get
-               :headers {"accept" "application/edn"}
-               :params {:id "id-175847"}
-               :db (d/db (connect))}
-          resp ((form-handler path-for) req)]
-      (is (= "\"6997dfb4d1f435d2e161fcf215a32fe4\""
+  (let [req {:request-method :get
+             :headers {"accept" "application/edn"}
+             :params {:study-id "s-183549" :form-def-id "id-224127"}
+             :db (d/db (connect))}
+        resp ((find-form-def-handler path-for) req)]
+
+    (is (= 200 (:status resp)))
+
+    (testing "Body contains self link"
+      (let [self-link (:self (:links (edn/read-string (:body resp))))]
+        (is (= :form-def-handler (:handler (:href self-link))))
+        (is (= [:study-id "s-183549" :form-def-id "id-224127"]
+               (:args (:href self-link))))))
+
+    (testing "Response contains an ETag"
+      (is (= "\"d6c752651c6ece3c991b7df3946b3495\""
              (get-in resp [:headers "ETag"])))))
 
   (testing "Non-conditional update fails"
-    (create-form "id-093946" "name-201516")
     (let [req {:request-method :put
                :headers {"accept" "application/json"
                          "content-type" "application/json"}
-               :params {:id "id-093946"}
+               :params {:study-id "s-183549" :form-def-id "id-224127"}
                :db (d/db (connect))}
           resp ((form-handler path-for) req)]
       (is (= 400 (:status resp)))
       (is (= "Require conditional update." (:body resp)))))
 
   (testing "Update with missing body fails"
-    (create-form "id-201514" "name-201516")
     (let [req {:request-method :put
                :headers {"accept" "application/json"
                          "content-type" "application/json"
                          "if-match" "\"foo\""}
-               :params {:id "id-201514"}
+               :params {:study-id "s-183549" :form-def-id "id-224127"}
                :db (d/db (connect))}
           resp ((form-handler path-for) req)]
       (is (= 400 (:status resp)))
       (is (= "Missing request body." (:body resp)))))
 
   (testing "Update with invalid body fails"
-    (create-form "id-201514" "name-201516")
     (let [req {:request-method :put
                :headers {"accept" "application/json"
                          "content-type" "application/json"
                          "if-match" "\"foo\""}
-               :params {:id "id-201514"}
+               :params {:study-id "s-183549" :form-def-id "id-224127"}
                :body (str->is "{")
                :db (d/db (connect))}
           resp ((form-handler path-for) req)]
@@ -388,24 +370,22 @@
       (is (= "Invalid request body." (:body resp)))))
 
   (testing "Update fails on ETag missmatch"
-    (create-form "id-201514" "name-201516")
     (let [req {:request-method :put
                :headers {"accept" "application/json"
                          "content-type" "application/json"
                          "if-match" "\"foo\""}
-               :params {:id "id-201514"}
+               :params {:study-id "s-183549" :form-def-id "id-224127"}
                :body (str->is "{\"name\": \"name-202906\"}")
                :db (d/db (connect))}
           resp ((form-handler path-for) req)]
       (is (= 412 (:status resp)))))
 
   (testing "Update fails on missing name"
-    (create-form "id-174709" "name-202034")
     (let [req {:request-method :put
                :headers {"accept" "application/json"
                          "content-type" "application/json"
                          "if-match" "\"foo\""}
-               :params {:id "id-174709"}
+               :params {:study-id "s-183549" :form-def-id "id-224127"}
                :body (str->is "{}")
                :conn (connect)
                :db (d/db (connect))}
@@ -413,22 +393,21 @@
       (is (= 422 (:status resp)))))
 
   (testing "Update fails in-transaction on name missmatch"
-    (create-form "id-202032" "name-202034")
     (let [req {:request-method :put
                :headers {"accept" "application/json"
                          "content-type" "application/json"
                          "if-match" "\"f09e6579ee40674b38da3f7777747e36\""}
-               :params {:id "id-202032"}
+               :params {:study-id "s-183549" :form-def-id "id-224127"}
                :body (str->is "{\"name\": \"name-202906\"}")
                :db (d/db (connect))}
-          _ (api/update-form! (connect) "id-202032" {:name "name-202034"}
+          _ (api/update-form-def (connect) "id-202032" {:name "name-202034"}
                               {:name "name-203308"})
           req (assoc req :conn (connect))
           resp ((form-handler path-for) req)]
       (is (= 409 (:status resp)))))
 
   (testing "Update with JSON succeeds"
-    (create-form "id-203855" "name-202034")
+    (create-form-def "id-203855" "name-202034")
     (let [req {:request-method :put
                :headers {"accept" "application/json"
                          "content-type" "application/json"
@@ -442,7 +421,7 @@
       (is (= "name-202906" (:name (form "id-203855"))))))
 
   (testing "Update with Transit succeeds"
-    (create-form "id-143317" "name-143321")
+    (create-form-def "id-143317" "name-143321")
     (let [req {:request-method :put
                :headers {"accept" "application/transit+json"
                          "content-type" "application/transit+json"
@@ -456,7 +435,7 @@
       (is (= "name-143536" (:name (form "id-143317"))))))
 
   (testing "Update can remove description"
-    (create-form "id-143317" "name-143321" "desc-155658")
+    (create-form-def "id-143317" "name-143321" "desc-155658")
     (let [req {:request-method :put
                :headers {"accept" "application/transit+json"
                          "content-type" "application/transit+json"
@@ -501,10 +480,10 @@
           resp ((create-form-handler path-for) req)]
       (is (= 201 (:status resp)))
       (is (= "description-224339"
-             (:description (api/form (d/db (connect)) "id-224401"))))))
+             (:description (api/find-form-def (d/db (connect)) "id-224401"))))))
 
   (testing "Create with existing id fails"
-    (api/create-form (connect) "id-224419" "name-224431")
+    (api/create-form-def (connect) "id-224419" "name-224431")
     (let [req {:request-method :post
                :params {:id "id-224419" :name "name-224439"}
                :conn (connect)}

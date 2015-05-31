@@ -6,17 +6,18 @@
     "/study-events"
     {"" :all-study-events-handler
      ["/" :id] :study-event-handler}
-    "/subjects"
-    {"" :create-subject-handler
-     ["/" :id] {:get :get-subject-handler
-                :delete :delete-subject-handler}}
     "/studies"
     {"" :create-study-handler
-     ["/" :id] :study-handler}
+     ["/" :study-id] :study-handler
+     "/find-form-def" :find-form-def-handler
+     "/subjects"
+     {"" :create-subject-handler
+      ["/" :subject-id] {:get :get-subject-handler
+                         :delete :delete-subject-handler}}}
     "/forms"
     {"" {:get :all-forms-handler
          :post :create-form-handler}
-     ["/" :id] :form-handler
+     ["/" :id] :form-def-handler
      ["/" :id "/count"] :form-count-handler
      ["/" :id "/search-item-groups"] :search-item-groups-handler}
     "/item-groups"
@@ -37,6 +38,5 @@
      ["/" :id "/query"] :query-handler}
     "/most-recent-snapshot" :most-recent-snapshot-handler
     "/find-study" :find-study-handler
-    "/find-form" :find-form-handler
     "/find-item-group" :find-item-group-handler
     "/find-item" :find-item-handler}])

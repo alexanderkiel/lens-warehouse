@@ -17,11 +17,14 @@
 
 ;; ---- Single Accessors ------------------------------------------------------
 
-(defn subject
-  "Returns the subject with the id or nil if none was found."
-  [db id]
-  {:pre [db (string? id)]}
-  (d/entity db [:subject/id id]))
+(defn find-subject
+  "Returns the subject with the id within the study or nil if none was found."
+  [study id]
+  {:pre [(:study/id study) (string? id)]}
+  (let [db (d/entity-db study)]
+    (->> (d/q '[:find ?sub . :in $ ?s ?id :where [?sub :subject/id ?id]
+                [?sub :subject/study ?s]] db (:db/id study) id)
+         (d/entity db))))
 
 (defn study
   "Returns the study with the id or nil if none was found."
@@ -35,11 +38,11 @@
   {:pre [db (string? id)]}
   (d/entity db [:study-event/id id]))
 
-(defn form
-  "Returns the form with the id or nil if none was found."
-  [db id]
-  {:pre [db (string? id)]}
-  (d/entity db [:form/id id]))
+(defn find-form-def
+  "Returns the form def with the id within the study or nil if none was found."
+  [study id]
+  {:pre [(:study/id study) (string? id)]}
+  (some #(when (= id (:form-def/id %)) %) (:study/forms study)))
 
 (defn item-group
   "Returns the item group with the id or nil if none was found."
@@ -95,44 +98,13 @@
     (-> (util/update-cache! cli-cache key (code-list-item' db item-eid code))
         (cache/lookup key))))
 
-;; ---- Subject ---------------------------------------------------------------
+;; ---- Create ----------------------------------------------------------------
 
 (defn- create [conn partition fn]
   (let [tid (d/tempid partition)
         tx-result @(d/transact conn (fn tid))
         db (:db-after tx-result)]
     (d/entity db (d/resolve-tempid db (:tempids tx-result) tid))))
-
-(defn create-subject
-  "Creates the subject with the id and more.
-
-  More can be a map of :subject/sex and :subject/birth-date were :subject/sex
-  should be one of :subject.sex/male or :subject.sex/female and
-  :subject/birth-date should be a date.
-
-  Returns the created subject or false if there is already one with the id."
-  [conn id & [more]]
-  (try
-    (create conn :part/subject (fn [tid] [[:subject.fn/create tid id more]]))
-    (catch Exception e
-      (if (= :subject-exists-already (util/error-type e))
-        false
-        (throw e)))))
-
-(defn retract-subject
-  "Retracts the subject with the id.
-
-  Returns true if an existing subject was retracted and false if the subject
-  did not exist at the time the transaction happend."
-  [conn id]
-  {:pre [conn (string? id)]}
-  (try
-    @(d/transact-async conn [[:subject.fn/retract id]])
-    true
-    (catch Exception e
-      (if (= :unknown-subject (util/error-type e))
-        false
-        (throw e)))))
 
 ;; ---- Study -----------------------------------------------------------------
 
@@ -149,7 +121,7 @@
     (catch Exception e
       (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
-(defn update-study!
+(defn update-study
   "Updates the study with the id.
 
   Ensures that the values in old-props are still current in the version of the
@@ -161,32 +133,116 @@
     nil
     (catch Exception e (if-let [t (util/error-type e)] t (throw e)))))
 
-;; ---- Form -----------------------------------------------------------------
+;; ---- Study Event Def -------------------------------------------------------
 
-(defn create-form
-  "Creates a form with the id, name and more.
+(defn create-study-event-def
+  "Creates a study event def with the id, name and more within a study.
 
   More can be a map of :description were :description should be a string.
 
-  Returns the created form or nil if there is already one with the id."
-  [conn id name & [more]]
+  Returns the created study event def or nil if there is already one with the 
+  id."
+  [conn study id name & [more]]
+  {:pre [(:study/id study)]}
   (try
-    (create conn :part/meta-data (fn [tid] [[:form.fn/create tid id name
-                                             more]]))
+    (->> (fn [tid] [[:study-event-def.fn/create tid (:db/id study) id name
+                     more]])
+         (create conn :part/meta-data))
     (catch Exception e
       (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
-(defn update-form!
-  "Updates the form with the id.
+;; ---- Form Def --------------------------------------------------------------
+
+(defn create-form-def
+  "Creates a form def with the id, name and more within a study.
+
+  More can be a map of :description and :repeating were :description should be a
+  string and :repeating a boolean defaulting to false.
+
+  Returns the created form def or nil if there is already one with the id."
+  [conn study id name & [more]]
+  {:pre [(:study/id study)]}
+  (try
+    (->> (fn [tid] [[:form-def.fn/create tid (:db/id study) id name
+                     (map-keys {:description :description
+                                :repeating :form-def/repeating} more)]])
+         (create conn :part/meta-data))
+    (catch Exception e
+      (println (.getMessage e))
+      (when-not (= :duplicate (util/error-type e)) (throw e)))))
+
+(defn update-form-def
+  "Updates the form def.
 
   Ensures that the values in old-props are still current in the version of the
   in-transaction form."
-  [conn id old-props new-props]
-  {:pre [conn]}
+  [conn form-def old-props new-props]
+  {:pre [conn (:form-def/id form-def) (map? old-props) (map? new-props)]}
   (try
-    @(d/transact conn [[:form.fn/update id old-props new-props]])
+    @(d/transact conn [[:form-def.fn/update (:db/id form-def) old-props
+                        new-props]])
     nil
     (catch Exception e (if-let [t (util/error-type e)] t (throw e)))))
+
+;; ---- Subject ---------------------------------------------------------------
+
+(defn create-subject
+  "Creates a subject with the id within the study.
+
+  Returns the created subject or nil if there is already one with the id."
+  [conn study id]
+  {:pre [(:study/id study)]}
+  (try
+    (->> (fn [tid] [[:subject.fn/create tid (:db/id study) id]])
+         (create conn :part/subject))
+    (catch Exception e
+      (when-not (= :duplicate (util/error-type e)) (throw e)))))
+
+(defn retract-subject
+  "Retracts the subject."
+  [conn subject]
+  {:pre [conn (:subject/id subject)]}
+  @(d/transact-async conn [[:db.fn/retractEntity (:db/id subject)]])
+  nil)
+
+;; ---- Study Event -----------------------------------------------------------
+
+(defn create-study-event
+  "Creates a study event of subject and study event def.
+
+  Returns the created study event or nil if there is already one."
+  [conn subject study-event-def]
+  {:pre [(:subject/id subject) (:study-event-def/id study-event-def)]}
+  (try
+    (->> (fn [tid] [[:study-event.fn/create tid (:db/id subject)
+                     (:db/id study-event-def)]])
+         (create conn :part/study-event))
+    (catch Exception e
+      (when-not (= :duplicate (util/error-type e)) (throw e)))))
+
+;; ---- Form -----------------------------------------------------------
+
+(defn create-form
+  "Creates a form of study event and form def.
+
+  Returns the created form or nil if there is already one."
+  ([conn study-event form-def]
+   {:pre [(:study-event/subject study-event) (:form-def/id form-def)]}
+   (try
+     (->> (fn [tid] [[:form.fn/create tid (:db/id study-event)
+                      (:db/id form-def)]])
+          (create conn :part/form))
+     (catch Exception e
+       (when-not (= :duplicate (util/error-type e)) (throw e)))))
+  ([conn study-event form-def repeat-key]
+   {:pre [(:study-event/subject study-event) (:form-def/id form-def)
+          (string? repeat-key)]}
+   (try
+     (->> (fn [tid] [[:form.fn/create-repeating tid (:db/id study-event)
+                      (:db/id form-def) repeat-key]])
+          (create conn :part/form))
+     (catch Exception e
+       (when-not (= :duplicate (util/error-type e)) (throw e))))))
 
 ;; ---- Lists -----------------------------------------------------------------
 
@@ -410,6 +466,24 @@
 (defn num-code-list-item-subjects [code-list-item]
   {:pre [(entity? code-list-item)]}
   (using-subject-stat! code-list-item))
+
+;; ---- Study Event Stats -----------------------------------------------------
+
+(defn num-form-def-study-events [form-def]
+  {:pre [(:form-def/id form-def)]}
+  (-> (d/q '[:find (count ?se) .
+             :in $ ?fd
+             :where
+             [?f :form/def ?fd]
+             [?f :form/study-event ?se]]
+           (d/entity-db form-def) (:db/id form-def))
+      (or 0)))
+
+;; ---- Data Stats ------------------------------------------------------------
+
+(defn num-forms [form-def]
+  {:pre [(:form-def/id form-def)]}
+  (count (:form/_def form-def)))
 
 ;; ---- Values ----------------------------------------------------------------
 
