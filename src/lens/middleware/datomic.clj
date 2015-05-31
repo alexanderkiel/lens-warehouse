@@ -9,9 +9,7 @@
 
 (defn- assoc-db
   [request conn]
-  (if (#{:get :head :put} (:request-method request))
-    (assoc request :db (d/db conn))
-    request))
+  (assoc request :db (d/db conn)))
 
 (defn- connect [uri]
   (try
