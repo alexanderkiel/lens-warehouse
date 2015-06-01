@@ -61,7 +61,7 @@
     (fnk [[:representation media-type]]
       (md5 (str media-type
                 (path-for :service-document-handler)
-                (path-for :all-study-events-handler)
+                (path-for :all-study-event-defs-handler)
                 (path-for :all-forms-handler)
                 (path-for :all-snapshots-handler)
                 (path-for :find-form-def-handler)
@@ -78,7 +78,7 @@
      :version version
      :links
      {:self {:href (path-for :service-document-handler)}
-      :lens/all-study-events {:href (path-for :all-study-events-handler)}
+      :lens/all-study-event-defs {:href (path-for :all-study-event-defs-handler)}
       :lens/all-forms {:href (path-for :all-forms-handler)}
       :lens/all-snapshots {:href (path-for :all-snapshots-handler)}
       :lens/most-recent-snapshot {:href (path-for :most-recent-snapshot-handler)}}
@@ -161,7 +161,7 @@
   (resource
     (standard-entity-resource-defaults path-for)
 
-    :exists? (entity-exists :study api/study)
+    :exists? (entity-exists :study api/find-study)
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
@@ -232,7 +232,7 @@
 
     :exists?
     (fnk [db [:request [:params study-id subject-id]]]
-      (when-let [subject (some-> (api/study db study-id)
+      (when-let [subject (some-> (api/find-study db study-id)
                                  (api/find-subject subject-id))]
         {:subject subject}))
 
@@ -259,7 +259,7 @@
 
     :exists?
     (fnk [db [:request [:params study-id]]]
-      (when-let [study (api/study db study-id)]
+      (when-let [study (api/find-study db study-id)]
         {:study study}))
 
     :post!
@@ -293,24 +293,24 @@
    {:self {:href (path-for :study-event-handler :id
                            (:study-event/id study-event))}}})
 
-(defn render-embedded-study-events [path-for study-events]
-  (mapv #(render-embedded-study-event path-for %) study-events))
+(defn render-embedded-study-event-defs [path-for study-event-defs]
+  (mapv #(render-embedded-study-event path-for %) study-event-defs))
 
-(defn all-study-events-handler [path-for]
+(defn all-study-event-defs-handler [path-for]
   (resource
     (resource-defaults)
 
     :handle-ok
     (fnk [db [:request params]]
       (let [page-num (parse-page-num (:page-num params))
-            study-events (into [] (api/all-study-events db))
-            study-events (->> study-events
+            study-event-defs (into [] (api/all-study-event-defs db))
+            study-event-defs (->> study-event-defs
                               (map #(merge {:count (api/num-study-event-subjects
                                                      %)} %))
                               (sort-by :count)
                               (reverse))
-            next-page? (not (lr/empty? (paginate (inc page-num) study-events)))
-            page-link (fn [num] {:href (str (path-for :all-study-events-handler)
+            next-page? (not (lr/empty? (paginate (inc page-num) study-event-defs)))
+            page-link (fn [num] {:href (str (path-for :all-study-event-defs-handler)
                                             "?" (query-map num nil))})]
         {:links
          (-> {:self {:href (page-link page-num)}
@@ -318,10 +318,10 @@
              (assoc-when :prev (when (< 1 page-num) (page-link (dec page-num))))
              (assoc-when :next (when next-page? (page-link (inc page-num)))))
          :embedded
-         {:lens/study-events
-          (->> (paginate page-num study-events)
+         {:lens/study-event-defs
+          (->> (paginate page-num study-event-defs)
                (into [])
-               (render-embedded-study-events path-for))}}))))
+               (render-embedded-study-event-defs path-for))}}))))
 
 ;; ---- Study-Event -----------------------------------------------------------
 
@@ -339,7 +339,7 @@
       {:id (:study-event/id study-event)
        :type :study-event
        :links
-       {:up {:href (path-for :all-study-events-handler)}
+       {:up {:href (path-for :all-study-event-defs-handler)}
         :self {:href (path-for :study-event-handler :id
                                (:study-event/id study-event))}}})
 
@@ -441,22 +441,22 @@
 (defn render-embedded-item-groups [path-for timeout item-groups]
   (pmap #(render-embedded-item-group path-for timeout %) item-groups))
 
-(defn form-handler [path-for]
-  "Handler for GET and PUT on a form.
+(defn form-def-handler [path-for]
+  "Handler for GET and PUT on a form def.
 
   Implementation note on PUT:
 
   The resource compares the current ETag with the If-Match header based on a
-  possibly old version of the study taken from a database outside of the
+  possibly old version of the form def taken from a database outside of the
   transaction. The update transaction is than tried with name and description
-  from that possibly old form as reference. The transaction only succeeds if
-  the name and description are still the same on the in-transaction form."
+  from that possibly old form def as reference. The transaction only succeeds if
+  the name and description are still the same on the in-transaction form def."
   (resource
     (standard-entity-resource-defaults path-for)
 
     :exists?
     (fnk [db [:request [:params study-id form-def-id]]]
-      (when-let [form-def (some-> (api/study db study-id)
+      (when-let [form-def (some-> (api/find-study db study-id)
                                   (api/find-form-def form-def-id))]
         {:form-def form-def}))
 
@@ -474,7 +474,7 @@
     (fnk [conn form-def new-entity]
       (letfn [(select-props [form-def]
                             (select-keys form-def [:name :description]))]
-        {:update-error (api/update-form-def conn (:form-def/id form-def)
+        {:update-error (api/update-form-def conn form-def
                                             (select-props form-def)
                                             (select-props new-entity))}))
 
@@ -501,7 +501,7 @@
 
     :exists?
     (fnk [db [:request [:params study-id form-def-id]]]
-      (when-let [form-def (some-> (api/study db study-id)
+      (when-let [form-def (some-> (api/find-study db study-id)
                                   (api/find-form-def form-def-id))]
         {:form-def form-def}))
 
@@ -546,7 +546,7 @@
     :handle-not-found
     (error-body path-for "Form not found.")))
 
-(defn create-form-handler [path-for]
+(defn create-form-def-handler [path-for]
   (resource
     (resource-defaults)
 
@@ -554,12 +554,18 @@
 
     :processable?
     (fnk [[:request params]]
-      (and (:id params) (:name params)))
+      (and (:study-id params) (:id params) (:name params)))
+
+    :exists?
+    (fnk [db [:request [:params study-id]]]
+      (when-let [study (api/find-study db study-id)]
+        {:study study}))
 
     :post!
-    (fnk [conn [:request params]]
+    (fnk [conn study [:request params]]
       (let [opts (select-keys params [:description])]
-        (if-let [form (api/create-form-def conn (:id params) (:name params) opts)]
+        (if-let [form (api/create-form-def conn study (:id params)
+                                           (:name params) opts)]
           {:form form}
           (throw (ex-info "Duplicate!" {:type ::duplicate})))))
 
@@ -1073,7 +1079,7 @@
 
 (defnk handlers [path-for version]
   {:service-document-handler (service-document-handler path-for version)
-   :all-study-events-handler (all-study-events-handler path-for)
+   :all-study-event-defs-handler (all-study-event-defs-handler path-for)
    :study-event-handler (study-event-handler path-for)
    :get-subject-handler (get-subject-handler path-for)
    :create-subject-handler (create-subject-handler path-for)
@@ -1083,9 +1089,9 @@
    :create-study-handler (create-study-handler path-for)
    :all-forms-handler (all-forms-handler path-for)
    :find-form-def-handler (find-form-def-handler path-for)
-   :form-def-handler (form-handler path-for)
+   :form-def-handler (form-def-handler path-for)
    :form-count-handler (form-count-handler path-for)
-   :create-form-handler (create-form-handler path-for)
+   :create-form-handler (create-form-def-handler path-for)
    :search-item-groups-handler (search-item-groups-handler path-for)
    :find-item-group-handler (find-item-group-handler path-for)
    :item-group-handler (item-group-handler path-for)

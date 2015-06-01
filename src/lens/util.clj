@@ -168,3 +168,16 @@
   `(swap! ~cache-atom #(if (cache/has? % ~key)
                         (cache/hit % ~key)
                         (cache/miss % ~key ~value-expr))))
+
+(defn create
+  "Submits a transaction which creates an entity.
+
+  The fn is called with a temp id from partition and should return the tx-data
+  which is submitted.
+
+  Returns the created entity."
+  [conn partition fn]
+  (let [tid (d/tempid partition)
+        tx-result @(d/transact conn (fn tid))
+        db (:db-after tx-result)]
+    (d/entity db (d/resolve-tempid db (:tempids tx-result) tid))))

@@ -17,6 +17,18 @@
 
 ;; ---- Single Accessors ------------------------------------------------------
 
+(defn find-study
+  "Returns the study with the id or nil if none was found."
+  [db id]
+  {:pre [db (string? id)]}
+  (d/entity db [:study/id id]))
+
+(defn find-form-def
+  "Returns the form def with the id within the study or nil if none was found."
+  [study id]
+  {:pre [(:study/id study) (string? id)]}
+  (some #(when (= id (:form-def/id %)) %) (:study/forms study)))
+
 (defn find-subject
   "Returns the subject with the id within the study or nil if none was found."
   [study id]
@@ -26,23 +38,11 @@
                 [?sub :subject/study ?s]] db (:db/id study) id)
          (d/entity db))))
 
-(defn study
-  "Returns the study with the id or nil if none was found."
-  [db id]
-  {:pre [db (string? id)]}
-  (d/entity db [:study/id id]))
-
 (defn study-event
   "Returns the study-event with the id or nil if none was found."
   [db id]
   {:pre [db (string? id)]}
   (d/entity db [:study-event/id id]))
-
-(defn find-form-def
-  "Returns the form def with the id within the study or nil if none was found."
-  [study id]
-  {:pre [(:study/id study) (string? id)]}
-  (some #(when (= id (:form-def/id %)) %) (:study/forms study)))
 
 (defn item-group
   "Returns the item group with the id or nil if none was found."
@@ -98,14 +98,6 @@
     (-> (util/update-cache! cli-cache key (code-list-item' db item-eid code))
         (cache/lookup key))))
 
-;; ---- Create ----------------------------------------------------------------
-
-(defn- create [conn partition fn]
-  (let [tid (d/tempid partition)
-        tx-result @(d/transact conn (fn tid))
-        db (:db-after tx-result)]
-    (d/entity db (d/resolve-tempid db (:tempids tx-result) tid))))
-
 ;; ---- Study -----------------------------------------------------------------
 
 (defn create-study
@@ -116,8 +108,8 @@
   Returns the created study or nil if there is already one with the id."
   [conn id name & [more]]
   (try
-    (create conn :part/meta-data (fn [tid] [[:study.fn/create tid id name
-                                             more]]))
+    (util/create conn :part/meta-data (fn [tid] [[:study.fn/create tid id name
+                                                  more]]))
     (catch Exception e
       (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
@@ -147,7 +139,7 @@
   (try
     (->> (fn [tid] [[:study-event-def.fn/create tid (:db/id study) id name
                      more]])
-         (create conn :part/meta-data))
+         (util/create conn :part/meta-data))
     (catch Exception e
       (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
@@ -166,9 +158,8 @@
     (->> (fn [tid] [[:form-def.fn/create tid (:db/id study) id name
                      (map-keys {:description :description
                                 :repeating :form-def/repeating} more)]])
-         (create conn :part/meta-data))
+         (util/create conn :part/meta-data))
     (catch Exception e
-      (println (.getMessage e))
       (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
 (defn update-form-def
@@ -194,7 +185,7 @@
   {:pre [(:study/id study)]}
   (try
     (->> (fn [tid] [[:subject.fn/create tid (:db/id study) id]])
-         (create conn :part/subject))
+         (util/create conn :part/subject))
     (catch Exception e
       (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
@@ -216,7 +207,7 @@
   (try
     (->> (fn [tid] [[:study-event.fn/create tid (:db/id subject)
                      (:db/id study-event-def)]])
-         (create conn :part/study-event))
+         (util/create conn :part/study-event))
     (catch Exception e
       (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
@@ -231,7 +222,7 @@
    (try
      (->> (fn [tid] [[:form.fn/create tid (:db/id study-event)
                       (:db/id form-def)]])
-          (create conn :part/form))
+          (util/create conn :part/form))
      (catch Exception e
        (when-not (= :duplicate (util/error-type e)) (throw e)))))
   ([conn study-event form-def repeat-key]
@@ -240,7 +231,7 @@
    (try
      (->> (fn [tid] [[:form.fn/create-repeating tid (:db/id study-event)
                       (:db/id form-def) repeat-key]])
-          (create conn :part/form))
+          (util/create conn :part/form))
      (catch Exception e
        (when-not (= :duplicate (util/error-type e)) (throw e))))))
 
@@ -255,8 +246,8 @@
   [db]
   (list-all '[:find [?e ...] :where [?e :study/id]] db))
 
-(defn all-study-events
-  "Returns a reducible coll of all study-events."
+(defn all-study-event-defs
+  "Returns a reducible coll of all study-event-defs."
   [db]
   (list-all '[:find [?e ...] :where [?e :study-event/id]] db))
 

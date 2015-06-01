@@ -8,7 +8,7 @@
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [cognitect.transit :as transit]
-            [lens.api :as api])
+            [lens.api :as api :refer [find-form-def]])
   (:import [java.io ByteArrayOutputStream]))
 
 (defn- str->is [s]
@@ -34,8 +34,8 @@
 
 ;; ---- Study -----------------------------------------------------------------
 
-(defn study [id]
-  (api/study (d/db (connect)) id))
+(defn- find-study [id]
+  (api/find-study (d/db (connect)) id))
 
 (defn- create-study
   ([id] (create-study id "name-172037"))
@@ -43,6 +43,9 @@
    (api/create-study (connect) id name))
   ([id name description]
    (api/create-study (connect) id name {:description description})))
+
+(defn- refresh-study [study]
+  (api/find-study (d/db (connect)) (:study/id study)))
 
 (deftest study-handler-test
   (testing "Body contains self link"
@@ -138,7 +141,7 @@
                :body (str->is "{\"name\": \"name-202906\"}")
                :db (d/db (connect))}
           _ (api/update-study (connect) "id-202032" {:name "name-202034"}
-                               {:name "name-203308"})
+                              {:name "name-203308"})
           req (assoc req :conn (connect))
           resp ((study-handler path-for) req)]
       (is (= 409 (:status resp)))))
@@ -155,7 +158,7 @@
                :db (d/db (connect))}
           resp ((study-handler path-for) req)]
       (is (= 204 (:status resp)))
-      (is (= "name-202906" (:name (study "id-203855"))))))
+      (is (= "name-202906" (:name (find-study "id-203855"))))))
 
   (testing "Update with Transit succeeds"
     (create-study "id-143317" "name-143321")
@@ -169,7 +172,7 @@
                :db (d/db (connect))}
           resp ((study-handler path-for) req)]
       (is (= 204 (:status resp)))
-      (is (= "name-143536" (:name (study "id-143317"))))))
+      (is (= "name-143536" (:name (find-study "id-143317"))))))
 
   (testing "Update can remove description"
     (create-study "id-143317" "name-143321" "desc-155658")
@@ -183,7 +186,7 @@
                :db (d/db (connect))}
           resp ((study-handler path-for) req)]
       (is (= 204 (:status resp)))
-      (is (nil? (:description (study "id-143317")))))))
+      (is (nil? (:description (find-study "id-143317")))))))
 
 (deftest create-study-handler-test
   (testing "Create without id and name fails"
@@ -217,7 +220,7 @@
           resp ((create-study-handler path-for) req)]
       (is (= 201 (:status resp)))
       (is (= "description-224339"
-             (:description (api/study (d/db (connect)) "id-224401"))))))
+             (:description (api/find-study (d/db (connect)) "id-224401"))))))
 
   (testing "Create with existing id fails"
     (api/create-study (connect) "id-224419" "name-224431")
@@ -286,11 +289,15 @@
 
 ;; ---- Form Def --------------------------------------------------------------
 
-(defn create-form-def
+(defn- create-form-def
   ([study id] (create-form-def study id "name-182856"))
   ([study id name] (api/create-form-def (connect) study id name))
   ([study id name desc]
    (api/create-form-def (connect) study id name {:description desc})))
+
+(defn- refresh-form-def [form-def]
+  (-> (refresh-study (:study/_forms form-def))
+      (find-form-def (:form-def/id form-def))))
 
 (deftest find-form-def-handler-test
   (-> (create-study "s-183549")
@@ -342,7 +349,7 @@
                          "content-type" "application/json"}
                :params {:study-id "s-183549" :form-def-id "id-224127"}
                :db (d/db (connect))}
-          resp ((form-handler path-for) req)]
+          resp ((form-def-handler path-for) req)]
       (is (= 400 (:status resp)))
       (is (= "Require conditional update." (:body resp)))))
 
@@ -353,7 +360,7 @@
                          "if-match" "\"foo\""}
                :params {:study-id "s-183549" :form-def-id "id-224127"}
                :db (d/db (connect))}
-          resp ((form-handler path-for) req)]
+          resp ((form-def-handler path-for) req)]
       (is (= 400 (:status resp)))
       (is (= "Missing request body." (:body resp)))))
 
@@ -365,7 +372,7 @@
                :params {:study-id "s-183549" :form-def-id "id-224127"}
                :body (str->is "{")
                :db (d/db (connect))}
-          resp ((form-handler path-for) req)]
+          resp ((form-def-handler path-for) req)]
       (is (= 400 (:status resp)))
       (is (= "Invalid request body." (:body resp)))))
 
@@ -377,7 +384,7 @@
                :params {:study-id "s-183549" :form-def-id "id-224127"}
                :body (str->is "{\"name\": \"name-202906\"}")
                :db (d/db (connect))}
-          resp ((form-handler path-for) req)]
+          resp ((form-def-handler path-for) req)]
       (is (= 412 (:status resp)))))
 
   (testing "Update fails on missing name"
@@ -389,105 +396,118 @@
                :body (str->is "{}")
                :conn (connect)
                :db (d/db (connect))}
-          resp ((form-handler path-for) req)]
+          resp ((form-def-handler path-for) req)]
       (is (= 422 (:status resp)))))
 
   (testing "Update fails in-transaction on name missmatch"
-    (let [req {:request-method :put
+    (let [form-def (-> (create-study "s-095742")
+                       (create-form-def "id-224127" "name-095717"))
+          req {:request-method :put
                :headers {"accept" "application/json"
                          "content-type" "application/json"
-                         "if-match" "\"f09e6579ee40674b38da3f7777747e36\""}
-               :params {:study-id "s-183549" :form-def-id "id-224127"}
+                         "if-match" "\"e525c38e88c56516bf0e68fd0ba33fea\""}
+               :params {:study-id "s-095742" :form-def-id "id-224127"}
                :body (str->is "{\"name\": \"name-202906\"}")
+               :conn (connect)
                :db (d/db (connect))}
-          _ (api/update-form-def (connect) "id-202032" {:name "name-202034"}
-                              {:name "name-203308"})
-          req (assoc req :conn (connect))
-          resp ((form-handler path-for) req)]
+          _ (api/update-form-def (connect) form-def {:name "name-095717"}
+                                 {:name "name-203308"})
+          resp ((form-def-handler path-for) req)]
       (is (= 409 (:status resp)))))
 
   (testing "Update with JSON succeeds"
-    (create-form-def "id-203855" "name-202034")
-    (let [req {:request-method :put
+    (let [form-def (-> (create-study "s-100747")
+                       (create-form-def "id-224127" "name-095717"))
+          req {:request-method :put
                :headers {"accept" "application/json"
                          "content-type" "application/json"
-                         "if-match" "\"01f74e047f503c893083a7acf693b0f1\""}
-               :params {:id "id-203855"}
+                         "if-match" "\"26f096525c26dec3f2229c94e58bd384\""}
+               :params {:study-id "s-100747" :form-def-id "id-224127"}
                :body (str->is "{\"name\": \"name-202906\"}")
                :conn (connect)
                :db (d/db (connect))}
-          resp ((form-handler path-for) req)]
+          resp ((form-def-handler path-for) req)]
       (is (= 204 (:status resp)))
-      (is (= "name-202906" (:name (form "id-203855"))))))
+      (is (= "name-202906" (:name (refresh-form-def form-def))))))
 
   (testing "Update with Transit succeeds"
-    (create-form-def "id-143317" "name-143321")
-    (let [req {:request-method :put
+    (let [form-def (-> (create-study "s-100836")
+                       (create-form-def "id-224127" "name-095717"))
+          req {:request-method :put
                :headers {"accept" "application/transit+json"
                          "content-type" "application/transit+json"
-                         "if-match" "\"8db0a5ad5f6cbdadb65482297956de1d\""}
-               :params {:id "id-143317"}
+                         "if-match" "\"591fab8cb5dfbc25a29cc4e441c98eb3\""}
+               :params {:study-id "s-100836" :form-def-id "id-224127"}
                :body (transit->is {:name "name-143536"})
                :conn (connect)
                :db (d/db (connect))}
-          resp ((form-handler path-for) req)]
+          resp ((form-def-handler path-for) req)]
       (is (= 204 (:status resp)))
-      (is (= "name-143536" (:name (form "id-143317"))))))
+      (is (= "name-143536" (:name (refresh-form-def form-def))))))
 
   (testing "Update can remove description"
-    (create-form-def "id-143317" "name-143321" "desc-155658")
-    (let [req {:request-method :put
+    (let [form-def (-> (create-study "s-100937")
+                       (create-form-def "id-224127" "name-095717"))
+          req {:request-method :put
                :headers {"accept" "application/transit+json"
                          "content-type" "application/transit+json"
-                         "if-match" "\"63878026fe2a438b7b67d9a96ad721bb\""}
-               :params {:id "id-143317"}
+                         "if-match" "\"2aa41ee85bc0c96a32cac4b7d5290280\""}
+               :params {:study-id "s-100937" :form-def-id "id-224127"}
                :body (transit->is {:name "name-143536"})
                :conn (connect)
                :db (d/db (connect))}
-          resp ((form-handler path-for) req)]
+          resp ((form-def-handler path-for) req)]
       (is (= 204 (:status resp)))
-      (is (nil? (:description (form "id-143317")))))))
+      (is (nil? (:description (refresh-form-def form-def)))))))
 
-(deftest create-form-handler-test
+(deftest create-form-def-handler-test
+  (create-study "s-100937")
+
   (testing "Create without id and name fails"
     (let [req {:request-method :post
-               :params {}
+               :params {:study-id "s-100937"}
                :conn (connect)}]
-      (is (= 422 (:status ((create-form-handler nil) req))))))
+      (is (= 422 (:status ((create-form-def-handler nil) req))))))
 
   (testing "Create without name fails"
     (let [req {:request-method :post
-               :params {:id "id-224305"}
+               :params {:study-id "s-100937" :id "id-224305"}
                :conn (connect)}]
-      (is (= 422 (:status ((create-form-handler nil) req))))))
+      (is (= 422 (:status ((create-form-def-handler nil) req))))))
 
   (testing "Create with id and name only"
-    (let [path-for (fn [_ _ id] id)
-          req {:request-method :post
-               :params {:id "id-224211" :name "name-224240"}
-               :conn (connect)}
-          resp ((create-form-handler path-for) req)]
+    (let [req {:request-method :post
+               :params {:study-id "s-100937" :id "id-224211"
+                        :name "name-224240"}
+               :conn (connect)
+               :db (d/db (connect))}
+          resp ((create-form-def-handler path-for) req)]
       (is (= 201 (:status resp)))
-      (is (= "id-224211" (get-in resp [:headers "Location"])))
+      (let [location (edn/read-string (get-in resp [:headers "Location"]))]
+        (is (= [:study-id "s-100937" :form-def-id "id-224211"]
+               (:args location))))
       (is (nil? (:body resp)))))
 
   (testing "Create with description"
     (let [req {:request-method :post
-               :params {:id "id-224401"
+               :params {:study-id "s-100937"
+                        :id "id-224401"
                         :name "name-224330"
                         :description "description-224339"}
-               :conn (connect)}
-          resp ((create-form-handler path-for) req)]
+               :conn (connect)
+               :db (d/db (connect))}
+          resp ((create-form-def-handler path-for) req)]
       (is (= 201 (:status resp)))
-      (is (= "description-224339"
-             (:description (api/find-form-def (d/db (connect)) "id-224401"))))))
+      (let [form-def (-> (find-study "s-100937") (find-form-def "id-224401"))]
+        (is (= "description-224339" (:description form-def))))))
 
   (testing "Create with existing id fails"
-    (api/create-form-def (connect) "id-224419" "name-224431")
     (let [req {:request-method :post
-               :params {:id "id-224419" :name "name-224439"}
-               :conn (connect)}
-          resp ((create-form-handler path-for) req)]
+               :params {:study-id "s-100937" :id "id-224401"
+                        :name "name-224439"}
+               :conn (connect)
+               :db (d/db (connect))}
+          resp ((create-form-def-handler path-for) req)]
       (is (= 409 (:status resp))))))
 
 ;; ----------------------------------------------------------------------------

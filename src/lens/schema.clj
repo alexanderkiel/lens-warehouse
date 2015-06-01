@@ -70,7 +70,7 @@
   "A clinical or epidemiological study. "
   [[:id :string :unique "The id of a study. Same as the study OID in ODM."]
    [:protocol :ref :comp]
-   [:study-events :ref :many :comp]
+   [:study-event-defs :ref :many :comp]
    [:forms :ref :many :comp]
    [:item-groups :ref :many :comp]
    [:items :ref :many :comp]
@@ -135,8 +135,8 @@
      (let [study (d/entity db study-eid)]
        (when-not (:study/id study)
          (throw (ex-info "Study not found." {:type :study-not-found})))
-       (if-not (some #{id} (-> study :study/study-events :study-event/id))
-         [[:db/add (:db/id study) :study/study-events tid]
+       (if-not (some #{id} (-> study :study/study-event-defs :study-event/id))
+         [[:db/add (:db/id study) :study/study-event-defs tid]
           (merge
             {:db/id tid
              :study-event-def/id id
@@ -152,39 +152,28 @@
                      :where
                      [?s :study/id ?sid]
                      [?se :study-event/id ?seid]
-                     [?s :study/study-events ?se]]
+                     [?s :study/study-event-defs ?se]]
                    db study-id study-event-id)
               (d/entity db)))
 
-   (func find-form-ref
-     "Returns the form-ref with study-event-id and form-id or nil if not found."
-     [db study-event-eid form-id]
-     (some->> (d/q '[:find ?r . :in $ ?se ?fid
-                     :where
-                     [?se :study-event/form-refs ?r]
-                     [?r :form-ref/form ?f]
-                     [?f :form/id ?fid]]
-                   db study-event-eid form-id)
-              (d/entity db)))
+   (func add-form-def
+     "Adds a reference to a form def to this study event def.
 
-   (func add-form
-     "Adds a reference to a form to this study event.
-
-     Ensures uniquness of forms within this study-event."
-     [db study-id study-event-id form-id]
-     (if-let [study-event (d/invoke db :study-event.fn/find db study-id study-event-id)]
-       (if-let [form (d/invoke db :form.fn/find db study-id form-id)]
-         (let [form-refs (:study-event/form-refs study-event)
-               f-pred #(when (= form-id (:form/id %)) %)]
-           (if-not (some f-pred (map :form-ref/form form-refs))
-             (let [tid #db/id[:part/meta-data]]
-               [[:db/add (:db/id study-event) :study-event/form-refs tid]
-                {:db/id tid
-                 :form-ref/form (:db/id form)
-                 :form-ref/rank (inc (apply max 0 (map :form-ref/rank form-refs)))}])
-             (throw (ex-info "Duplicate!" {:type :duplicate}))))
-         (throw (ex-info "Form not found." {:type :form-not-found})))
-       (throw (ex-info "Study event not found." {:type :study-event-not-found}))))])
+     Ensures uniquness of form defs within this study event def."
+     [db study-event-def-eid form-def-eid]
+     (let [study-event-def (d/entity db study-event-def-eid)]
+       (when-not (:study-event-def/id study-event-def)
+         (throw (ex-info "Study event def not found."
+                         {:type :study-event-def-not-found})))
+       (let [form-refs (:study-event-def/form-refs study-event-def)
+             f-pred #(when (= form-def-eid (:db/id %)) %)]
+         (if-not (some f-pred (map :form-ref/form form-refs))
+           (let [tid #db/id[:part/meta-data]]
+             [[:db/add study-event-def-eid :study-event-def/form-refs tid]
+              {:db/id tid
+               :form-ref/form form-def-eid
+               :form-ref/rank (inc (apply max 0 (map :form-ref/rank form-refs)))}])
+           (throw (ex-info "Duplicate!" {:type :duplicate}))))))])
 
 (def form-ref
   "A reference to a FormDef as it occurs within a specific StudyEventDef. The

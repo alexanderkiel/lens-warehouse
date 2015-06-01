@@ -3,8 +3,8 @@
 (defn routes [context-path]
   [(if (= "/" context-path) "" context-path)
    {(if (= "/" context-path) "/" "") :service-document-handler
-    "/study-events"
-    {"" :all-study-events-handler
+    "/study-event-defs"
+    {"" :all-study-event-defs-handler
      ["/" :id] :study-event-handler}
     "/studies"
     {"" :create-study-handler

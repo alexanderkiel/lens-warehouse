@@ -19,7 +19,7 @@
 ;; ---- Study -----------------------------------------------------------------
 
 (defn- study [id]
-  (api/study (d/db (connect)) id))
+  (api/find-study (d/db (connect)) id))
 
 (defn- create-study
   ([] (create-study "s-134745"))
@@ -30,7 +30,7 @@
   (api/update-study (connect) id old-props new-props))
 
 (defn- refresh-study [study]
-  (api/study (d/db (connect)) (:study/id study)))
+  (api/find-study (d/db (connect)) (:study/id study)))
 
 (deftest study-test
   (create-study "id-221714")
@@ -201,7 +201,7 @@
 
 ;; ---- Item Group ------------------------------------------------------------
 
-(deftest item-group-test
+#_(deftest item-group-test
   (let [conn (connect)]
     (api/create-form-def conn "f-184846" "name-184720")
     @(d/transact conn [[:add-item-group "ig-185204" "f-184846"]])
@@ -210,7 +210,7 @@
     (testing "is not found"
       (is (nil? (api/item-group (d/db conn) "other-ig-185411"))))))
 
-(deftest item-test
+#_(deftest item-test
   (let [conn (connect)]
     (api/create-form-def conn "f-184846" "name-184720")
     @(d/transact conn [[:add-item-group "ig-185204" "f-184846"]])
@@ -221,7 +221,7 @@
     (testing "is not found"
       (is (nil? (api/item (d/db conn) "other-i-185730"))))))
 
-(deftest code-list-item-test
+#_(deftest code-list-item-test
   (let [conn (connect)]
     (api/create-form-def conn "f-184846" "name-184720")
     @(d/transact conn [[:add-item-group "ig-185204" "f-184846"]])

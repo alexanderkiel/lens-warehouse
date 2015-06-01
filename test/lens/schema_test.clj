@@ -1,6 +1,7 @@
 (ns lens.schema-test
   (:require [clojure.test :refer :all]
             [lens.schema :as schema]
+            [lens.util :as util]
             [datomic.api :as d]))
 
 (defn- connect [] (d/connect "datomic:mem:test"))
@@ -17,50 +18,56 @@
 (defn- transact [tx-data]
   @(d/transact (connect) tx-data))
 
+(defn- create [partition fn]
+  (util/create (connect) partition fn))
+
 (defn- entity [eid]
   (d/entity (d/db (connect)) eid))
 
 (defn- pull [pattern eid]
   (d/pull (d/db (connect)) pattern eid))
 
-(defn study-event [study id]
-  (some->> (:study/study-events study)
-           (some #(when (= id (:study-event/id %)) %))))
+(defn find-study-event-def [study id]
+  (some->> (:study/study-event-defs study)
+           (some #(when (= id (:study-event-def/id %)) %))))
 
 ;; ---- Study Event -----------------------------------------------------------
 
 (defn- create-study [id]
-  (transact [[:study.fn/create #db/id[:part/meta-data] id "name-100932" {}]]))
+  (create :part/meta-data (fn [tid] [[:study.fn/create tid id "name-100932"
+                                      {}]])))
 
-(defn- create-study-event [study-id study-event-id]
-  (transact [[:study-event.fn/create #db/id[:part/meta-data] study-id
-              study-event-id "name-100952" {}]]))
+(defn- create-study-event-def [study-eid study-event-def-id]
+  (create :part/meta-data (fn [tid] [[:study-event-def.fn/create tid study-eid
+                                      study-event-def-id "name-100952" {}]])))
 
-(defn- create-form [study-id form-id]
-  (transact [[:form.fn/create #db/id[:part/meta-data] study-id form-id
-              "name-130451" {}]]))
+(defn- create-form-def [study-eid form-def-id]
+  (create :part/meta-data (fn [tid] [[:form-def.fn/create tid study-eid
+                                      form-def-id "name-130451" {}]])))
 
-(defn- add-form [study-id study-event-id form-id]
-  (transact [[:study-event.fn/add-form study-id study-event-id form-id]]))
+(defn- add-form-def [study-event-def-eid form-def-eid]
+  (transact [[:study-event-def.fn/add-form-def study-event-def-eid
+              form-def-eid]]))
 
-(defn- update-form [study-id form-id old-props new-props]
-  (transact [[:form.fn/update study-id form-id old-props new-props]]))
+(defn- update-form-def [form-def-eid old-props new-props]
+  (transact [[:form-def.fn/update form-def-eid old-props new-props]]))
 
 (deftest add-form-test
-  (create-study "study-100925")
-  (create-study-event "study-100925" "study-event-100948")
-  (create-form "study-100925" "form-101251")
-  (let [res (add-form "study-100925" "study-event-100948" "form-101251")
+  (let [study (create-study "study-100925")
+        study-event-def (create-study-event-def (:db/id study)
+                                                "study-event-def-100948")
+        form-def (create-form-def (:db/id study) "form-def-101251")
+        res (add-form-def (:db/id study-event-def) (:db/id form-def))
         study (d/entity (:db-after res) [:study/id "study-100925"])
-        study-event (study-event study "study-event-100948")
-        form-refs (:study-event/form-refs study-event)]
-    (is (= "study-event-100948" (:study-event/id study-event)))
-    (is (= "form-101251" (:form/id (:form-ref/form (first form-refs)))))))
+        study-event-def (find-study-event-def study "study-event-def-100948")
+        form-refs (:study-event-def/form-refs study-event-def)]
+    (is (= "study-event-def-100948" (:study-event-def/id study-event-def)))
+    (is (= "form-def-101251" (:form-def/id (:form-ref/form (first form-refs)))))))
 
 (deftest update-form-test
-  (create-study "study-124731")
-  (create-form "study-124731" "form-124747")
-  (update-form "study-124731" "form-124747" {} {}))
+  (let [study (create-study "study-124731")
+        form-def (create-form-def (:db/id study) "form-124747")]
+    (update-form-def (:db/id form-def) {} {})))
 
 (deftest data-type-enums
   (is (entity :data-type/text))
