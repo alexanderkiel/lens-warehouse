@@ -2,7 +2,7 @@
   (:require [clojure.tools.cli :as cli]
             [org.httpkit.server :refer [run-server]]
             [lens.app :refer [app]]
-            [lens.util :refer [parse-int]]
+            [lens.util :refer [parse-long]]
             [clojure.string :as str]))
 
 (defn- ensure-facing-separator [path]
@@ -23,13 +23,13 @@
 (def cli-options
   [["-p" "--port PORT" "Listen on this port"
     :default 8080
-    :parse-fn parse-int
+    :parse-fn parse-long
     :validate [#(< 0 % 0x10000) "Must be a number between 0 and 65536"]]
    ["-i" "--ip IP" "The IP to bind"
     :default "0.0.0.0"]
    ["-t" "--thread NUM" "Number of worker threads"
     :default 4
-    :parse-fn parse-int
+    :parse-fn parse-long
     :validate [#(< 0 % 64) "Must be a number between 0 and 64"]]
    ["-d" "--db-uri URI" "The Datomic database URI to use"
     :validate [#(.startsWith % "datomic")

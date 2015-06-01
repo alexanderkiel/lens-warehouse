@@ -71,7 +71,7 @@
   [[:id :string :unique "The id of a study. Same as the study OID in ODM."]
    [:protocol :ref :comp]
    [:study-event-defs :ref :many :comp]
-   [:forms :ref :many :comp]
+   [:form-defs :ref :many :comp]
    [:item-groups :ref :many :comp]
    [:items :ref :many :comp]
    [:code-lists :ref :many :comp]
@@ -197,8 +197,8 @@
      (let [study (d/entity db study-eid)]
        (when-not (:study/id study)
          (throw (ex-info "Study not found." {:type :study-not-found})))
-       (if-not (some #{form-id} (map :form-def/id (:study/forms study)))
-         [[:db/add (:db/id study) :study/forms tid]
+       (if-not (some #{form-id} (map :form-def/id (:study/form-defs study)))
+         [[:db/add (:db/id study) :study/form-defs tid]
           (merge
             {:db/id tid
              :form-def/id form-id
@@ -214,7 +214,7 @@
                      :where
                      [?s :study/id ?sid]
                      [?f :form/id ?fid]
-                     [?s :study/forms ?f]]
+                     [?s :study/form-defs ?f]]
                    db study-id form-id)
               (d/entity db)))
 

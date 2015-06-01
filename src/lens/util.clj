@@ -150,8 +150,8 @@
   [e]
   (:type (ex-data (unwrap-execution-exception e))))
 
-(defn parse-int [s]
-  (Integer/parseInt s))
+(defn parse-long [s]
+  (Long/parseLong s))
 
 ;; ---- Datomic ---------------------------------------------------------------
 

@@ -73,11 +73,6 @@
 
 (defn entity-processable [ctx] (or (l/=method :get ctx) (-> ctx :new-entity :name)))
 
-(defn entity-exists [key accessor]
-  (fnk [db [:request [:params id]]]
-    (when-let [entity (accessor db id)]
-      {key entity})))
-
 (defn standard-entity-resource-defaults [path-for]
   (merge
     (resource-defaults)

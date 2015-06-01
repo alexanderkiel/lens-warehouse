@@ -3,7 +3,7 @@
   (:require [clojure.string :as str]
             [org.httpkit.server :refer [run-server]]
             [lens.app :refer [app]]
-            [lens.util :refer [parse-int]]
+            [lens.util :refer [parse-long]]
             [datomic.api :as d]
             [lens.schema :as schema])
   (:import [java.io File]))
@@ -27,7 +27,7 @@
    :db-uri (or (env "DB_URI") (create-mem-db))
    :context-path (or (env "CONTEXT_PATH") "/")
    :version (System/getProperty "lens-warehouse.version")
-   :port (or (some-> (env "PORT") (parse-int)) 8080)})
+   :port (or (some-> (env "PORT") (parse-long)) 8080)})
 
 (defnk start [app port & more :as system]
   (let [stop-fn (run-server (app more) {:port port})]

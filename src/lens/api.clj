@@ -27,7 +27,7 @@
   "Returns the form def with the id within the study or nil if none was found."
   [study id]
   {:pre [(:study/id study) (string? id)]}
-  (some #(when (= id (:form-def/id %)) %) (:study/forms study)))
+  (some #(when (= id (:form-def/id %)) %) (:study/form-defs study)))
 
 (defn find-subject
   "Returns the subject with the id within the study or nil if none was found."
@@ -242,19 +242,9 @@
        (r/map #(d/entity db %))))
 
 (defn all-studies
-  "Returns a reducible coll of all studies."
+  "Returns a reducible coll of all studies sorted by :study/id."
   [db]
-  (list-all '[:find [?e ...] :where [?e :study/id]] db))
-
-(defn all-study-event-defs
-  "Returns a reducible coll of all study-event-defs."
-  [db]
-  (list-all '[:find [?e ...] :where [?e :study-event/id]] db))
-
-(defn all-forms
-  "Returns a reducible coll of all forms sorted by :form/id."
-  [db]
-  (->> (d/datoms db :avet :form/id)
+  (->> (d/datoms db :avet :study/id)
        (r/map #(d/entity db (:e %)))))
 
 (defn all-snapshots
@@ -369,12 +359,24 @@
      [?i :item/id ?id]
      (starts-with-ignore-case ?id ?filter)]])
 
-(defn list-matching-forms
+(defn list-matching-studies
+  "Returns a seq of studies matching the filter expression sorted by :study/id."
+  [db filter]
+  {:pre [(string? filter)]}
+  (util/timer
+    {:fn 'list-matching-studies :args {:filter filter}}
+    (when-not (str/blank? filter)
+      (->> (d/q '[:find [?s ...] :in $ % ?filter :where (study-search ?filter ?s)]
+                db matching-rules filter)
+           (map #(d/entity db %))
+           (sort-by :study/id)))))
+
+(defn list-matching-form-defs
   "Returns a seq of forms matching the filter expression sorted by :form/id."
   [db filter]
   {:pre [(string? filter)]}
   (util/timer
-    {:fn 'list-matching-forms :args {:filter filter}}
+    {:fn 'list-matching-form-defs :args {:filter filter}}
     (when-not (str/blank? filter)
       (->> (d/q '[:find [?f ...] :in $ % ?filter :where (form-search ?filter ?f)]
                 db matching-rules filter)

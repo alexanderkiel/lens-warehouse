@@ -3,23 +3,29 @@
 (defn routes [context-path]
   [(if (= "/" context-path) "" context-path)
    {(if (= "/" context-path) "/" "") :service-document-handler
-    "/study-event-defs"
-    {"" :all-study-event-defs-handler
-     ["/" :id] :study-event-handler}
+
     "/studies"
     {"" :create-study-handler
+     ["/page/" :page-num] :all-studies-handler
      ["/" :study-id] :study-handler
+
+     "/study-event-defs"
+     {"" :study-event-defs-handler
+      ["/" :study-event-def-id] :study-event-def-handler}
+
+     "/form-defs"
+     {"" :create-form-def-handler
+      ["/page/" :page-num] :study-form-defs-handler
+      ["/" :id] :form-def-handler
+      ["/" :id "/count"] :form-count-handler
+      ["/" :id "/search-item-groups"] :search-item-groups-handler}
+
      "/find-form-def" :find-form-def-handler
+
      "/subjects"
      {"" :create-subject-handler
-      ["/" :subject-id] {:get :get-subject-handler
+      ["/" :subject-id] {:get :subject-handler
                          :delete :delete-subject-handler}}}
-    "/forms"
-    {"" {:get :all-forms-handler
-         :post :create-form-handler}
-     ["/" :id] :form-def-handler
-     ["/" :id "/count"] :form-count-handler
-     ["/" :id "/search-item-groups"] :search-item-groups-handler}
     "/item-groups"
     {"" :all-item-groups-handler
      ["/" :id] :item-group-handler

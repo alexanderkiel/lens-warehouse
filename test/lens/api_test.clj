@@ -135,7 +135,7 @@
   (api/update-form-def (connect) form-def old-props new-props))
 
 (defn- refresh-form-def [form-def]
-  (-> (refresh-study (:study/_forms form-def))
+  (-> (refresh-study (:study/_form-defs form-def))
       (find-form-def (:form-def/id form-def))))
 
 (deftest find-form-def-test

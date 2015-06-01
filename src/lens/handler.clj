@@ -2,7 +2,7 @@
   (:use plumbing.core)
   (:require [clojure.core.async :refer [timeout]]
             [clojure.core.reducers :as r]
-            [liberator.core :as l :refer [resource to-location]]
+            [liberator.core :refer [resource to-location]]
             [pandect.algo.md5 :refer [md5]]
             [lens.handler.util :refer :all]
             [lens.api :as api]
@@ -11,11 +11,10 @@
             [lens.util :as util]
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
-            [clj-time.format :as tf]
             [clojure.edn :as edn]
-            [datomic.api :as d])
-  (:import [java.net URLEncoder]
-           [java.util UUID]))
+            [datomic.api :as d]
+            [cemerick.url :refer [url url-encode url-decode]])
+  (:import [java.util UUID]))
 
 (def page-size 50)
 
@@ -23,22 +22,19 @@
 
 (defn parse-page-num [s]
   (if (and s (re-matches #"[0-9]+" s))
-    (util/parse-int s)
+    (util/parse-long s)
     1))
 
-(defn url-encode
-  [string]
-  (some-> string str (URLEncoder/encode "UTF-8") (.replace "+" "%20")))
+(defn- assoc-filter [path filter]
+  (if filter
+    (str (assoc (url path) :query {:filter (url-encode filter)}))
+    path))
 
-(defn pr-form-data [data]
-  (->> (for [[k v] data :when k]
-         (str/join "=" [(name k) (url-encode v)]))
-       (str/join "&")))
+(defn- assoc-prev [m page-num path-fn]
+  (assoc-when m :prev (when (< 1 page-num) (path-fn (dec page-num)))))
 
-(defn query-map [page-num filter]
-  (-> {:page-num page-num}
-      (assoc-when :filter (when-not (str/blank? filter) filter))
-      (pr-form-data)))
+(defn- assoc-next [m next-page? page-num path-fn]
+  (assoc-when m :next (when next-page? (path-fn (inc page-num)))))
 
 (defn render-embedded-count [self-href count]
   {:value count :links {:self {:href self-href}}})
@@ -53,6 +49,10 @@
 
 ;; ---- Service Document ------------------------------------------------------
 
+(defn- all-studies-path
+  ([path-for] (all-studies-path path-for 1))
+  ([path-for page-num] (path-for :all-studies-handler :page-num page-num)))
+
 (defn service-document-handler [path-for version]
   (resource
     (resource-defaults :cache-control "max-age=60")
@@ -61,8 +61,7 @@
     (fnk [[:representation media-type]]
       (md5 (str media-type
                 (path-for :service-document-handler)
-                (path-for :all-study-event-defs-handler)
-                (path-for :all-forms-handler)
+                (all-studies-path path-for)
                 (path-for :all-snapshots-handler)
                 (path-for :find-form-def-handler)
                 (path-for :find-item-group-handler)
@@ -71,15 +70,14 @@
                 (path-for :create-subject-handler)
                 (path-for :create-study-handler)
                 (path-for :find-study-handler)
-                (path-for :create-form-handler))))
+                (path-for :create-form-def-handler))))
 
     :handle-ok
     {:name "Lens Warehouse"
      :version version
      :links
      {:self {:href (path-for :service-document-handler)}
-      :lens/all-study-event-defs {:href (path-for :all-study-event-defs-handler)}
-      :lens/all-forms {:href (path-for :all-forms-handler)}
+      :lens/all-studies {:href (all-studies-path path-for)}
       :lens/all-snapshots {:href (path-for :all-snapshots-handler)}
       :lens/most-recent-snapshot {:href (path-for :most-recent-snapshot-handler)}}
      :forms
@@ -132,7 +130,7 @@
         :description
         {:type :string}}}
       :lens/create-form
-      {:action (path-for :create-form-handler)
+      {:action (path-for :create-form-def-handler)
        :method "POST"
        :params
        {:id
@@ -145,7 +143,7 @@
 ;; ---- Study -----------------------------------------------------------------
 
 (defn- study-path [path-for study]
-  (path-for :study-handler :id (:study/id study)))
+  (path-for :study-handler :study-id (:study/id study)))
 
 (defn study-handler
   "Handler for GET and PUT on a study.
@@ -161,14 +159,17 @@
   (resource
     (standard-entity-resource-defaults path-for)
 
-    :exists? (entity-exists :study api/find-study)
+    :exists?
+    (fnk [db [:request [:params study-id]]]
+      (when-let [study (api/find-study db study-id)]
+        {:study study}))
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
     (fnk [representation {status 200} :as ctx]
       (when (= 200 status)
         (md5 (str (:media-type representation)
-                  (path-for :service-document-handler)
+                  (all-studies-path path-for)
                   (study-path path-for (:study ctx))
                   (:name (:study ctx))
                   (:description (:study ctx))))))
@@ -186,9 +187,45 @@
            :type :study
            :name (:name study)
            :links
-           {:up {:href (path-for :service-document-handler)}
+           {:up {:href (all-studies-path path-for)}
             :self {:href (study-path path-for study)}}}
           (assoc-when :description (:description study))))))
+
+(defn render-embedded-study [path-for study]
+  (-> {:id (:study/id study)
+       :type :study
+       :name (:name study)
+       :links
+       {:self {:href (study-path path-for study)}}}
+      (assoc-when :description (:description study))))
+
+(defn render-embedded-studies [path-for studies]
+  (mapv #(render-embedded-study path-for %) studies))
+
+(defn all-studies-handler [path-for]
+  (resource
+    (resource-defaults)
+
+    :handle-ok
+    (fnk [db [:request params]]
+      (let [page-num (parse-page-num (:page-num params))
+            filter (:filter params)
+            studies (if (str/blank? filter)
+                      (api/all-studies db)
+                      (api/list-matching-studies db filter))
+            next-page? (not (lr/empty? (paginate (inc page-num) studies)))
+            path #(-> (all-studies-path path-for %)
+                      (assoc-filter filter))]
+        {:links
+         (-> {:self {:href (path page-num)}
+              :up {:href (path-for :service-document-handler)}}
+             (assoc-prev page-num path)
+             (assoc-next next-page? page-num path))
+         :embedded
+         {:lens/studies
+          (->> (paginate page-num studies)
+               (into [])
+               (render-embedded-studies path-for))}}))))
 
 (defn create-study-handler [path-for]
   (resource
@@ -219,10 +256,10 @@
 ;; ---- Subject ---------------------------------------------------------------
 
 (defn subject-path [path-for subject]
-  (path-for :get-subject-handler :study-id (:study/id (:subject/study subject))
+  (path-for :subject-handler :study-id (:study/id (:subject/study subject))
             :subject-id (:subject/id subject)))
 
-(defn get-subject-handler [path-for]
+(defn subject-handler [path-for]
   (resource
     (resource-defaults)
 
@@ -290,42 +327,15 @@
    :count (:count study-event)
    :type :study-event
    :links
-   {:self {:href (path-for :study-event-handler :id
+   {:self {:href (path-for :study-event-def-handler :id
                            (:study-event/id study-event))}}})
 
 (defn render-embedded-study-event-defs [path-for study-event-defs]
   (mapv #(render-embedded-study-event path-for %) study-event-defs))
 
-(defn all-study-event-defs-handler [path-for]
-  (resource
-    (resource-defaults)
-
-    :handle-ok
-    (fnk [db [:request params]]
-      (let [page-num (parse-page-num (:page-num params))
-            study-event-defs (into [] (api/all-study-event-defs db))
-            study-event-defs (->> study-event-defs
-                              (map #(merge {:count (api/num-study-event-subjects
-                                                     %)} %))
-                              (sort-by :count)
-                              (reverse))
-            next-page? (not (lr/empty? (paginate (inc page-num) study-event-defs)))
-            page-link (fn [num] {:href (str (path-for :all-study-event-defs-handler)
-                                            "?" (query-map num nil))})]
-        {:links
-         (-> {:self {:href (page-link page-num)}
-              :up {:href (path-for :service-document-handler)}}
-             (assoc-when :prev (when (< 1 page-num) (page-link (dec page-num))))
-             (assoc-when :next (when next-page? (page-link (inc page-num)))))
-         :embedded
-         {:lens/study-event-defs
-          (->> (paginate page-num study-event-defs)
-               (into [])
-               (render-embedded-study-event-defs path-for))}}))))
-
 ;; ---- Study-Event -----------------------------------------------------------
 
-(defn study-event-handler [path-for]
+(defn study-event-def-handler [path-for]
   (resource
     (resource-defaults)
 
@@ -339,8 +349,8 @@
       {:id (:study-event/id study-event)
        :type :study-event
        :links
-       {:up {:href (path-for :all-study-event-defs-handler)}
-        :self {:href (path-for :study-event-handler :id
+       {:up {:href (path-for :study-event-defs-handler)}
+        :self {:href (path-for :study-event-def-handler :id
                                (:study-event/id study-event))}}})
 
     :handle-not-found
@@ -349,7 +359,7 @@
 ;; ---- Forms -----------------------------------------------------------------
 
 (defn- form-def-path [path-for form-def]
-  (path-for :form-def-handler :study-id (:study/id (:study/_forms form-def))
+  (path-for :form-def-handler :study-id (:study/id (:study/_form-defs form-def))
             :form-def-id (:form-def/id form-def)))
 
 (defn search-item-groups-form [form]
@@ -380,28 +390,42 @@
 (defn render-embedded-forms [path-for timeout forms]
   (r/map #(render-embedded-form path-for timeout %) forms))
 
-(defn all-forms-handler [path-for]
+(defn- study-form-defs-path [path-for study page-num]
+  (path-for :study-form-defs-handler :study-id (:study/id study)
+            :page-num page-num))
+
+(defn study-form-defs-handler [path-for]
   (resource
     (resource-defaults)
 
+    :processable?
+    (fnk [[:request params]]
+      (:study-id params))
+
+    :exists?
+    (fnk [db [:request [:params study-id]]]
+      (when-let [study (api/find-study db study-id)]
+        {:study study}))
+
     :handle-ok
-    (fnk [db [:request params]]
+    (fnk [study [:request params]]
       (let [page-num (parse-page-num (:page-num params))
             filter (:filter params)
             forms (if (str/blank? filter)
-                    (api/all-forms db)
-                    (api/list-matching-forms db filter))
+                    (->> (:study/form-defs study)
+                         (sort-by :form-def/id))
+                    (api/list-matching-form-defs study filter))
             next-page? (not (lr/empty? (paginate (inc page-num) forms)))
-            page-link (fn [num] {:href (str (path-for :all-forms-handler) "?"
-                                            (query-map num filter))})]
+            path #(-> (study-form-defs-path path-for study %)
+                      (assoc-filter filter))]
         {:links
-         (-> {:self {:href (path-for :all-forms-handler)}
-              :up {:href (path-for :service-document-handler)}}
-             (assoc-when :prev (when (< 1 page-num) (page-link (dec page-num))))
-             (assoc-when :next (when next-page? (page-link (inc page-num)))))
+         (-> {:self {:href (path page-num)}
+              :up {:href (study-path path-for study)}}
+             (assoc-prev page-num path)
+             (assoc-next next-page? page-num path))
          :forms
          {:lens/filter
-          {:action (path-for :all-forms-handler)
+          {:action (study-form-defs-path path-for study 1)
            :method "GET"
            :title "Filter Forms"
            :params
@@ -485,7 +509,7 @@
        :name (:name form-def)
        :type :form
        :links
-       {:up {:href (path-for :all-forms-handler)}
+       {:up {:href (study-form-defs-path path-for (:study/_form-defs form-def) 1)}
         :self {:href (form-def-path path-for form-def)}}
        :forms
        {:lens/search-item-groups (search-item-groups-form form-def)}
@@ -510,9 +534,9 @@
       (when (= 200 status)
         (md5 (str (:media-type representation)
                   (path-for :service-document-handler)
-                  (form-def-path path-for (:form ctx))
-                  (:name (:form ctx))
-                  (:description (:form ctx))))))
+                  (form-def-path path-for (:form-def ctx))
+                  (:name (:form-def ctx))
+                  (:description (:form-def ctx))))))
 
     :handle-ok
     (fnk [form-def]
@@ -521,7 +545,7 @@
        :name (:name form-def)
        :type :form-def
        :links
-       {:up {:href (path-for :all-forms-handler)}
+       {:up {:href (study-form-defs-path path-for (:study/_form-defs form-def) 1)}
         :self {:href (form-def-path path-for form-def)}}})
 
     :handle-not-found
@@ -1079,19 +1103,24 @@
 
 (defnk handlers [path-for version]
   {:service-document-handler (service-document-handler path-for version)
-   :all-study-event-defs-handler (all-study-event-defs-handler path-for)
-   :study-event-handler (study-event-handler path-for)
-   :get-subject-handler (get-subject-handler path-for)
-   :create-subject-handler (create-subject-handler path-for)
-   :delete-subject-handler (delete-subject-handler path-for)
+
+   :all-studies-handler (all-studies-handler path-for)
    :find-study-handler (study-handler path-for)
    :study-handler (study-handler path-for)
    :create-study-handler (create-study-handler path-for)
-   :all-forms-handler (all-forms-handler path-for)
+
+   :study-event-def-handler (study-event-def-handler path-for)
+
+   :subject-handler (subject-handler path-for)
+   :create-subject-handler (create-subject-handler path-for)
+   :delete-subject-handler (delete-subject-handler path-for)
+
+   :study-form-defs-handler (study-form-defs-handler path-for)
    :find-form-def-handler (find-form-def-handler path-for)
    :form-def-handler (form-def-handler path-for)
    :form-count-handler (form-count-handler path-for)
-   :create-form-handler (create-form-def-handler path-for)
+   :create-form-def-handler (create-form-def-handler path-for)
+
    :search-item-groups-handler (search-item-groups-handler path-for)
    :find-item-group-handler (find-item-group-handler path-for)
    :item-group-handler (item-group-handler path-for)
