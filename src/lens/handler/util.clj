@@ -74,28 +74,36 @@
 (defn entity-processable [ctx] (or (l/=method :get ctx) (-> ctx :new-entity :name)))
 
 (defn standard-entity-resource-defaults [path-for]
-  (merge
+  (assoc
     (resource-defaults)
 
-    {:allowed-methods [:get :put]
+    :allowed-methods [:get :put]
 
-     :malformed? entity-malformed
+    :malformed? entity-malformed
 
-     :processable? entity-processable
+    :processable? entity-processable
 
-     :can-put-to-missing? false
+    :can-put-to-missing? false
 
-     :new? false
+    :new? false
 
-     :handle-no-content
-     (fnk [update-error]
-       (condp = update-error
-         :not-found (error path-for 404 "Not found.")
-         :conflict (error path-for 409 "Conflict")
-         nil))
+    :handle-no-content
+    (fnk [update-error]
+      (condp = update-error
+        :not-found (error path-for 404 "Not found.")
+        :conflict (error path-for 409 "Conflict")
+        nil))
 
-     :handle-malformed
-     (fnk [error] error)
+    :handle-malformed
+    (fnk [error] error)
 
-     :handle-not-found
-     (error-body path-for "Not found.")}))
+    :handle-not-found
+    (error-body path-for "Not found.")))
+
+(defn standard-redirect-resource-defaults []
+  (assoc
+    (resource-defaults)
+
+    :exists? false
+    :existed? true
+    :moved-permanently? true))

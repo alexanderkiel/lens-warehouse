@@ -6,26 +6,30 @@
 
     "/studies"
     {"" :create-study-handler
+
      ["/page/" :page-num] :all-studies-handler
-     ["/" :study-id] :study-handler
 
-     "/study-event-defs"
-     {"" :study-event-defs-handler
-      ["/" :study-event-def-id] :study-event-def-handler}
+     ["/" :study-id]
+     {"" :study-handler
 
-     "/form-defs"
-     {"" :create-form-def-handler
-      ["/page/" :page-num] :study-form-defs-handler
-      ["/" :id] :form-def-handler
-      ["/" :id "/count"] :form-count-handler
-      ["/" :id "/search-item-groups"] :search-item-groups-handler}
+      "/study-event-defs"
+      {"" :study-event-defs-handler
+       ["/" :study-event-def-id] :study-event-def-handler}
 
-     "/find-form-def" :find-form-def-handler
+      "/find-form-def" :find-form-def-handler
 
-     "/subjects"
-     {"" :create-subject-handler
-      ["/" :subject-id] {:get :subject-handler
-                         :delete :delete-subject-handler}}}
+      "/form-defs"
+      {"" :create-form-def-handler
+       ["/page/" :page-num] :study-form-defs-handler
+       ["/" :form-def-id] :form-def-handler
+       ["/" :form-def-id "/count"] :form-count-handler
+       ["/" :form-def-id "/search-item-groups"] :search-item-groups-handler}
+
+      "/subjects"
+      {"" :create-subject-handler
+       ["/" :subject-id] {:get :subject-handler
+                          :delete :delete-subject-handler}}}}
+
     "/item-groups"
     {"" :all-item-groups-handler
      ["/" :id] :item-group-handler

@@ -2,6 +2,7 @@
   (:use plumbing.core)
   (:require [clojure.core.async :refer [timeout]]
             [clojure.core.reducers :as r]
+            [clojure.tools.logging :as log]
             [liberator.core :refer [resource to-location]]
             [pandect.algo.md5 :refer [md5]]
             [lens.handler.util :refer :all]
@@ -63,14 +64,12 @@
                 (path-for :service-document-handler)
                 (all-studies-path path-for)
                 (path-for :all-snapshots-handler)
-                (path-for :find-form-def-handler)
                 (path-for :find-item-group-handler)
                 (path-for :find-item-handler)
                 (path-for :most-recent-snapshot-handler)
                 (path-for :create-subject-handler)
                 (path-for :create-study-handler)
-                (path-for :find-study-handler)
-                (path-for :create-form-def-handler))))
+                (path-for :find-study-handler))))
 
     :handle-ok
     {:name "Lens Warehouse"
@@ -87,14 +86,6 @@
        :params
        {:id
         {:type :string}}}
-      :lens/find-form
-      {:action (path-for :find-form-def-handler)
-       :method "GET"
-       :params
-       {:study-id
-        {:type :string}
-        :form-def-id
-        {:type :string}}}
       :lens/find-item-group
       {:action (path-for :find-item-group-handler)
        :method "GET"
@@ -107,30 +98,8 @@
        :params
        {:id
         {:type :string}}}
-      :lens/create-subject
-      {:action (path-for :create-subject-handler)
-       :method "POST"
-       :params
-       {:id
-        {:type :string}
-        :sex
-        {:type :string
-         :description "One of male or female."}
-        :birth-date
-        {:type :string
-         :description "Date formatted like 2015-05-25."}}}
       :lens/create-study
       {:action (path-for :create-study-handler)
-       :method "POST"
-       :params
-       {:id
-        {:type :string}
-        :name
-        {:type :string}
-        :description
-        {:type :string}}}
-      :lens/create-form
-      {:action (path-for :create-form-def-handler)
        :method "POST"
        :params
        {:id
@@ -145,17 +114,22 @@
 (defn- study-path [path-for study]
   (path-for :study-handler :study-id (:study/id study)))
 
+(defn- find-form-def-path [path-for study]
+  (path-for :find-form-def-handler :study-id (:study/id study)))
+
+(defn- create-form-def-path [path-for study]
+  (path-for :create-form-def-handler :study-id (:study/id study)))
+
+(defn- create-subject-path [path-for study]
+  (path-for :create-subject-handler :study-id (:study/id study)))
+
 (defn find-study-handler [path-for]
   (resource
-    (resource-defaults)
+    (standard-redirect-resource-defaults)
 
     :processable?
     (fnk [[:request params]]
       (:id params))
-
-    :exists? false
-    :existed? true
-    :moved-permanently? true
 
     :location
     (fnk [[:request [:params id]]] (study-path path-for {:study/id id}))))
@@ -186,6 +160,9 @@
         (md5 (str (:media-type representation)
                   (all-studies-path path-for)
                   (study-path path-for (:study ctx))
+                  (find-form-def-path path-for (:study ctx))
+                  (create-form-def-path path-for (:study ctx))
+                  (create-subject-path path-for (:study ctx))
                   (:name (:study ctx))
                   (:description (:study ctx))))))
 
@@ -200,11 +177,35 @@
     (fnk [study]
       (-> {:id (:study/id study)
            :type :study
-           :name (:name study)
-           :links
-           {:up {:href (all-studies-path path-for)}
-            :self {:href (study-path path-for study)}}}
-          (assoc-when :description (:description study))))))
+           :name (:name study)}
+          (assoc-when :description (:description study))
+          (assoc
+            :links
+            {:up {:href (all-studies-path path-for)}
+             :self {:href (study-path path-for study)}}
+            :forms
+            {:lens/find-form-def
+             {:action (find-form-def-path path-for study)
+              :method "GET"
+              :params
+              {:id
+               {:type :string}}}
+             :lens/create-form-def
+             {:action (create-form-def-path path-for study)
+              :method "POST"
+              :params
+              {:id
+               {:type :string}
+               :name
+               {:type :string}
+               :description
+               {:type :string}}}
+             :lens/create-subject
+             {:action (create-subject-path path-for study)
+              :method "POST"
+              :params
+              {:id
+               {:type :string}}}})))))
 
 (defn render-embedded-study [path-for study]
   (-> {:id (:study/id study)
@@ -519,7 +520,7 @@
 
     :handle-ok
     (fnk [form-def]
-      {:id (:form/id form-def)
+      {:id (:form-def/id form-def)
        ;;TODO: alias
        :name (:name form-def)
        :type :form
@@ -536,35 +537,16 @@
 
 (defn find-form-def-handler [path-for]
   (resource
-    (resource-defaults)
+    (standard-redirect-resource-defaults)
 
-    :exists?
-    (fnk [db [:request [:params study-id form-def-id]]]
-      (when-let [form-def (some-> (api/find-study db study-id)
-                                  (api/find-form-def form-def-id))]
-        {:form-def form-def}))
+    :processable?
+    (fnk [[:request params]]
+      (and (:study-id params) (:id params)))
 
-    :etag
-    (fnk [representation {status 200} :as ctx]
-      (when (= 200 status)
-        (md5 (str (:media-type representation)
-                  (path-for :service-document-handler)
-                  (form-def-path path-for (:form-def ctx))
-                  (:name (:form-def ctx))
-                  (:description (:form-def ctx))))))
-
-    :handle-ok
-    (fnk [form-def]
-      {:id (:form-def/id form-def)
-       ;;TODO: alias
-       :name (:name form-def)
-       :type :form-def
-       :links
-       {:up {:href (study-form-defs-path path-for (:study/_form-defs form-def) 1)}
-        :self {:href (form-def-path path-for form-def)}}})
-
-    :handle-not-found
-    (error-body path-for "Form not found.")))
+    :location
+    (fnk [[:request [:params study-id id]]]
+      (form-def-path path-for {:study/_form-defs {:study/id study-id}
+                               :form-def/id id}))))
 
 (defn form-count-handler [path-for]
   (resource

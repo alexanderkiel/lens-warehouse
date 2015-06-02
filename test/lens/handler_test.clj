@@ -19,7 +19,7 @@
     (transit/write (transit/writer out :json) o)
     (io/input-stream (.toByteArray out))))
 
-(defn- path-for [handler & args] {:handler handler :args args})
+(defn- path-for [handler & args] (pr-str {:handler handler :args args}))
 
 (defn- connect [] (d/connect "datomic:mem:test"))
 
@@ -56,9 +56,10 @@
                :db (d/db (connect))}
           resp ((study-handler path-for) req)]
       (is (= 200 (:status resp)))
-      (let [self-link (:self (:links (edn/read-string (:body resp))))]
-        (is (= :study-handler (:handler (:href self-link))))
-        (is (= [:study-id "id-224127"] (:args (:href self-link)))))))
+      (let [self-link (:self (:links (edn/read-string (:body resp))))
+            self-link-href (edn/read-string (:href self-link))]
+        (is (= :study-handler (:handler self-link-href)))
+        (is (= [:study-id "id-224127"] (:args self-link-href))))))
 
   (testing "Response contains an ETag"
     (create-study "id-175847" "name-175850")
@@ -67,7 +68,7 @@
                :params {:study-id "id-175847"}
                :db (d/db (connect))}
           resp ((study-handler path-for) req)]
-      (is (= "\"559673cca735597d9daf105a4c05d9a6\""
+      (is (= "\"ea1288457ad10d1223415f4b2ea862b7\""
              (get-in resp [:headers "ETag"])))))
 
   (testing "Non-conditional update fails"
@@ -136,7 +137,7 @@
     (let [req {:request-method :put
                :headers {"accept" "application/json"
                          "content-type" "application/json"
-                         "if-match" "\"736844dd9a2021a3ccd19d907e98f0fa\""}
+                         "if-match" "\"d4ea5b1f1736e1ab5ed25e2703715479\""}
                :params {:study-id "id-202032"}
                :body (str->is "{\"name\": \"name-202906\"}")
                :db (d/db (connect))}
@@ -151,7 +152,7 @@
     (let [req {:request-method :put
                :headers {"accept" "application/json"
                          "content-type" "application/json"
-                         "if-match" "\"584a63a4dc4082a846f6a2118e9b3845\""}
+                         "if-match" "\"42410fadebf56d086ee0a26b5a2f00ff\""}
                :params {:study-id "id-203855"}
                :body (str->is "{\"name\": \"name-202906\"}")
                :conn (connect)
@@ -165,7 +166,7 @@
     (let [req {:request-method :put
                :headers {"accept" "application/transit+json"
                          "content-type" "application/transit+json"
-                         "if-match" "\"2b8e5bc27a81f6dbd708435963b58e1b\""}
+                         "if-match" "\"fe28d59b171118529808163db335051e\""}
                :params {:study-id "id-143317"}
                :body (transit->is {:name "name-143536"})
                :conn (connect)
@@ -175,12 +176,12 @@
       (is (= "name-143536" (:name (find-study "id-143317"))))))
 
   (testing "Update can remove description"
-    (create-study "id-143317" "name-143321" "desc-155658")
+    (create-study "id-171301" "name-143321" "desc-155658")
     (let [req {:request-method :put
                :headers {"accept" "application/transit+json"
                          "content-type" "application/transit+json"
-                         "if-match" "\"b673a2f8df28c897f16297dd22cfff32\""}
-               :params {:study-id "id-143317"}
+                         "if-match" "\"ce175a98e788f5a9cdcb1db9f0959faf\""}
+               :params {:study-id "id-171301"}
                :body (transit->is {:name "name-143536"})
                :conn (connect)
                :db (d/db (connect))}
@@ -245,10 +246,11 @@
                  :db (d/db (connect))}
             resp ((subject-handler path-for) req)]
         (is (= 200 (:status resp)))
-        (let [self-link (:self (:links (edn/read-string (:body resp))))]
-          (is (= :subject-handler (:handler (:href self-link))))
+        (let [self-link (:self (:links (edn/read-string (:body resp))))
+              self-link-href (edn/read-string (:href self-link))]
+          (is (= :subject-handler (:handler self-link-href)))
           (is (= [:study-id "s-172046" :subject-id "sub-172208"]
-                 (:args (:href self-link)))))))))
+                 (:args self-link-href))))))))
 
 (deftest create-subject-handler-test
   (let [study (create-study "s-174305")]
@@ -305,21 +307,17 @@
 
   (let [req {:request-method :get
              :headers {"accept" "application/edn"}
-             :params {:study-id "s-183549" :form-def-id "id-224127"}
+             :params {:study-id "s-183549" :id "id-224127"}
              :db (d/db (connect))}
         resp ((find-form-def-handler path-for) req)]
 
-    (is (= 200 (:status resp)))
+    (is (= 301 (:status resp)))
 
-    (testing "Body contains self link"
-      (let [self-link (:self (:links (edn/read-string (:body resp))))]
-        (is (= :form-def-handler (:handler (:href self-link))))
+    (testing "Response contains a Location"
+      (let [location (edn/read-string (get-in resp [:headers "Location"]))]
+        (is (= :form-def-handler (:handler location)))
         (is (= [:study-id "s-183549" :form-def-id "id-224127"]
-               (:args (:href self-link))))))
-
-    (testing "Response contains an ETag"
-      (is (= "\"7613b85706726fc3b5b9d38509be84c9\""
-             (get-in resp [:headers "ETag"]))))))
+               (:args location)))))))
 
 (deftest form-def-handler-test
   (-> (create-study "s-183549")
@@ -334,10 +332,11 @@
     (is (= 200 (:status resp)))
 
     (testing "Body contains self link"
-      (let [self-link (:self (:links (edn/read-string (:body resp))))]
-        (is (= :form-def-handler (:handler (:href self-link))))
+      (let [self-link (:self (:links (edn/read-string (:body resp))))
+            self-link-href (edn/read-string (:href self-link))]
+        (is (= :form-def-handler (:handler self-link-href)))
         (is (= [:study-id "s-183549" :form-def-id "id-224127"]
-               (:args (:href self-link))))))
+               (:args self-link-href)))))
 
     (testing "Response contains an ETag"
       (is (= "\"7613b85706726fc3b5b9d38509be84c9\""
