@@ -145,6 +145,21 @@
 (defn- study-path [path-for study]
   (path-for :study-handler :study-id (:study/id study)))
 
+(defn find-study-handler [path-for]
+  (resource
+    (resource-defaults)
+
+    :processable?
+    (fnk [[:request params]]
+      (:id params))
+
+    :exists? false
+    :existed? true
+    :moved-permanently? true
+
+    :location
+    (fnk [[:request [:params id]]] (study-path path-for {:study/id id}))))
+
 (defn study-handler
   "Handler for GET and PUT on a study.
 
@@ -1105,7 +1120,7 @@
   {:service-document-handler (service-document-handler path-for version)
 
    :all-studies-handler (all-studies-handler path-for)
-   :find-study-handler (study-handler path-for)
+   :find-study-handler (find-study-handler path-for)
    :study-handler (study-handler path-for)
    :create-study-handler (create-study-handler path-for)
 
