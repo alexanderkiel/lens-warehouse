@@ -73,7 +73,7 @@
 
 (defn entity-processable [ctx] (or (l/=method :get ctx) (-> ctx :new-entity :name)))
 
-(defn standard-entity-resource-defaults [path-for]
+(defn standard-entity-resource-defaults []
   (assoc
     (resource-defaults)
 
@@ -88,7 +88,7 @@
     :new? false
 
     :handle-no-content
-    (fnk [update-error]
+    (fnk [update-error [:request path-for]]
       (condp = update-error
         :not-found (error path-for 404 "Not found.")
         :conflict (error path-for 409 "Conflict")
@@ -98,7 +98,7 @@
     (fnk [error] error)
 
     :handle-not-found
-    (error-body path-for "Not found.")))
+    (fnk [[:request path-for]] (error-body path-for "Not found."))))
 
 (defn standard-redirect-resource-defaults []
   (assoc

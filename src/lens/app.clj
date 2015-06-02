@@ -16,6 +16,9 @@
   (fn [handler & params]
     (apply bidi/path-for routes handler params)))
 
+(defn wrap-path-for [handler path-for]
+  (fn [req] (handler (assoc req :path-for path-for))))
+
 (defn wrap-not-found [handler]
   (fn [req]
     (if-let [resp (handler req)]
@@ -25,8 +28,10 @@
 (defnk app [db-uri context-path :as opts]
   (assert (re-matches #"/(?:.*[^/])?" context-path))
   (let [routes (routes context-path)
-        opts (assoc opts :path-for (path-for routes))]
+        path-for (path-for routes)
+        opts (assoc opts :path-for path-for)]
     (-> (bidi-ring/make-handler routes (handlers opts))
+        (wrap-path-for path-for)
         (wrap-not-found)
         (wrap-exception)
         (wrap-cors)

@@ -72,7 +72,7 @@
    [:protocol :ref :comp]
    [:study-event-defs :ref :many :comp]
    [:form-defs :ref :many :comp]
-   [:item-groups :ref :many :comp]
+   [:item-group-defs :ref :many :comp]
    [:items :ref :many :comp]
    [:code-lists :ref :many :comp]
 
@@ -115,7 +115,7 @@
   [[:study-event-refs :ref :many :comp]])
 
 (def study-event-ref
-  "A reference to a FormDef as it occurs within a specific StudyEventDef. The
+  "A reference to a form-def as it occurs within a specific StudyEventDef. The
   list of FormRefs identifies the types of forms that are allowed to occur
   within this type of study event."
   [[:study-event :ref]
@@ -157,7 +157,7 @@
               (d/entity db)))
 
    (func add-form-def
-     "Adds a reference to a form def to this study event def.
+     "Adds a reference to a form-def to this study event def.
 
      Ensures uniquness of form defs within this study event def."
      [db study-event-def-eid form-def-eid]
@@ -176,32 +176,32 @@
            (throw (ex-info "Duplicate!" {:type :duplicate}))))))])
 
 (def form-ref
-  "A reference to a FormDef as it occurs within a specific StudyEventDef. The
+  "A reference to a form-def as it occurs within a specific StudyEventDef. The
   list of FormRefs identifies the types of forms that are allowed to occur
   within this type of study event."
   [[:form :ref]
    [:rank :long]])
 
 (def form-def
-  "A FormDef describes a type of form that can occur in a study."
+  "A form-def describes a type of form that can occur in a study."
   [[:id :string :index "The id of a form. Unique within a study."]
    [:repeating :boolean]
    [:aliases :ref :many :comp]
    [:item-group-refs :ref :many :comp]
 
    (func create
-     "Creates a form.
+     "Creates a form-def.
 
      Ensures id uniquness within its study."
-     [db tid study-eid form-id name more]
+     [db tid study-eid id name more]
      (let [study (d/entity db study-eid)]
        (when-not (:study/id study)
          (throw (ex-info "Study not found." {:type :study-not-found})))
-       (if-not (some #{form-id} (map :form-def/id (:study/form-defs study)))
+       (if-not (some #{id} (map :form-def/id (:study/form-defs study)))
          [[:db/add (:db/id study) :study/form-defs tid]
           (merge
             {:db/id tid
-             :form-def/id form-id
+             :form-def/id id
              :name name
              :form-def/repeating false}
             more)]
@@ -219,7 +219,7 @@
               (d/entity db)))
 
    (func update
-     "Updates the form def.
+     "Updates the form-def.
 
      Ensures that the values in old-props are still current in the version of
      the in-transaction form."
@@ -237,38 +237,43 @@
          (throw (ex-info "Form not found." {:type :not-found})))))])
 
 (def item-group-ref
-  "A reference to a ItemGroupDef as it occurs within a specific FormDef. The
-  list of ItemGroupRefs identifies the types of item groups that are allowed to
-  occur within this type of form."
+  "A reference to a item-group-def as it occurs within a specific form-def. The
+  list of item-group-refs identifies the types of item-groups that are allowed
+  to occur within this type of form."
   [[:item-group :ref]
    [:rank :long]])
 
 (def item-group-def
-  "An ItemGroupDef describes a type of item group that can occur within a study."
-  [[:id :string "The id of an item group. Unique within a study."]
+  "An item-group-def describes a type of item-group that can occur within a
+  study."
+  [[:id :string "The id of an item-group. Unique within a study."]
+   [:repeating :boolean]
    [:aliases :ref :many :comp]
    [:item-refs :ref :many :comp]
 
    (func create
-     "Creates an item group.
+     "Creates an item-group-def.
 
      Ensures id uniquness within its study."
-     [db tid study-id id name more]
-     (if-let [study (d/entity db [:study/id study-id])]
-       (if-not (some #{id} (-> study :study/item-groups :item-group/id))
-         [[:db/add (:db/id study) :study/item-groups tid]
+     [db tid study-eid id name more]
+     (let [study (d/entity db study-eid)]
+       (when-not (:study/id study)
+         (throw (ex-info "Study not found." {:type :study-not-found})))
+       (if-not (some #{id} (map :item-group-def/id
+                                           (-> study :study/item-group-defs)))
+         [[:db/add (:db/id study) :study/item-group-defs tid]
           (merge
             {:db/id tid
-             :item-group/id id
-             :name name}
+             :item-group-def/id id
+             :name name
+             :item-group-def/repeating false}
             more)]
-         (throw (ex-info "Duplicate!" {:type :duplicate})))
-       (throw (ex-info "Study not found." {:type :study-not-found}))))])
+         (throw (ex-info "Duplicate!" {:type :duplicate})))))])
 
 (def item-ref
-  "A reference to an ItemDef as it occurs within a specific ItemGroupDef. The
+  "A reference to an ItemDef as it occurs within a specific item-group-def. The
   list of ItemRefs identifies the types of items that are allowed to occur
-  within this type of item group."
+  within this type of item-group."
   [[:item :ref]
    [:rank :long]])
 
@@ -422,18 +427,18 @@
        :form/repeat-key repeat-key}])])
 
 (def item-group
-  "An item group is a closely related set of items that are generally analyzed
-  together. (Item groups are sometimes referred to as records and are associated
-  with panels or tables.) Item groups are aggregated into forms."
-  [[:form :ref "Concrete item groups are linked to a form."]
+  "An item-group is a closely related set of items that are generally analyzed
+  together. (item-groups are sometimes referred to as records and are associated
+  with panels or tables.) item-groups are aggregated into forms."
+  [[:form :ref "Concrete item-groups are linked to a form."]
    [:def :ref]
    [:repeat-key :string "A key used to distinguish between repeats of the same
-                         type of item group within a single form. (optional)"]])
+                         type of item-group within a single form. (optional)"]])
 
 (def item
   "An item is an individual clinical data item, such as a single systolic blood
-  pressure reading. Items are collected together into item groups."
-  [[:form :ref "Concrete items are linked to a item group."]
+  pressure reading. Items are collected together into item-groups."
+  [[:form :ref "Concrete items are linked to a item-group."]
    [:def :ref]
    [:string-value :string]
    [:integer-value :long]])

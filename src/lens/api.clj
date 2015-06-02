@@ -24,10 +24,17 @@
   (d/entity db [:study/id id]))
 
 (defn find-form-def
-  "Returns the form def with the id within the study or nil if none was found."
+  "Returns the form-def with the id within the study or nil if none was found."
   [study id]
   {:pre [(:study/id study) (string? id)]}
   (some #(when (= id (:form-def/id %)) %) (:study/form-defs study)))
+
+(defn find-item-group-def
+  "Returns the item-group-def with the id within the study or nil if none was
+  found."
+  [study id]
+  {:pre [(:study/id study) (string? id)]}
+  (some #(when (= id (:item-group-def/id %)) %) (:study/item-group-defs study)))
 
 (defn find-subject
   "Returns the subject with the id within the study or nil if none was found."
@@ -43,12 +50,6 @@
   [db id]
   {:pre [db (string? id)]}
   (d/entity db [:study-event/id id]))
-
-(defn item-group
-  "Returns the item group with the id or nil if none was found."
-  [db id]
-  {:pre [db (string? id)]}
-  (d/entity db [:item-group/id id]))
 
 (defn item
   "Returns the item with the given ID or nil if none was found."
@@ -146,12 +147,12 @@
 ;; ---- Form Def --------------------------------------------------------------
 
 (defn create-form-def
-  "Creates a form def with the id, name and more within a study.
+  "Creates a form-def with the id, name and more within a study.
 
   More can be a map of :description and :repeating were :description should be a
   string and :repeating a boolean defaulting to false.
 
-  Returns the created form def or nil if there is already one with the id."
+  Returns the created form-def or nil if there is already one with the id."
   [conn study id name & [more]]
   {:pre [(:study/id study)]}
   (try
@@ -163,7 +164,7 @@
       (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
 (defn update-form-def
-  "Updates the form def.
+  "Updates the form-def.
 
   Ensures that the values in old-props are still current in the version of the
   in-transaction form."
@@ -172,6 +173,40 @@
   (try
     @(d/transact conn [[:form-def.fn/update (:db/id form-def) old-props
                         new-props]])
+    nil
+    (catch Exception e (if-let [t (util/error-type e)] t (throw e)))))
+
+;; ---- Item Group Def --------------------------------------------------------
+
+(defn create-item-group-def
+  "Creates an item-group-def with the id, name and more within a study.
+
+  More can be a map of :description and :repeating were :description should be a
+  string and :repeating a boolean defaulting to false.
+
+  Returns the created item-group-def or nil if there is already one with the
+  id."
+  [conn study id name & [more]]
+  {:pre [(:study/id study)]}
+  (try
+    (->> (fn [tid] [[:item-group-def.fn/create tid (:db/id study) id name
+                     (map-keys {:description :description
+                                :repeating :item-group-def/repeating} more)]])
+         (util/create conn :part/meta-data))
+    (catch Exception e
+      (when-not (= :duplicate (util/error-type e)) (throw e)))))
+
+(defn update-item-group-def
+  "Updates the item-group-def.
+
+  Ensures that the values in old-props are still current in the version of the
+  in-transaction item-group."
+  [conn item-group-def old-props new-props]
+  {:pre [conn (:item-group-def/id item-group-def) (map? old-props)
+         (map? new-props)]}
+  (try
+    @(d/transact conn [[:item-group-def.fn/update (:db/id item-group-def)
+                        old-props new-props]])
     nil
     (catch Exception e (if-let [t (util/error-type e)] t (throw e)))))
 
@@ -214,7 +249,7 @@
 ;; ---- Form -----------------------------------------------------------
 
 (defn create-form
-  "Creates a form of study event and form def.
+  "Creates a form of study event and form-def.
 
   Returns the created form or nil if there is already one."
   ([conn study-event form-def]
@@ -383,13 +418,13 @@
            (map #(d/entity db %))
            (sort-by :form/id)))))
 
-(defn list-matching-item-groups
+(defn list-matching-item-group-defs
   "Returns a seq of item-groups of a form matching the filter expression sorted
   by :item-groups/rank."
   [form filter]
   {:pre [(entity? form) (string? filter)]}
   (util/timer
-    {:fn 'list-matching-item-groups :args {:form (:form/id form)
+    {:fn 'list-matching-item-group-defs :args {:form (:form/id form)
                                            :filter filter}}
     (when-not (str/blank? filter)
       (let [db (d/entity-db form)]
