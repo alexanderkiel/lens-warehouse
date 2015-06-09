@@ -103,6 +103,18 @@
 (defn- study-link [path-for study]
   {:href (study-path path-for study) :title (:name study)})
 
+(defn- study-study-event-defs-path
+  ([path-for study] (study-study-event-defs-path path-for study 1))
+  ([path-for study page-num]
+   (path-for :study-study-event-defs-handler :study-id (:study/id study)
+             :page-num page-num)))
+
+(defn- find-study-event-def-path [path-for study]
+  (path-for :find-study-event-def-handler :study-id (:study/id study)))
+
+(defn- create-study-event-def-path [path-for study]
+  (path-for :create-study-event-def-handler :study-id (:study/id study)))
+
 (defn- study-form-defs-path
   ([path-for study] (study-form-defs-path path-for study 1))
   ([path-for study page-num]
@@ -181,8 +193,11 @@
           (md5 (str (:media-type representation)
                     (all-studies-path path-for)
                     (study-path path-for study)
+                    (study-study-event-defs-path path-for study)
                     (study-form-defs-path path-for study)
                     (study-item-group-defs-path path-for study)
+                    (find-study-event-def-path path-for study)
+                    (create-study-event-def-path path-for study)
                     (find-form-def-path path-for study)
                     (create-form-def-path path-for study)
                     (find-item-group-def-path path-for study)
@@ -196,7 +211,8 @@
 
     :put!
     (fnk [conn study new-entity]
-      (letfn [(select-props [study] (select-keys study [:name :description]))]
+      (let [new-entity (prefix-namespace :study new-entity)
+            select-props (select-props :study/name :study/description)]
         {:update-error (api/update-study conn (:study/id study)
                                          (select-props study)
                                          (select-props new-entity))}))
@@ -204,12 +220,14 @@
     :handle-ok
     (fnk [study [:request path-for]]
       (-> {:id (:study/id study)
-           :name (:name study)}
-          (assoc-when :description (:description study))
+           :name (:study/name study)
+           :description (:study/description study)}
           (assoc
             :links
             {:up {:href (all-studies-path path-for)}
              :self {:href (study-path path-for study)}
+             :lens/study-event-defs
+             {:href (study-study-event-defs-path path-for study)}
              :lens/form-defs
              {:href (study-form-defs-path path-for study)}
              :lens/item-group-defs
@@ -217,7 +235,23 @@
              :lens/item-defs
              {:href (study-item-defs-path path-for study)}}
             :actions
-            {:lens/find-form-def
+            {:lens/find-study-event-def
+             {:href (find-study-event-def-path path-for study)
+              :method :get
+              :params
+              {:id
+               {:type 'Str}}}
+             :lens/create-study-event-def
+             {:href (create-study-event-def-path path-for study)
+              :method :post
+              :params
+              {:id
+               {:type 'Str}
+               :name
+               {:type 'Str}
+               :description
+               {:type 'Str}}}
+             :lens/find-form-def
              {:href (find-form-def-path path-for study)
               :method :get
               :params
@@ -320,15 +354,16 @@
 
     :processable?
     (fnk [[:request params]]
-      (or (and (:id params) (:name params))
-          [false {:error (str ":id or :name missing in " (keys params))}]))
+      (or (and (:id params) (:name params) (:description params))
+          [false {:error (str ":id, :name or :description missing in "
+                              (keys params))}]))
 
     :post!
     (fnk [conn [:request params]]
-      (let [opts (select-keys params [:description])]
-        (if-let [study (api/create-study conn (:id params) (:name params) opts)]
-          {:study study}
-          (throw (ex-info "Duplicate!" {:type ::duplicate})))))
+      (if-let [study (api/create-study conn (:id params) (:name params)
+                                       (:description params))]
+        {:study study}
+        (throw (ex-info "Duplicate!" {:type ::duplicate}))))
 
     :location (fnk [study [:request path-for]] (study-path path-for study))
 
@@ -346,39 +381,144 @@
 
 ;; ---- Study Event Defs ------------------------------------------------------
 
-(defn render-embedded-study-event [path-for study-event]
-  {:id (:study-event/id study-event)
-   :count (:count study-event)
-   :type :study-event-def
+(defn- study-event-def-path
+  ([path-for study-event-def]
+   (study-event-def-path
+     path-for (:study/id (:study/_study-event-defs study-event-def))
+     (:study-event-def/id study-event-def)))
+  ([path-for study-id study-event-def-id]
+   (path-for :study-event-def-handler :study-id study-id
+             :study-event-def-id study-event-def-id)))
+
+(defn render-embedded-study-event-def [path-for study-event-def]
+  {:id (:study-event-def/id study-event-def)
+   :name (:study-event-def/name study-event-def)
    :links
-   {:self {:href (path-for :study-event-def-handler :id
-                           (:study-event/id study-event))}}})
+   {:self {:href (study-event-def-path path-for study-event-def)}}})
 
 (defn render-embedded-study-event-defs [path-for study-event-defs]
-  (mapv #(render-embedded-study-event path-for %) study-event-defs))
+  (r/map #(render-embedded-study-event-def path-for %) study-event-defs))
+
+(def study-study-event-defs-handler
+  "Resource of all study-event-defs of a study."
+  (resource
+    (study-child-list-resource-defaults)
+
+    :handle-ok
+    (fnk [study [:request path-for params]]
+      (let [page-num (parse-page-num (:page-num params))
+            filter (:filter params)
+            study-events (if (str/blank? filter)
+                           (->> (:study/study-event-defs study)
+                                (sort-by :study-event-def/id))
+                           (api/list-matching-study-event-defs study filter))
+            next-page? (not (lr/empty? (paginate (inc page-num) study-events)))
+            path #(-> (study-study-event-defs-path path-for study %)
+                      (assoc-filter filter))]
+        {:links
+         (-> {:self {:href (path page-num)}
+              :up {:href (study-path path-for study)}}
+             (assoc-prev page-num path)
+             (assoc-next next-page? page-num path))
+         :actions
+         {:lens/filter
+          {:href (study-study-event-defs-path path-for study)
+           :method :get
+           :title "Filter Study Event Defs"
+           :params
+           {:filter
+            {:type 'Str
+             :description "Search query which allows Lucene syntax."}}}}
+         :embedded
+         {:lens/study-event-defs
+          (->> (paginate page-num study-events)
+               (render-embedded-study-event-defs path-for)
+               (into []))}}))))
 
 ;; ---- Study Event Def -------------------------------------------------------
 
-(defn study-event-def-handler [path-for]
+(def find-study-event-def-handler
   (resource
-    (resource-defaults)
+    (sub-study-redirect-resource-defaults)
 
-    :exists?
-    (fnk [db [:request [:params id]]]
-      (when-let [study-event (api/study-event db id)]
-        {:study-event study-event}))
+    :location
+    (fnk [[:request path-for [:params study-id id]]]
+      (study-event-def-path path-for study-id id))))
+
+(defnk exists-study-event-def? [study [:request [:params study-event-def-id]]]
+  (when-let [study-event-def (api/find-study-event-def study study-event-def-id)]
+    {:study-event-def study-event-def}))
+
+(def study-event-def-handler
+  "Handler for GET and PUT on a study-event-def.
+
+  Implementation note on PUT:
+
+  The resource compares the current ETag with the If-Match header based on a
+  possibly old version of the study-event-def taken from a database outside of 
+  the transaction. The update transaction is than tried with name and 
+  description from that possibly old study-event-def as reference. The 
+  transaction only succeeds if the name and description are still the same on 
+  the in-transaction study-event-def."
+  (resource
+    (standard-entity-resource-defaults)
+
+    :exists? (fn [ctx] (some-> (exists-study? ctx) (exists-study-event-def?)))
+
+    ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
+    :etag
+    (fnk [representation {status 200} [:request path-for] :as ctx]
+      (when (= 200 status)
+        (let [study-event-def (:study-event-def ctx)]
+          (md5 (str (:media-type representation)
+                    (study-path path-for (:study/_study-event-defs study-event-def))
+                    (study-event-def-path path-for study-event-def)
+                    (:name study-event-def)
+                    (:description study-event-def))))))
+
+    :put!
+    (fnk [conn study-event-def new-entity]
+      (let [new-entity (prefix-namespace :study-event-def new-entity)
+            select-props (select-props :study-event-def/name
+                                       :study-event-def/description)]
+        {:update-error
+         (api/update-study-event-def conn study-event-def
+                                     (select-props study-event-def)
+                                     (select-props new-entity))}))
 
     :handle-ok
-    (fnk [study-event]
-      {:id (:study-event/id study-event)
-       :type :study-event
+    (fnk [study-event-def [:request path-for]]
+      {:id (:study-event-def/id study-event-def)
+       :name (:study-event-def/name study-event-def)
        :links
-       {:up {:href (path-for :study-event-defs-handler)}
-        :self {:href (path-for :study-event-def-handler :id
-                               (:study-event/id study-event))}}})
+       {:up {:href (study-path path-for (:study/_study-event-defs 
+                                          study-event-def))}
+        :self {:href (study-event-def-path path-for study-event-def)}}})))
 
-    :handle-not-found
-    (error-body path-for "Study event not found.")))
+(def create-study-event-def-handler
+  (resource
+    (standard-create-resource-defaults)
+
+    :processable?
+    (fnk [[:request params]]
+      (and (:study-id params) (:id params) (:name params)))
+
+    :exists? exists-study?
+
+    :post!
+    (fnk [conn study [:request params]]
+      (let [opts (->> (select-keys params [:description])
+                      (prefix-namespace :study-event-def))]
+        (if-let [study-event-def
+                 (api/create-study-event-def conn study (:id params)
+                                             (:name params) opts)]
+          {:study-event-def study-event-def}
+          (throw (ex-info "Duplicate!" {:type ::duplicate})))))
+
+    :location
+    (fnk [study-event-def [:request path-for]] (study-event-def-path path-for study-event-def))
+
+    :handle-exception (duplicate-exception "Study-event-def exists already.")))
 
 ;; ---- Form Defs -------------------------------------------------------------
 
@@ -454,11 +594,7 @@
 
 (def find-form-def-handler
   (resource
-    (standard-redirect-resource-defaults)
-
-    :processable?
-    (fnk [[:request params]]
-      (and (:study-id params) (:id params)))
+    (sub-study-redirect-resource-defaults)
 
     :location
     (fnk [[:request path-for [:params study-id id]]]
@@ -654,11 +790,7 @@
 
 (def find-item-group-def-handler
   (resource
-    (standard-redirect-resource-defaults)
-
-    :processable?
-    (fnk [[:request params]]
-      (and (:study-id params) (:id params)))
+    (sub-study-redirect-resource-defaults)
 
     :location
     (fnk [[:request path-for [:params study-id id]]]
@@ -872,11 +1004,7 @@
 
 (def find-item-def-handler
   (resource
-    (standard-redirect-resource-defaults)
-
-    :processable?
-    (fnk [[:request params]]
-      (and (:study-id params) (:id params)))
+    (sub-study-redirect-resource-defaults)
 
     :location
     (fnk [[:request path-for [:params study-id id]]]
@@ -919,11 +1047,10 @@
       (let [new-entity (->> (update-in new-entity [:data-type]
                                        #(prefix-namespace :data-type %))
                             (prefix-namespace :item-def))
-            select-props (fn [item-def]
-                           (select-keys item-def [:item-def/name
-                                                  :item-def/data-type
-                                                  :item-def/description
-                                                  :item-def/question]))]
+            select-props (select-props :item-def/name
+                                       :item-def/data-type
+                                       :item-def/description
+                                       :item-def/question)]
         {:update-error (api/update-item-def conn item-def
                                             (select-props item-def)
                                             (select-props new-entity))}))
@@ -1305,11 +1432,10 @@
    :study-handler study-handler
    :create-study-handler create-study-handler
 
-   :study-event-def-handler (study-event-def-handler path-for)
-
-   :subject-handler subject-handler
-   :create-subject-handler create-subject-handler
-   :delete-subject-handler (delete-subject-handler path-for)
+   :study-study-event-defs-handler study-study-event-defs-handler
+   :find-study-event-def-handler find-study-event-def-handler
+   :study-event-def-handler study-event-def-handler
+   :create-study-event-def-handler create-study-event-def-handler
 
    :study-form-defs-handler study-form-defs-handler
    :find-form-def-handler find-form-def-handler
@@ -1336,6 +1462,11 @@
    :item-code-list-item-count-handler
    (item-code-list-item-count-handler path-for)
    :code-list-handler (code-list-handler path-for)
+
+   :subject-handler subject-handler
+   :create-subject-handler create-subject-handler
+   :delete-subject-handler (delete-subject-handler path-for)
+
    :query-handler (query-handler path-for)
    :snapshot-handler (snapshot-handler path-for)
    :all-snapshots-handler (all-snapshots-handler path-for)

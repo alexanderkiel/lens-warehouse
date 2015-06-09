@@ -69,6 +69,8 @@
 (def study
   "A clinical or epidemiological study. "
   [[:id :string :unique "The id of a study. Same as the study OID in ODM."]
+   [:name :string :fulltext]
+   [:description :string :fulltext]
    [:protocol :ref :comp]
    [:study-event-defs :ref :many :comp]
    [:form-defs :ref :many :comp]
@@ -78,12 +80,13 @@
 
    (func create
      "Creates a study."
-     [db tid id name more]
+     [db tid id name description more]
      (if-not (d/entity db [:study/id id])
        [(merge
           {:db/id tid
            :study/id id
-           :name name}
+           :study/name name
+           :study/description description}
           more)]
        (throw (ex-info "Duplicate." {:type :duplicate}))))
 
@@ -124,8 +127,10 @@
 (def study-event-def
   "A StudyEventDef packages a set of forms."
   [[:id :string :index "The id of a study-event. Unique within a study."]
-   [:aliases :ref :many :comp]
+   [:name :string :fulltext]
+   [:description :string :fulltext]
    [:form-refs :ref :many :comp]
+   [:aliases :ref :many :comp]
 
    (func create
      "Creates a study event.
@@ -140,22 +145,28 @@
           (merge
             {:db/id tid
              :study-event-def/id id
-             :name name}
+             :study-event-def/name name}
             more)]
          (throw (ex-info "Duplicate!" {:type :duplicate})))))
 
-   (func find
-     "Returns the study-event with study-id and study-event-id or nil if not 
-     found."
-     [db study-id study-event-id]
-     (some->> (d/q '[:find ?se . :in $ ?sid ?seid
-                     :where
-                     [?s :study/id ?sid]
-                     [?se :study-event/id ?seid]
-                     [?s :study/study-event-defs ?se]]
-                   db study-id study-event-id)
-              (d/entity db)))
+   (func update
+     "Updates the study-event-def.
 
+     Ensures that the values in old-props are still current in the version of
+     the in-transaction study-event."
+     [db study-event-def-eid old-props new-props]
+     (let [study-event-def (d/entity db study-event-def-eid)]
+       (if (:study-event-def/id study-event-def)
+         (if (= (select-keys study-event-def (keys old-props)) old-props)
+           (concat (for [[prop old-val] study-event-def
+                         :when (not= :study-event-def/id prop)
+                         :when (nil? (prop new-props))]
+                     [:db/retract (:db/id study-event-def) prop old-val])
+                   (for [[prop val] new-props]
+                     [:db/add (:db/id study-event-def) prop val]))
+           (throw (ex-info "Conflict!" {:type :conflict})))
+         (throw (ex-info "Study-event not found." {:type :not-found})))))
+   
    (func add-form-def
      "Adds a reference to a form-def to this study event def.
 

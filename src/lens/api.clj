@@ -24,6 +24,13 @@
   {:pre [db (string? id)]}
   (d/entity db [:study/id id]))
 
+(defn find-study-event-def
+  "Returns the study-event-def with the id within the study or nil if none was
+  found."
+  [study id]
+  {:pre [(:study/id study) (string? id)]}
+  (some #(when (= id (:study-event-def/id %)) %) (:study/study-event-defs study)))
+
 (defn find-form-def
   "Returns the form-def with the id within the study or nil if none was found."
   [study id]
@@ -51,12 +58,6 @@
     (->> (d/q '[:find ?sub . :in $ ?s ?id :where [?sub :subject/id ?id]
                 [?sub :subject/study ?s]] db (:db/id study) id)
          (d/entity db))))
-
-(defn study-event
-  "Returns the study-event with the id or nil if none was found."
-  [db id]
-  {:pre [db (string? id)]}
-  (d/entity db [:study-event/id id]))
 
 (defn code-list
   "Returns the code-list with the given ID or nil if none was found."
@@ -103,15 +104,15 @@
 ;; ---- Study -----------------------------------------------------------------
 
 (defn create-study
-  "Creates a study with the id, name and more.
+  "Creates a study with the id, name, description and more.
 
-  More can be a map of :description were :description should be a string.
+  More is currently not used.
 
   Returns the created study or nil if there is already one with the id."
-  [conn id name & [more]]
+  [conn id name description & [more]]
   (try
     (util/create conn :part/meta-data (fn [tid] [[:study.fn/create tid id name
-                                                  more]]))
+                                                  description more]]))
     (catch Exception e
       (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
@@ -144,6 +145,20 @@
          (util/create conn :part/meta-data))
     (catch Exception e
       (when-not (= :duplicate (util/error-type e)) (throw e)))))
+
+(defn update-study-event-def
+  "Updates the study-event-def.
+
+  Ensures that the values in old-props are still current in the version of the
+  in-transaction study-event."
+  [conn study-event-def old-props new-props]
+  {:pre [conn (:study-event-def/id study-event-def)
+         (map? old-props) (map? new-props)]}
+  (try
+    @(d/transact conn [[:study-event-def.fn/update (:db/id study-event-def)
+                        old-props new-props]])
+    nil
+    (catch Exception e (if-let [t (util/error-type e)] t (throw e)))))
 
 ;; ---- Form Def --------------------------------------------------------------
 
@@ -449,6 +464,20 @@
                 db matching-rules filter)
            (map #(d/entity db %))
            (sort-by :study/id)))))
+
+(defn list-matching-study-event-defs
+  "Returns a seq of study-events matching the filter expression sorted by
+  :study-event/id."
+  [db filter]
+  {:pre [(string? filter)]}
+  (util/timer
+    {:fn 'list-matching-study-event-defs :args {:filter filter}}
+    (when-not (str/blank? filter)
+      (->> (d/q '[:find [?f ...] :in $ % ?filter
+                  :where (study-event-search ?filter ?f)]
+                db matching-rules filter)
+           (map #(d/entity db %))
+           (sort-by :study-event/id)))))
 
 (defn list-matching-form-defs
   "Returns a seq of forms matching the filter expression sorted by :form/id."

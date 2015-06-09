@@ -97,6 +97,14 @@
     :existed? true
     :moved-permanently? true))
 
+(defn sub-study-redirect-resource-defaults []
+  (assoc
+    (standard-redirect-resource-defaults)
+
+    :processable?
+    (fnk [[:request params]]
+      (and (:study-id params) (:id params)))))
+
 (defn standard-create-resource-defaults []
   (assoc
     (resource-defaults)
@@ -122,3 +130,6 @@
   (if (map? m)
     (map-keys #(prefix-namespace ns %) m)
     (keyword (name ns) (name m))))
+
+(defn select-props [& props]
+  (fn [m] (select-keys m props)))

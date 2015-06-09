@@ -12,8 +12,11 @@
      ["/" :study-id]
      {"" :study-handler
 
+      "/find-study-event-def" :find-study-event-def-handler
+
       "/study-event-defs"
-      {"" :study-event-defs-handler
+      {"" :create-study-event-def-handler
+       ["/page/" :page-num] :study-study-event-defs-handler
        ["/" :study-event-def-id] :study-event-def-handler}
 
       "/find-form-def" :find-form-def-handler
