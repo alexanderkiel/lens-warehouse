@@ -8,7 +8,8 @@
             [schema.core :as s]
             [lens.util :as util :refer [entity?]]
             [lens.k-means :refer [k-means]])
-  (:import [java.util UUID]))
+  (:import [java.util UUID])
+  (:refer-clojure :exclude [update]))
 
 ;; ---- Last Loaded -----------------------------------------------------------
 
@@ -24,31 +25,20 @@
   {:pre [db (string? id)]}
   (d/entity db [:study/id id]))
 
-(defn find-study-event-def
-  "Returns the study-event-def with the id within the study or nil if none was
-  found."
-  [study id]
-  {:pre [(:study/id study) (string? id)]}
-  (some #(when (= id (:study-event-def/id %)) %) (:study/study-event-defs study)))
+(defn find-study-child
+  "Returns the child of a study with child-type and id.
 
-(defn find-form-def
-  "Returns the form-def with the id within the study or nil if none was found."
-  [study id]
-  {:pre [(:study/id study) (string? id)]}
-  (some #(when (= id (:form-def/id %)) %) (:study/form-defs study)))
+  Child types can be:
 
-(defn find-item-group-def
-  "Returns the item-group-def with the id within the study or nil if none was
-  found."
-  [study id]
-  {:pre [(:study/id study) (string? id)]}
-  (some #(when (= id (:item-group-def/id %)) %) (:study/item-group-defs study)))
-
-(defn find-item-def
-  "Returns the item-def with the id within the study or nil if none was found."
-  [study id]
-  {:pre [(:study/id study) (string? id)]}
-  (some #(when (= id (:item-def/id %)) %) (:study/item-defs study)))
+   * :study-event-def
+   * :form-def
+   * :item-group-def
+   * :item-def"
+  [study child-type id]
+  {:pre [(:study/id study) child-type (string? id)]}
+  (let [childs-key (keyword "study" (str (name child-type) "s"))
+        child-id-key (keyword (name child-type) "id")]
+    (some #(when (= id (child-id-key %)) %) (childs-key study))))
 
 (defn find-subject
   "Returns the subject with the id within the study or nil if none was found."
@@ -104,15 +94,16 @@
 ;; ---- Study -----------------------------------------------------------------
 
 (defn create-study
-  "Creates a study with the id, name, description and more.
+  "Creates a study with the id, name, desc and more.
 
   More is currently not used.
 
   Returns the created study or nil if there is already one with the id."
-  [conn id name description & [more]]
+  [conn id name desc & [more]]
+  {:pre [conn id name desc]}
   (try
     (util/create conn :part/meta-data (fn [tid] [[:study.fn/create tid id name
-                                                  description more]]))
+                                                  desc more]]))
     (catch Exception e
       (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
@@ -133,7 +124,7 @@
 (defn create-study-event-def
   "Creates a study event def with the id, name and more within a study.
 
-  More can be a map of :description were :description should be a string.
+  More can be a map of :desc were :desc should be a string.
 
   Returns the created study event def or nil if there is already one with the
   id."
@@ -165,16 +156,14 @@
 (defn create-form-def
   "Creates a form-def with the id, name and more within a study.
 
-  More can be a map of :description and :repeating were :description should be a
+  More can be a map of :desc and :repeating were :desc should be a
   string and :repeating a boolean defaulting to false.
 
   Returns the created form-def or nil if there is already one with the id."
   [conn study id name & [more]]
   {:pre [(:study/id study)]}
   (try
-    (->> (fn [tid] [[:form-def.fn/create tid (:db/id study) id name
-                     (map-keys {:description :description
-                                :repeating :form-def/repeating} more)]])
+    (->> (fn [tid] [[:form-def.fn/create tid (:db/id study) id name more]])
          (util/create conn :part/meta-data))
     (catch Exception e
       (when-not (= :duplicate (util/error-type e)) (throw e)))))
@@ -197,7 +186,7 @@
 (defn create-item-group-def
   "Creates an item-group-def with the id, name and more within a study.
 
-  More can be a map of :description and :repeating were :description should be a
+  More can be a map of :desc and :repeating were :desc should be a
   string and :repeating a boolean defaulting to false.
 
   Returns the created item-group-def or nil if there is already one with the
@@ -205,9 +194,7 @@
   [conn study id name & [more]]
   {:pre [(:study/id study)]}
   (try
-    (->> (fn [tid] [[:item-group-def.fn/create tid (:db/id study) id name
-                     (map-keys {:description :description
-                                :repeating :item-group-def/repeating} more)]])
+    (->> (fn [tid] [[:item-group-def.fn/create tid (:db/id study) id name more]])
          (util/create conn :part/meta-data))
     (catch Exception e
       (when-not (= :duplicate (util/error-type e)) (throw e)))))
@@ -242,7 +229,7 @@
 (s/defn create-item-def
   "Creates an item-def with the id, name, data-type and more within a study.
 
-  More can be a map of :description, :question and :length were :description and
+  More can be a map of :desc, :question and :length were :desc and
   :question should be both strings and :length a positive integer.
 
   Returns the created item-def or nil if there is already one with the id."
@@ -255,7 +242,7 @@
     (catch Exception e
       (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
-(defn update-item-def
+(defn update
   "Updates the item-def.
 
   Ensures that the values in old-props are still current in the version of the
@@ -328,6 +315,13 @@
           (util/create conn :part/form))
      (catch Exception e
        (when-not (= :duplicate (util/error-type e)) (throw e))))))
+
+;; ---- Retract ---------------------------------------------------------------
+
+(defn retract-entity [conn eid]
+  {:pre [conn (number? eid)]}
+  @(d/transact-async conn [[:db.fn/retractEntity eid]])
+  nil)
 
 ;; ---- Lists -----------------------------------------------------------------
 
@@ -681,7 +675,7 @@
 
 (defn atom-entity [db {:keys [type id]}]
   (if (= :code-list-item type)
-    (code-list-item (find-item-def db (:item-id id)) (:code id))
+    (code-list-item (find-study-child db :item-def (:item-id id)) (:code id))
     (d/entity db [(keyword (name type) "id") id])))
 
 (defn visit-stat-visits

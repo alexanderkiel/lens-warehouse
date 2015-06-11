@@ -1,6 +1,10 @@
 (ns lens.test-util
   (:require [datomic.api :as d]
-            [lens.util :as util]))
+            [cognitect.transit :as transit]
+            [lens.schema :refer [load-base-schema]]
+            [clojure.java.io :as io]
+            [clojure.edn :as edn])
+  (:import [java.io ByteArrayOutputStream]))
 
 (defn create-db [schema]
   (let [uri "datomic:mem://test"]
@@ -21,3 +25,40 @@
 
 (defn resolve-tempid [tx-data tempid]
   (d/resolve-tempid (:db-after tx-data) (:tempids tx-data) tempid))
+
+(defn str->is [s]
+  (io/input-stream (.getBytes s "utf-8")))
+
+(defn transit->is [o]
+  (let [out (ByteArrayOutputStream.)]
+    (transit/write (transit/writer out :json) o)
+    (io/input-stream (.toByteArray out))))
+
+(defn is->transit [in]
+  (transit/read (transit/reader in :json)))
+
+(defn path-for [handler & args] (pr-str {:handler handler :args args}))
+
+(defn connect [] (d/connect "datomic:mem:test"))
+
+(defn database-fixture [f]
+  (do
+    (d/create-database "datomic:mem:test")
+    (load-base-schema (connect)))
+  (f)
+  (d/delete-database "datomic:mem:test"))
+
+(defn request [method & kvs]
+  (reduce-kv
+    (fn [m k v]
+      (if (sequential? k)
+        (assoc-in m k v)
+        (assoc m k v)))
+    {:request-method method
+     :headers {"accept" "*/*"}
+     :path-for path-for
+     :db (d/db (connect))}
+    (apply hash-map kvs)))
+
+(defn location [resp]
+  (edn/read-string (get-in resp [:headers "Location"])))

@@ -17,7 +17,15 @@
       "/study-event-defs"
       {"" :create-study-event-def-handler
        ["/page/" :page-num] :study-study-event-defs-handler
-       ["/" :study-event-def-id] :study-event-def-handler}
+       ["/" :study-event-def-id]
+       {"" :study-event-def-handler
+
+        "/find-form-ref" :find-form-ref-handler
+
+        "/form-refs"
+        {"" {:get :form-refs-handler
+             :post :create-form-ref-handler}
+         ["/" :form-def-id] :form-ref-handler}}}
 
       "/find-form-def" :find-form-def-handler
 

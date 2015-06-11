@@ -1,4 +1,5 @@
 (ns lens.util
+  (:use plumbing.core)
   (:require [clojure.core.async :as async :refer [go go-loop <! <!! >!! close!
                                                   alts! alts!! alt!!]]
             [clojure.core.cache :as cache]
@@ -152,6 +153,16 @@
 
 (defn parse-long [s]
   (Long/parseLong s))
+
+(defn prefix-namespace [ns m]
+  (if (map? m)
+    (map-keys #(prefix-namespace ns %) m)
+    (keyword (name ns) (name m))))
+
+(defn remove-nil-valued-entries
+  "Removes all map entries with nil values."
+  [m]
+  (reduce-kv assoc-when {} m))
 
 ;; ---- Datomic ---------------------------------------------------------------
 

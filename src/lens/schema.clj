@@ -70,7 +70,7 @@
   "A clinical or epidemiological study. "
   [[:id :string :unique "The id of a study. Same as the study OID in ODM."]
    [:name :string :fulltext]
-   [:description :string :fulltext]
+   [:desc :string :fulltext]
    [:protocol :ref :comp]
    [:study-event-defs :ref :many :comp]
    [:form-defs :ref :many :comp]
@@ -80,13 +80,13 @@
 
    (func create
      "Creates a study."
-     [db tid id name description more]
+     [db tid id name desc more]
      (if-not (d/entity db [:study/id id])
        [(merge
           {:db/id tid
            :study/id id
            :study/name name
-           :study/description description}
+           :study/desc desc}
           more)]
        (throw (ex-info "Duplicate." {:type :duplicate}))))
 
@@ -128,7 +128,7 @@
   "A StudyEventDef packages a set of forms."
   [[:id :string :index "The id of a study-event. Unique within a study."]
    [:name :string :fulltext]
-   [:description :string :fulltext]
+   [:desc :string :fulltext]
    [:form-refs :ref :many :comp]
    [:aliases :ref :many :comp]
 
@@ -166,7 +166,7 @@
                      [:db/add (:db/id study-event-def) prop val]))
            (throw (ex-info "Conflict!" {:type :conflict})))
          (throw (ex-info "Study-event not found." {:type :not-found})))))
-   
+
    (func add-form-def
      "Adds a reference to a form-def to this study event def.
 
@@ -196,7 +196,9 @@
 (def form-def
   "A form-def describes a type of form that can occur in a study."
   [[:id :string :index "The id of a form. Unique within a study."]
+   [:name :string :fulltext]
    [:repeating :boolean]
+   [:desc :string :fulltext]
    [:aliases :ref :many :comp]
    [:item-group-refs :ref :many :comp]
 
@@ -213,7 +215,7 @@
           (merge
             {:db/id tid
              :form-def/id id
-             :name name
+             :form-def/name name
              :form-def/repeating false}
             more)]
          (throw (ex-info "Duplicate!" {:type :duplicate})))))
@@ -258,7 +260,9 @@
   "An item-group-def describes a type of item-group that can occur within a
   study."
   [[:id :string "The id of an item-group. Unique within a study."]
+   [:name :string :fulltext]
    [:repeating :boolean]
+   [:desc :string :fulltext]
    [:aliases :ref :many :comp]
    [:item-refs :ref :many :comp]
 
@@ -275,7 +279,7 @@
           (merge
             {:db/id tid
              :item-group-def/id id
-             :name name
+             :item-group-def/name name
              :item-group-def/repeating false}
             more)]
          (throw (ex-info "Duplicate!" {:type :duplicate})))))
@@ -317,7 +321,7 @@
    [:sds-var :ref]
    [:origin :string]
    [:comment :string :fulltext]
-   [:description :string :fulltext]
+   [:desc :string :fulltext]
    [:question :string :fulltext]
    [:code-list :ref]
    [:aliases :ref :many :comp]
@@ -512,7 +516,7 @@
      :db/cardinality :db.cardinality/one
      :db/doc "The human-readable name of some entity."}
 
-    {:db/ident :description
+    {:db/ident :desc
      :db/valueType :db.type/string
      :db/fulltext true
      :db/cardinality :db.cardinality/one

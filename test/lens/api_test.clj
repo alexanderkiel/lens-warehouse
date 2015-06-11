@@ -1,6 +1,6 @@
 (ns lens.api-test
   (:require [clojure.test :refer :all]
-            [lens.api :as api :refer [find-subject find-form-def]]
+            [lens.api :as api :refer [find-subject find-study-child]]
             [lens.schema :refer [load-base-schema]]
             [datomic.api :as d]
             [clojure.core.reducers :as r]
@@ -26,7 +26,7 @@
 (defn- create-study
   ([] (create-study "s-134745"))
   ([id] (create-study id "name-134748"))
-  ([id name & [more]] (api/create-study (connect) id name more)))
+  ([id name & [more]] (api/create-study (connect) id name "desc-171439" more)))
 
 (defn- update-study [id old-props new-props]
   (api/update-study (connect) id old-props new-props))
@@ -49,10 +49,10 @@
       (is (= "id-221752" (:study/id study)))
       (is (= "name-222227" (:name study)))))
 
-  (testing "create with id, name and description"
+  (testing "create with id, name and desc"
     (let [study (create-study "id-222745" "name-222227"
-                              {:description "description-222413"})]
-      (is (= "description-222413" (:description study)))))
+                              {:desc "desc-222413"})]
+      (is (= "desc-222413" (:desc study)))))
 
   (testing "create with existing id fails"
     (create-study "id-221808")
@@ -79,16 +79,33 @@
   (testing "update can add description"
     (is (nil? (api/update-study (connect) "id-170349" {:name "name-195834"}
                                 {:name "name-195920"
-                                 :description "desc-164555"})))
-    (is (= "desc-164555" (:description (study "id-170349")))))
+                                 :desc "desc-164555"})))
+    (is (= "desc-164555" (:desc (study "id-170349")))))
 
-  (create-study "id-162717" "name-162720" {:description "desc-162727"})
+  (create-study "id-162717" "name-162720" {:desc "desc-162727"})
 
-  (testing "update can remove description"
+  (testing "update can remove desc"
     (is (nil? (update-study "id-162717" {:name "name-162720"
-                                         :description "desc-162727"}
+                                         :desc "desc-162727"}
                             {:name "name-162720"})))
-    (is (nil? (:description (study "id-195829"))))))
+    (is (nil? (:desc (study "id-195829"))))))
+
+;; ---- Study Child -----------------------------------------------------------
+
+(defn- create-form-def
+  ([study id] (create-form-def study id "name-212214"))
+  ([study id name & [more]] (api/create-form-def (connect) study id name more)))
+
+(deftest find-study-child-test
+  (let [study (create-study)
+        _ (create-form-def study "id-221714")
+        study (refresh-study study)]
+
+    (testing "form-def is found"
+      (is (:form-def/id (find-study-child study :form-def "id-221714"))))
+
+    (testing "form-def is not found"
+      (is (nil? (find-study-child study :form-def "other-id-221735"))))))
 
 ;; ---- Subject ---------------------------------------------------------------
 
@@ -129,27 +146,12 @@
 
 ;; ---- Form Def --------------------------------------------------------------
 
-(defn- create-form-def
-  ([study id] (create-form-def study id "name-212214"))
-  ([study id name & [more]] (api/create-form-def (connect) study id name more)))
-
 (defn- update-form-def [form-def old-props new-props]
   (api/update-form-def (connect) form-def old-props new-props))
 
 (defn- refresh-form-def [form-def]
   (-> (refresh-study (:study/_form-defs form-def))
-      (find-form-def (:form-def/id form-def))))
-
-(deftest find-form-def-test
-  (let [study (create-study)
-        _ (create-form-def study "id-221714")
-        study (refresh-study study)]
-
-    (testing "is found"
-      (is (:form-def/id (find-form-def study "id-221714"))))
-
-    (testing "is not found"
-      (is (nil? (find-form-def study "other-id-221735"))))))
+      (find-study-child :form-def (:form-def/id form-def))))
 
 (deftest create-form-def-test
   (let [study (create-study)]
@@ -159,10 +161,10 @@
         (is (= "id-221752" (:form-def/id form-def)))
         (is (= "name-222227" (:name form-def)))))
 
-    (testing "create with id, name and description"
+    (testing "create with id, name and desc"
       (let [form-def (create-form-def study "id-222745" "name-222227"
-                                      {:description "desc-222413"})]
-        (is (= "desc-222413" (:description form-def)))))
+                                      {:desc "desc-222413"})]
+        (is (= "desc-222413" (:desc form-def)))))
 
     (testing "create with existing id fails"
       (create-form-def study "id-221808")
@@ -190,16 +192,16 @@
       (let [form-def (create-form-def study "id-215227" "name-195834")]
         (is (nil? (update-form-def form-def {:name "name-195834"}
                                    {:name "name-195920"
-                                    :description "desc-164555"})))
-        (is (= "desc-164555" (:description (refresh-form-def form-def))))))
+                                    :desc "desc-164555"})))
+        (is (= "desc-164555" (:desc (refresh-form-def form-def))))))
 
     (testing "update can remove description"
       (let [form-def (create-form-def study "id-162717" "name-162720"
-                                          {:description "desc-162727"})]
+                                      {:desc "desc-162727"})]
         (is (nil? (update-form-def form-def {:name "name-162720"
-                                                 :description "desc-162727"}
-                                       {:name "name-162720"})))
-        (is (nil? (:description (refresh-form-def form-def))))))))
+                                             :desc "desc-162727"}
+                                   {:name "name-162720"})))
+        (is (nil? (:desc (refresh-form-def form-def))))))))
 
 ;; ---- Item Group ------------------------------------------------------------
 
@@ -310,12 +312,12 @@
 
 (deftest clean-atom-test
   (are [orig cleaned] (= cleaned (api/clean-atom orig))
-                      nil nil
-                      [] nil
-                      [:invalid] nil
-                      [:form] nil
-                      [:form :a] {:type :form :id :a}
-                      [:form :a :b] {:type :form :id :a}))
+    nil nil
+    [] nil
+    [:invalid] nil
+    [:form] nil
+    [:form :a] {:type :form :id :a}
+    [:form :a :b] {:type :form :id :a}))
 
 (deftest query-disjunction-test
   (testing "nil disjunction"
