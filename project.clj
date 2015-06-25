@@ -21,7 +21,7 @@
                  [bidi "1.18.11" :exclusions [org.clojure/clojurescript]]
                  [liberator "0.13"]
                  [io.clojure/liberator-transit "0.3.0"]
-                 [ring-twp "0.1-SNAPSHOT"]
+                 [org.clojars.akiel/ring-hap "0.1-SNAPSHOT"]
                  [pandect "0.5.2"]
                  [clj-time "0.6.0"]
                  [clj-stacktrace "0.2.7"]

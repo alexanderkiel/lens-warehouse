@@ -3,7 +3,7 @@
   (:require [bidi.bidi :as bidi]
             [bidi.ring :as bidi-ring]
             [io.clojure.liberator-transit]
-            [ring-twp.core :refer [wrap-twp]]
+            [ring-hap.core :refer [wrap-hap]]
             [lens.route :refer [routes]]
             [lens.handler :refer [handlers]]
             [lens.representation]
@@ -36,4 +36,4 @@
         (wrap-exception)
         (wrap-cors)
         (wrap-connection db-uri)
-        (wrap-twp))))
+        (wrap-hap))))
