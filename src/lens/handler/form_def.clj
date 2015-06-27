@@ -33,11 +33,11 @@
     (fnk [study [:request path-for params]]
       (let [page-num (hu/parse-page-num (:page-num params))
             filter (:filter params)
-            forms (if (str/blank? filter)
-                    (->> (:study/form-defs study)
-                         (sort-by :form-def/id))
-                    (api/list-matching-form-defs study filter))
-            next-page? (not (lr/empty? (hu/paginate (inc page-num) forms)))
+            form-defs (if (str/blank? filter)
+                        (->> (:study/form-defs study)
+                             (sort-by :form-def/id))
+                        (api/list-matching-form-defs study filter))
+            next-page? (not (lr/empty? (hu/paginate (inc page-num) form-defs)))
             path #(-> (child-list-path :form-def path-for study %)
                       (hu/assoc-filter filter))]
         {:links
@@ -56,7 +56,7 @@
 
          :embedded
          {:lens/form-defs
-          (->> (hu/paginate page-num forms)
+          (->> (hu/paginate page-num form-defs)
                (render-embedded-list path-for (timeout 100))
                (into []))}}))))
 
