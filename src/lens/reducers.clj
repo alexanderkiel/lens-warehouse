@@ -38,7 +38,7 @@
           (:ret result))))))
 
 (defn empty? [coll]
-  (zero? (reduce + (r/take 1 (r/map (constantly 1) coll)))))
+  (clojure.core/empty? (into [] (r/take 1 coll))))
 
 (defn count [coll]
   (reduce + (r/map (constantly 1) coll)))
