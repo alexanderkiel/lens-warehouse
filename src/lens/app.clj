@@ -6,7 +6,6 @@
             [ring-hap.core :refer [wrap-hap]]
             [lens.route :refer [routes]]
             [lens.handler :refer [handlers]]
-            [lens.representation]
             [lens.middleware.datomic :refer [wrap-connection]]
             [lens.middleware.wan-exception :refer [wrap-exception]]
             [lens.middleware.cors :refer [wrap-cors]])

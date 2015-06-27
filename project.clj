@@ -9,7 +9,6 @@
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [org.clojure/core.cache "0.6.4"]
-                 [org.clojure/data.json "0.2.6"]
                  [org.clojure/tools.cli "0.3.1"]
                  [org.clojure/tools.logging "0.2.6"]
                  [org.clojure/tools.reader "0.9.2"]
