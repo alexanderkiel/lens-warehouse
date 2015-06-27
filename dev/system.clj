@@ -11,9 +11,8 @@
 (defn env []
   (if (.canRead (File. ".env"))
     (->> (str/split-lines (slurp ".env"))
-         (reduce (fn [ret line]
-                   (let [vs (str/split line #"=")]
-                     (assoc ret (first vs) (str/join "=" (rest vs))))) {}))
+         (map #(str/split % #"="))
+         (into {}))
     {}))
 
 (defn create-mem-db []
