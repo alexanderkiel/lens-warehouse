@@ -20,21 +20,8 @@
 
 ;; ---- Service Document ------------------------------------------------------
 
-(defn service-document-handler [path-for version]
-  (resource
-    (resource-defaults :cache-control "max-age=60")
-
-    :etag
-    (fnk [representation]
-      (md5 (str (:media-type representation)
-                (path-for :service-document-handler)
-                (all-studies-path path-for)
-                (path-for :all-snapshots-handler)
-                (path-for :most-recent-snapshot-handler)
-                (path-for :create-study-handler)
-                (path-for :find-study-handler))))
-
-    :handle-ok
+(defn render-service-document [version]
+  (fnk [[:request path-for]]
     {:name "Lens Warehouse"
      :version version
      :links
@@ -51,6 +38,22 @@
      :forms
      {:lens/create-study
       (render-create-study-form path-for)}}))
+
+(defn service-document-handler [version]
+  (resource
+    (resource-defaults :cache-control "max-age=60")
+
+    :etag
+    (fnk [representation [:request path-for]]
+      (md5 (str (:media-type representation)
+                (path-for :service-document-handler)
+                (all-studies-path path-for)
+                (path-for :all-snapshots-handler)
+                (path-for :most-recent-snapshot-handler)
+                (path-for :find-study-handler)
+                (path-for :create-study-handler))))
+
+    :handle-ok (render-service-document version)))
 
 ;; ---- Form Refs --------------------------------------------------------------
 
@@ -400,7 +403,7 @@
 ;; ---- Handlers --------------------------------------------------------------
 
 (defnk handlers [path-for version]
-  {:service-document-handler (service-document-handler path-for version)
+  {:service-document-handler (service-document-handler version)
 
    :all-studies-handler (all-studies-handler path-for)
    :find-study-handler find-study-handler
