@@ -4,8 +4,7 @@
             [liberator.core :as l]
             [liberator.representation :refer [Representation as-response]]
             [lens.util :as util]
-            [pandect.algo.md5 :as md5]
-            [clojure.tools.logging :as log]))
+            [pandect.algo.md5 :as md5]))
 
 (defn error-body [path-for msg]
   {:links {:up {:href (path-for :service-document-handler)}}
@@ -39,9 +38,8 @@
          {:conn conn :db db})))
 
    :as-response
-   (fn [d ctx]
-     (-> (as-response d ctx)
-         (handle-cache-control opts)))
+   (fn [data _]
+     (handle-cache-control {:body data} opts))
 
    ;; Just respond with plain text here because the media type is negotiated
    ;; later in the decision graph.

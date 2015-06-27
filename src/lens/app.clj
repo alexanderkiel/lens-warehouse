@@ -2,12 +2,10 @@
   (:use plumbing.core)
   (:require [bidi.bidi :as bidi]
             [bidi.ring :as bidi-ring]
-            [io.clojure.liberator-transit]
             [ring-hap.core :refer [wrap-hap]]
             [lens.route :refer [routes]]
             [lens.handler :refer [handlers]]
             [lens.middleware.datomic :refer [wrap-connection]]
-            [lens.middleware.wan-exception :refer [wrap-exception]]
             [lens.middleware.cors :refer [wrap-cors]])
   (:import [java.net URI]))
 
@@ -18,12 +16,6 @@
 (defn wrap-path-for [handler path-for]
   (fn [req] (handler (assoc req :path-for path-for))))
 
-(defn wrap-not-found [handler]
-  (fn [req]
-    (if-let [resp (handler req)]
-      resp
-      {:status 404})))
-
 (defnk app [db-uri context-path :as opts]
   (assert (re-matches #"/(?:.*[^/])?" context-path))
   (let [routes (routes context-path)
@@ -31,8 +23,6 @@
         opts (assoc opts :path-for path-for)]
     (-> (bidi-ring/make-handler routes (handlers opts))
         (wrap-path-for path-for)
-        (wrap-not-found)
-        (wrap-exception)
-        (wrap-cors)
         (wrap-connection db-uri)
-        (wrap-hap))))
+        (wrap-hap {:up-href (path-for :service-document-handler)})
+        (wrap-cors))))

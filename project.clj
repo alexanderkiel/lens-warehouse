@@ -19,11 +19,9 @@
                  [pathetic "0.5.1"]
                  [bidi "1.18.11" :exclusions [org.clojure/clojurescript]]
                  [liberator "0.13"]
-                 [io.clojure/liberator-transit "0.3.0"]
                  [org.clojars.akiel/ring-hap "0.1-SNAPSHOT"]
                  [pandect "0.5.2"]
                  [clj-time "0.6.0"]
-                 [clj-stacktrace "0.2.7"]
                  [org.slf4j/slf4j-api "1.7.7"]
                  [ch.qos.logback/logback-classic "1.1.2"]]
 
