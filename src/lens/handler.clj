@@ -5,8 +5,6 @@
             [liberator.core :refer [resource to-location]]
             [lens.handler.util :refer :all]
             [lens.api :as api]
-            [lens.reducers :as lr]
-            [clojure.string :as str]
             [lens.util :as util]
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
