@@ -240,9 +240,8 @@
                               (keys params))}]))
 
     :post!
-    (fnk [conn [:request params]]
-      (if-let [study (api/create-study conn (:id params) (:name params)
-                                       (:desc params))]
+    (fnk [conn [:request [:params id name desc]]]
+      (if-let [study (api/create-study conn id name desc)]
         {:study study}
         (throw (ex-info "Duplicate!" {:type :duplicate}))))
 
