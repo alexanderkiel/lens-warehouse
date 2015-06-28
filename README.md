@@ -59,7 +59,7 @@ content:
     DB_URI=datomic:free://localhost:4334/lens-warehouse
 
 now you can start a REPL with `lein repl`. After it is up, go into the user
-namespace which is located in under `dev`. There is a comment block
+namespace which is located under `dev`. There is a comment block
 "Init Development". Just invoke the functions:
 
     (startup)
