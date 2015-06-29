@@ -5,7 +5,7 @@
             [liberator.core :refer [resource]]
             [lens.api :as api]
             [lens.util :as util]
-            [lens.handler.util :refer :all]
+            [lens.handler.util :as hu]
             [lens.reducers :as lr]))
 
 (defn all-studies-path
@@ -20,7 +20,7 @@
 
 (def find-study-handler
   (resource
-    (standard-redirect-resource-defaults)
+    (hu/standard-redirect-resource-defaults)
 
     :processable?
     (fnk [[:request params]]
@@ -136,7 +136,7 @@
   (when-let [study (api/find-study db study-id)]
     (assoc ctx :study study)))
 
-(def select-study-props (select-props :study :name :desc))
+(def select-study-props (hu/select-props :study :name :desc))
 
 (def study-handler
   "Handler for GET, PUT and DELETE on a study.
@@ -149,35 +149,35 @@
   possibly old study as reference. The transaction only succeeds if the name and
   desc are still the same on the in-transaction study."
   (resource
-    (standard-entity-resource-defaults)
+    (hu/standard-entity-resource-defaults)
 
     :exists? exists-study?
 
-    :processable? (entity-processable :name :desc)
+    :processable? (hu/entity-processable :name :desc)
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
     (fnk [representation {status 200} [:request path-for] :as ctx]
       (when (= 200 status)
         (let [study (:study ctx)]
-          (md5 (str (:media-type representation)
-                    (all-studies-path path-for)
-                    (study-path path-for study)
-                    (child-list-path :study-event-def path-for study)
-                    (child-list-path :form-def path-for study)
-                    (child-list-path :item-group-def path-for study)
-                    (child-list-path :item-def path-for study)
-                    (child-action-path :study-event-def :find path-for study)
-                    (child-action-path :study-event-def :create path-for study)
-                    (child-action-path :form-def :find path-for study)
-                    (child-action-path :form-def :create path-for study)
-                    (child-action-path :item-group-def :find path-for study)
-                    (child-action-path :item-group-def :create path-for study)
-                    (child-action-path :item-def :find path-for study)
-                    (child-action-path :item-def :create path-for study)
-                    (child-action-path :subject :create path-for study)
-                    (:name study)
-                    (:desc study))))))
+          (hu/md5 (str (:media-type representation)
+                       (all-studies-path path-for)
+                       (study-path path-for study)
+                       (child-list-path :study-event-def path-for study)
+                       (child-list-path :form-def path-for study)
+                       (child-list-path :item-group-def path-for study)
+                       (child-list-path :item-def path-for study)
+                       (child-action-path :study-event-def :find path-for study)
+                       (child-action-path :study-event-def :create path-for study)
+                       (child-action-path :form-def :find path-for study)
+                       (child-action-path :form-def :create path-for study)
+                       (child-action-path :item-group-def :find path-for study)
+                       (child-action-path :item-group-def :create path-for study)
+                       (child-action-path :item-def :find path-for study)
+                       (child-action-path :item-def :create path-for study)
+                       (child-action-path :subject :create path-for study)
+                       (:name study)
+                       (:desc study))))))
 
     :put!
     (fnk [conn study new-entity]
@@ -203,35 +203,35 @@
 
 (defn all-studies-handler [path-for]
   (resource
-    (resource-defaults)
+    (hu/resource-defaults)
 
     :handle-ok
     (fnk [db [:request params]]
-      (let [page-num (parse-page-num (:page-num params))
+      (let [page-num (hu/parse-page-num (:page-num params))
             filter (:filter params)
             studies (if (str/blank? filter)
                       (api/all-studies db)
                       (api/list-matching-studies db filter))
-            next-page? (not (lr/empty? (paginate (inc page-num) studies)))
+            next-page? (not (lr/empty? (hu/paginate (inc page-num) studies)))
             path #(-> (all-studies-path path-for %)
-                      (assoc-filter filter))]
+                      (hu/assoc-filter filter))]
         {:links
          (-> {:up {:href (path-for :service-document-handler)}
               :self {:href (path page-num)}}
-             (assoc-prev page-num path)
-             (assoc-next next-page? page-num path))
+             (hu/assoc-prev page-num path)
+             (hu/assoc-next next-page? page-num path))
          :forms
          {:lens/create-study
           (render-create-study-form path-for)}
          :embedded
          {:lens/studies
-          (->> (paginate page-num studies)
+          (->> (hu/paginate page-num studies)
                (render-embedded-studies path-for)
                (into []))}}))))
 
 (def create-study-handler
   (resource
-    (standard-create-resource-defaults)
+    (hu/standard-create-resource-defaults)
 
     :processable?
     (fnk [[:request params]]
@@ -247,13 +247,13 @@
 
     :location (fnk [study [:request path-for]] (study-path path-for study))
 
-    :handle-exception (duplicate-exception "Study exists already.")))
+    :handle-exception (hu/duplicate-exception "Study exists already.")))
 
 ;; ---- For Childs ------------------------------------------------------------
 
 (defn study-child-list-resource-defaults []
   (assoc
-    (resource-defaults)
+    (hu/resource-defaults)
 
     :processable? (fnk [[:request params]] (:study-id params))
 
