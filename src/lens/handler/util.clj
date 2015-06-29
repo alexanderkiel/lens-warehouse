@@ -73,8 +73,6 @@
 
     :malformed? entity-malformed
 
-    :processable? (entity-processable :name)
-
     :can-put-to-missing? false
 
     :new? false

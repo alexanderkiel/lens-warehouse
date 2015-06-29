@@ -100,6 +100,8 @@
 
     :exists? (fn [ctx] (some-> (exists-study? ctx) (exists?)))
 
+    :processable? (hu/entity-processable :name)
+
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
     (fnk [representation {status 200} [:request path-for] :as ctx]
