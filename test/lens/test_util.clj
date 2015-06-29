@@ -60,5 +60,8 @@
      :db (d/db (connect))}
     (apply hash-map kvs)))
 
+(defn execute [handler method & kvs]
+  (handler (apply request method kvs)))
+
 (defn location [resp]
   (edn/read-string (get-in resp [:headers "Location"])))
