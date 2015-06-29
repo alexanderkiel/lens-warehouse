@@ -27,6 +27,10 @@
     (assoc-in resp [:headers "cache-control"] cache-control)
     resp))
 
+(extend-protocol Representation
+  clojure.lang.MapEquivalence
+  (as-response [this _] {:body this}))
+
 (defn resource-defaults [& {:as opts}]
   {:available-media-types ["application/transit+json"]
 
@@ -38,8 +42,8 @@
          {:conn conn :db db})))
 
    :as-response
-   (fn [data _]
-     (handle-cache-control {:body data} opts))
+   (fn [data ctx]
+     (handle-cache-control (as-response data ctx) opts))
 
    ;; Just respond with plain text here because the media type is negotiated
    ;; later in the decision graph.
