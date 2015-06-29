@@ -51,7 +51,7 @@
   "Standard malformed decision for single entity resources.
 
   Parsed entity will be placed under :new-entity in the context in case of
-  success. Otherwise :errors will be placed."
+  success. Otherwise :error will be placed."
   [request :as ctx]
   (if (or (not (l/=method :put ctx)) (l/header-exists? "if-match" ctx))
     (when (l/=method :put ctx)
