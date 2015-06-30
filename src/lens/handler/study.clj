@@ -201,12 +201,12 @@
 (defn render-embedded-studies [path-for studies]
   (r/map #(render-embedded-study path-for %) studies))
 
-(defn all-studies-handler [path-for]
+(def all-studies-handler
   (resource
     (hu/resource-defaults)
 
     :handle-ok
-    (fnk [db [:request params]]
+    (fnk [db [:request params path-for]]
       (let [page-num (hu/parse-page-num (:page-num params))
             filter (:filter params)
             studies (if (str/blank? filter)

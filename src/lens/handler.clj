@@ -405,7 +405,7 @@
 (defnk handlers [path-for version]
   {:service-document-handler (service-document-handler version)
 
-   :all-studies-handler (all-studies-handler path-for)
+   :all-studies-handler all-studies-handler
    :find-study-handler find-study-handler
    :study-handler study-handler
    :create-study-handler create-study-handler
