@@ -51,8 +51,7 @@
                (:args self-link-href)))))
 
     (testing "Response contains an ETag"
-      (is (= "\"75c40ec1b85899c375efefad9bcc7e3c\""
-             (get-in resp [:headers "ETag"])))))
+      (is (get-in resp [:headers "ETag"]))))
 
   (testing "Non-conditional update fails"
     (let [req {:request-method :put

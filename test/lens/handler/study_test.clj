@@ -52,8 +52,7 @@
     (create-study "id-175847" "name-175850")
     (let [resp (execute study-handler :get
                 :params {:study-id "id-224127"})]
-      (is (= "\"4cfe8d79493055465005781aebace6fe\""
-             (get-in resp [:headers "ETag"])))))
+      (is (get-in resp [:headers "ETag"]))))
 
   (testing "Non-conditional update fails"
     (create-study "id-093946" "name-201516")
