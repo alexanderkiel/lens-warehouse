@@ -37,7 +37,8 @@
       :lens/create-subject)))
 
 (deftest study-handler-test
-  (testing "Body contains self link"
+
+  (testing "Body contains a self link"
     (create-study "id-224127")
     (let [resp (execute study-handler :get
                  :params {:study-id "id-224127"})]
