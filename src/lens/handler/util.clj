@@ -4,7 +4,8 @@
             [liberator.core :as l]
             [liberator.representation :refer [Representation as-response]]
             [lens.util :as util]
-            [pandect.algo.md5 :as md5]))
+            [pandect.algo.md5 :as md5])
+  (:refer-clojure :exclude [error-handler]))
 
 (defn error-body [path-for msg]
   {:links {:up {:href (path-for :service-document-handler)}}
@@ -69,6 +70,10 @@
     (or (not (l/=method :put ctx))
         (every? identity (map #(get-in ctx [:new-entity %]) params)))))
 
+(defn- error-handler [msg]
+  (fnk [[:request path-for] :as ctx]
+    (error-body path-for (or (:error ctx) msg))))
+
 (defn standard-entity-resource-defaults []
   (assoc
     (resource-defaults)
@@ -84,15 +89,16 @@
     :handle-no-content
     (fnk [[:request path-for] :as ctx]
       (condp = (:update-error ctx)
-        :not-found (error path-for 404 "Not found.")
+        :not-found (error path-for 404 "Not Found")
         :conflict (error path-for 409 "Conflict")
         nil))
 
-    :handle-malformed
-    (fnk [error] error)
+    :handle-malformed (error-handler "Malformed")
+    :handle-unprocessable-entity (error-handler "Unprocessable Entity")
+    :handle-precondition-failed (error-handler "Precondition Failed")
 
     :handle-not-found
-    (fnk [[:request path-for]] (error-body path-for "Not found."))))
+    (fnk [[:request path-for]] (error-body path-for "Not Found"))))
 
 (defn standard-redirect-resource-defaults []
   (assoc
@@ -116,11 +122,7 @@
 
     :allowed-methods [:post]
 
-    :can-post-to-missing? false
-
-    :handle-unprocessable-entity
-    (fnk [[:request path-for] :as ctx]
-      (error-body path-for (or (:error ctx) "Unprocessable Entity")))))
+    :can-post-to-missing? false))
 
 (defn duplicate-exception [msg]
   (fnk [exception [:request path-for]]

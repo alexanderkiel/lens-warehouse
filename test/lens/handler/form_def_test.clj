@@ -7,6 +7,8 @@
             [lens.api :as api :refer [find-study-child]]
             [datomic.api :as d]))
 
+(use-fixtures :each database-fixture)
+
 (defn- create-form-def
   ([study id] (create-form-def study id "name-182856"))
   ([study id name] (api/create-form-def (connect) study id name))
@@ -37,77 +39,38 @@
   (-> (create-study "s-183549")
       (create-form-def "id-224127"))
 
-  (let [req (request :get
-              :params {:study-id "s-183549" :form-def-id "id-224127"})
-        resp (handler req)]
+  (let [resp (execute handler :get
+              :params {:study-id "s-183549" :form-def-id "id-224127"})]
 
     (is (= 200 (:status resp)))
 
     (testing "Body contains self link"
-      (let [self-link (:self (:links (is->transit (:body resp))))
-            self-link-href (edn/read-string (:href self-link))]
-        (is (= :form-def-handler (:handler self-link-href)))
-        (is (= [:study-id "s-183549" :form-def-id "id-224127"]
-               (:args self-link-href)))))
+      (is (= :form-def-handler (:handler (href resp))))
+      (is (= [:study-id "s-183549" :form-def-id "id-224127"] (:args (href resp)))))
 
     (testing "Response contains an ETag"
       (is (get-in resp [:headers "ETag"]))))
 
   (testing "Non-conditional update fails"
-    (let [req {:request-method :put
-               :headers {"accept" "application/json"
-                         "content-type" "application/json"}
-               :params {:study-id "s-183549" :form-def-id "id-224127"}
-               :db (d/db (connect))}
-          resp ((handler path-for) req)]
+    (let [resp (execute handler :put
+                :params {:study-id "s-183549" :form-def-id "id-224127"})]
       (is (= 400 (:status resp)))
-      (is (= "Require conditional update." (:body resp)))))
-
-  (testing "Update with missing body fails"
-    (let [req {:request-method :put
-               :headers {"accept" "application/json"
-                         "content-type" "application/json"
-                         "if-match" "\"foo\""}
-               :params {:study-id "s-183549" :form-def-id "id-224127"}
-               :db (d/db (connect))}
-          resp ((handler path-for) req)]
-      (is (= 400 (:status resp)))
-      (is (= "Missing request body." (:body resp)))))
-
-  (testing "Update with invalid body fails"
-    (let [req {:request-method :put
-               :headers {"accept" "application/json"
-                         "content-type" "application/json"
-                         "if-match" "\"foo\""}
-               :params {:study-id "s-183549" :form-def-id "id-224127"}
-               :body (str->is "{")
-               :db (d/db (connect))}
-          resp ((handler path-for) req)]
-      (is (= 400 (:status resp)))
-      (is (= "Invalid request body." (:body resp)))))
-
-  (testing "Update fails on ETag missmatch"
-    (let [req {:request-method :put
-               :headers {"accept" "application/json"
-                         "content-type" "application/json"
-                         "if-match" "\"foo\""}
-               :params {:study-id "s-183549" :form-def-id "id-224127"}
-               :body (transit->is {:name "name-202906"})
-               :db (d/db (connect))}
-          resp ((handler path-for) req)]
-      (is (= 412 (:status resp)))))
+      (is (= "Require conditional update." (:error (:body resp))))))
 
   (testing "Update fails on missing name"
-    (let [req {:request-method :put
-               :headers {"accept" "application/json"
-                         "content-type" "application/json"
-                         "if-match" "\"foo\""}
-               :params {:study-id "s-183549" :form-def-id "id-224127"}
-               :body (transit->is {})
-               :conn (connect)
-               :db (d/db (connect))}
-          resp ((handler path-for) req)]
-      (is (= 422 (:status resp)))))
+    (let [resp (execute handler :put
+                :params {:study-id "s-183549" :form-def-id "id-224127"}
+                [:headers "if-match"] "\"foo\"")]
+      (is (= 422 (:status resp)))
+      (is (= "Unprocessable Entity" (:error (:body resp))))))
+
+  (testing "Update fails on ETag missmatch"
+    (let [resp (execute handler :put
+                :params {:study-id "s-183549" :form-def-id "id-224127"
+                         :name "foo"}
+                [:headers "if-match"] "\"foo\"")]
+      (is (= 412 (:status resp)))
+      (is (= "Precondition Failed" (:error (:body resp))))))
 
   (testing "Update fails in-transaction on name missmatch"
     (let [form-def (-> (create-study "s-095742")

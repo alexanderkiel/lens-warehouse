@@ -34,9 +34,6 @@
     (transit/write (transit/writer out :json) o)
     (io/input-stream (.toByteArray out))))
 
-(defn is->transit [in]
-  (transit/read (transit/reader in :json)))
-
 (defn path-for [handler & args] (pr-str {:handler handler :args args}))
 
 (defn connect [] (d/connect "datomic:mem:test"))
@@ -57,6 +54,7 @@
     {:request-method method
      :headers {"accept" "*/*"}
      :path-for path-for
+     :params {}
      :db (d/db (connect))}
     (apply hash-map kvs)))
 
@@ -65,3 +63,6 @@
 
 (defn location [resp]
   (edn/read-string (get-in resp [:headers "Location"])))
+
+(defn href [resp]
+  (edn/read-string (-> resp :body :links :self :href)))
