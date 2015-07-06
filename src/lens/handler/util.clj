@@ -61,8 +61,8 @@
   [request :as ctx]
   (if (or (not (l/=method :put ctx)) (l/header-exists? "if-match" ctx))
     (when (l/=method :put ctx)
-      (if-let [params (:params request)]
-        [false {:new-entity params}]
+      (if-let [body (:body request)]
+        [false {:new-entity body}]
         {:error "Missing request body."}))
     {:error "Require conditional update."}))
 
