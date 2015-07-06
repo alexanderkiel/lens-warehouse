@@ -4,7 +4,8 @@
             [liberator.core :as l]
             [liberator.representation :refer [Representation as-response]]
             [lens.util :as util]
-            [pandect.algo.md5 :as md5])
+            [pandect.algo.md5 :as md5]
+            [schema.core :as s])
   (:refer-clojure :exclude [error-handler]))
 
 (defn error-body [path-for msg]
@@ -174,5 +175,5 @@
    :title "Filter"
    :params
    {:filter
-    {:type 'Str
+    {:type s/Str
      :desc "Search query which allows Lucene syntax."}}})

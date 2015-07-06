@@ -8,7 +8,8 @@
             [lens.api :as api]
             [lens.reducers :as lr]
             [clojure.string :as str]
-            [lens.util :as util]))
+            [lens.util :as util]
+            [schema.core :as s]))
 
 (defn render-embedded [path-for def]
   {:id (:study-event-def/id def)
@@ -89,12 +90,12 @@
         :queries
         {:lens/find-form-ref
          {:href (find-form-ref-path path-for def)
-          :params {:form-id {:type 'Str}}}}
+          :params {:form-id {:type s/Str}}}}
 
         :forms
         {:lens/append-form-ref
          {:href (append-form-ref-path path-for def)
-          :params {:form-id {:type 'Str}}}}
+          :params {:form-id {:type s/Str}}}}
 
         :actions [:update :delete])))
 

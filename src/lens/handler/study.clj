@@ -6,7 +6,8 @@
             [lens.api :as api]
             [lens.util :as util]
             [lens.handler.util :as hu]
-            [lens.reducers :as lr]))
+            [lens.reducers :as lr]
+            [schema.core :as s]))
 
 (defn all-studies-path
   ([path-for] (all-studies-path path-for 1))
@@ -42,45 +43,45 @@
 
 (defn- render-child-find-query [child-type path-for study]
   {:href (child-action-path child-type :find path-for study)
-   :params {:id {:type 'Str}}})
+   :params {:id {:type s/Str}}})
 
 (defn render-create-study-form [path-for]
   {:href (path-for :create-study-handler)
    :params
-   {:id {:type 'Str :desc "The id has to be unique within the whole system."}
-    :name {:type 'Str :desc "A short name for the study."}
-    :desc {:type 'Str :desc "A free-text description of the study."}}})
+   {:id {:type s/Str :desc "The id has to be unique within the whole system."}
+    :name {:type s/Str :desc "A short name for the study."}
+    :desc {:type s/Str :desc "A free-text description of the study."}}})
 
 (defn render-study-event-def-form [path-for study]
   {:href (child-action-path :study-event-def :create path-for study)
    :params
-   {:id {:type 'Str}
-    :name {:type 'Str}
-    :desc {:type 'Str :optional true}}})
+   {:id {:type s/Str}
+    :name {:type s/Str}
+    :desc {:type s/Str :optional true}}})
 
 (defn render-form-def-form [path-for study]
   {:href (child-action-path :form-def :create path-for study)
    :params
-   {:id {:type 'Str}
-    :name {:type 'Str}
-    :desc {:type 'Str :optional true}}})
+   {:id {:type s/Str}
+    :name {:type s/Str}
+    :desc {:type s/Str :optional true}}})
 
 (defn render-item-group-create-form [path-for study]
   {:href (child-action-path :item-group-def :create path-for study)
    :params
-   {:id {:type 'Str}
-    :name {:type 'Str}
-    :desc {:type 'Str :optional true}}})
+   {:id {:type s/Str}
+    :name {:type s/Str}
+    :desc {:type s/Str :optional true}}})
 
 (defn render-item-def-form [path-for study]
   {:href (child-action-path :item-def :create path-for study)
    :params
-   {:id {:type 'Str}
-    :name {:type 'Str}
-    :data-type {:type '(enum :text :integer)}
-    :desc {:type 'Str :optional true}
-    :question {:type 'Str :optional true}
-    :length {:type 'Int :optional true}}})
+   {:id {:type s/Str}
+    :name {:type s/Str}
+    :data-type {:type (s/enum :text :integer)}
+    :desc {:type s/Str :optional true}
+    :question {:type s/Str :optional true}
+    :length {:type s/Int :optional true}}})
 
 (defnk render-study [study [:request path-for]]
   (-> {:id (:study/id study)
@@ -128,7 +129,7 @@
          :lens/create-subject
          {:href (child-action-path :subject :create path-for study)
           :params
-          {:id {:type 'Str}}}}
+          {:id {:type s/Str}}}}
 
         :actions [:update :delete])))
 

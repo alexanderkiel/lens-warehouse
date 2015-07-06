@@ -15,7 +15,8 @@
             [lens.handler.study-event-def :as study-event-def]
             [lens.handler.form-def :as form-def]
             [lens.handler.item-group-def :as item-group-def]
-            [lens.handler.item-def :as item-def])
+            [lens.handler.item-def :as item-def]
+            [schema.core :as s])
   (:import [java.util UUID]))
 
 ;; ---- Service Document ------------------------------------------------------
@@ -34,7 +35,7 @@
       {:href (path-for :find-study-handler)
        :params
        {:id
-        {:type 'Str}}}}
+        {:type s/Str}}}}
      :forms
      {:lens/create-study
       (render-create-study-form path-for)}}))
@@ -269,7 +270,7 @@
          :title "Query"
          :params
          {:expr
-          {:type 'Str
+          {:type s/Str
            :desc "Issues a query against the database.
 
     The query consists of two parts. Part one specifies the :items which have to
