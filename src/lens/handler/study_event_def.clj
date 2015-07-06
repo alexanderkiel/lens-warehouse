@@ -97,7 +97,7 @@
          {:href (append-form-ref-path path-for def)
           :params {:form-id {:type s/Str}}}}
 
-        :actions [:update :delete])))
+        :ops [:update :delete])))
 
 (def handler
   "Handler for GET, PUT and DELETE on a study-event-def.

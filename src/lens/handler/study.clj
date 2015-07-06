@@ -131,7 +131,7 @@
           :params
           {:id {:type s/Str}}}}
 
-        :actions [:update :delete])))
+        :ops [:update :delete])))
 
 (defnk exists-study? [db [:request [:params study-id]] :as ctx]
   (when-let [study (api/find-study db study-id)]

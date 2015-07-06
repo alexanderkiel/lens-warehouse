@@ -82,7 +82,7 @@
         {:up (study-link path-for (:study/_form-defs def))
          :self {:href (child-path :form-def path-for def)}}
 
-        :actions [:update :delete])))
+        :ops [:update :delete])))
 
 (def handler
   "Handler for GET and PUT on a form-def.

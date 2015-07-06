@@ -82,7 +82,7 @@
         {:up (study-link path-for (:study/_item-group-defs def))
          :self {:href (child-path :item-group-def path-for def)}}
 
-        :actions [:update :delete])))
+        :ops [:update :delete])))
 
 (def handler
   "Handler for GET and PUT on an item-group-def.
