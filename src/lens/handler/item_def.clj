@@ -76,17 +76,17 @@
 
 (def prefix-data-type (partial util/prefix-namespace :data-type))
 
-(defnk render [item-def [:request path-for]]
-  (-> {:id (:item-def/id item-def)
+(defnk render [def [:request path-for]]
+  (-> {:id (:item-def/id def)
        ;;TODO: alias
-       :name (:item-def/name item-def)
-       :data-type (keyword (name (:item-def/data-type item-def)))}
-      (assoc-when :desc (:item-def/desc item-def))
-      (assoc-when :question (:item-def/question item-def))
+       :name (:item-def/name def)
+       :data-type (keyword (name (:item-def/data-type def)))}
+      (assoc-when :desc (:item-def/desc def))
+      (assoc-when :question (:item-def/question def))
       (assoc
         :links
-        {:up (study-link path-for (:study/_item-defs item-def))
-         :self {:href (child-path :item-def path-for item-def)}})))
+        {:up (study-link path-for (:study/_item-defs def))
+         :self {:href (child-path :item-def path-for def)}})))
 
 (def handler
   "Handler for GET and PUT on an item-def.
