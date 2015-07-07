@@ -160,7 +160,9 @@
 
     :exists? exists-study?
 
-    :processable? (hu/entity-processable schema)
+    :processable?
+    (fnk [[:request [:params study-id]] :as ctx]
+      ((hu/entity-processable (assoc schema :id (s/eq study-id))) ctx))
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
@@ -270,7 +272,8 @@
 
     :handle-ok
     (fnk [[:request path-for]]
-      {:schema schema
+      {:data
+       {:schema schema}
        :links
        {:up {:href (path-for :service-document-handler)}
         :self {:href (path-for :study-profile-handler)}}})))
