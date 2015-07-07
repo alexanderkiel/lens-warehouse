@@ -99,6 +99,8 @@
 
         :ops [:update :delete])))
 
+(def ^:private schema {:name s/Str})
+
 (def handler
   "Handler for GET, PUT and DELETE on a study-event-def.
 
@@ -115,7 +117,7 @@
 
     :exists? (fn [ctx] (some-> (exists-study? ctx) (exists?)))
 
-    :processable? (hu/entity-processable :name)
+    :processable? (hu/entity-processable schema)
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag

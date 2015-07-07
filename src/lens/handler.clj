@@ -23,8 +23,9 @@
 
 (defn render-service-document [version]
   (fnk [[:request path-for]]
-    {:name "Lens Warehouse"
-     :version version
+    {:data
+     {:name "Lens Warehouse"
+      :version version}
      :links
      {:self {:href (path-for :service-document-handler)}
       :lens/all-studies {:href (all-studies-path path-for)}
@@ -166,6 +167,13 @@
   (when-let [subject (api/find-subject study subject-id)]
     {:subject subject}))
 
+(defnk render-subject [subject [:request path-for]]
+  {:data
+   {:id (:subject/id subject)}
+   :links
+   {:up {:href (path-for :service-document-handler)}
+    :self {:href (subject-path path-for subject)}}})
+
 (def subject-handler
   (resource
     (resource-defaults)
@@ -176,13 +184,7 @@
 
     :exists? (fn [ctx] (some-> (exists-study? ctx) (exists-subject?)))
 
-    :handle-ok
-    (fnk [subject [:request path-for]]
-      {:id (:subject/id subject)
-       :type :subject
-       :links
-       {:up {:href (path-for :service-document-handler)}
-        :self {:href (subject-path path-for subject)}}})
+    :handle-ok render-subject
 
     :handle-not-found
     (fnk [[:request path-for]] (error-body path-for "Subject not found."))))
@@ -201,7 +203,7 @@
     (fnk [conn study [:request [:params id]]]
       (if-let [subject (api/create-subject conn study id)]
         {:subject subject}
-        (throw (ex-info "" {:type :conflict}))))
+        (throw (ex-info "Duplicate!" {:type :duplicate}))))
 
     :location
     (fnk [subject [:request path-for]] (subject-path path-for subject))

@@ -8,7 +8,8 @@
             [lens.api :as api]
             [lens.reducers :as lr]
             [clojure.string :as str]
-            [lens.util :as util]))
+            [lens.util :as util]
+            [schema.core :as s]))
 
 (defn render-embedded [path-for timeout def]
   (-> {:id (:item-def/id def)
@@ -77,16 +78,19 @@
 (def prefix-data-type (partial util/prefix-namespace :data-type))
 
 (defnk render [def [:request path-for]]
-  (-> {:id (:item-def/id def)
-       ;;TODO: alias
-       :name (:item-def/name def)
-       :data-type (keyword (name (:item-def/data-type def)))}
-      (assoc-when :desc (:item-def/desc def))
-      (assoc-when :question (:item-def/question def))
-      (assoc
-        :links
-        {:up (study-link path-for (:study/_item-defs def))
-         :self {:href (child-path :item-def path-for def)}})))
+  {:data
+   (-> {:id (:item-def/id def)
+        ;;TODO: alias
+        :name (:item-def/name def)
+        :data-type (keyword (name (:item-def/data-type def)))}
+       (assoc-when :desc (:item-def/desc def))
+       (assoc-when :question (:item-def/question def)))
+
+   :links
+   {:up (study-link path-for (:study/_item-defs def))
+    :self {:href (child-path :item-def path-for def)}}})
+
+(def ^:private schema {:name s/Str :data-type item-def-data-type-schema})
 
 (def handler
   "Handler for GET and PUT on an item-def.
@@ -103,7 +107,7 @@
 
     :exists? (fn [ctx] (some-> (exists-study? ctx) (exists?)))
 
-    :processable? (hu/entity-processable :name :data-type)
+    :processable? (hu/entity-processable schema)
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag

@@ -66,3 +66,6 @@
 
 (defn href [resp]
   (edn/read-string (-> resp :body :links :self :href)))
+
+(defn error-msg [resp]
+  (-> resp :body :data :message))

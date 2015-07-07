@@ -40,7 +40,7 @@
       (create-form-def "id-224127"))
 
   (let [resp (execute handler :get
-              :params {:study-id "s-183549" :form-def-id "id-224127"})]
+               :params {:study-id "s-183549" :form-def-id "id-224127"})]
 
     (is (= 200 (:status resp)))
 
@@ -53,24 +53,33 @@
 
   (testing "Non-conditional update fails"
     (let [resp (execute handler :put
-                :params {:study-id "s-183549" :form-def-id "id-224127"})]
+                 :params {:study-id "s-183549" :form-def-id "id-224127"})]
       (is (= 400 (:status resp)))
-      (is (= "Require conditional update." (:error (:body resp))))))
+      (is (= "Require conditional update." (error-msg resp)))))
 
   (testing "Update fails on missing name"
     (let [resp (execute handler :put
-                :params {:study-id "s-183549" :form-def-id "id-224127"}
-                [:headers "if-match"] "\"foo\"")]
+                 :params {:study-id "s-183549" :form-def-id "id-224127"}
+                 [:headers "if-match"] "\"foo\"")]
+      (is (= 400 (:status resp)))
+      (is (= "Missing request body." (error-msg resp)))))
+
+  (testing "Update fails on missing name"
+    (let [resp (execute handler :put
+                 :params {:study-id "s-183549" :form-def-id "id-224127"}
+                 :body {:data {}}
+                 [:headers "if-match"] "\"foo\"")]
       (is (= 422 (:status resp)))
-      (is (= "Unprocessable Entity" (:error (:body resp))))))
+      (is (= "Unprocessable Entity: {:name missing-required-key}"
+             (error-msg resp)))))
 
   (testing "Update fails on ETag missmatch"
     (let [resp (execute handler :put
-                :params {:study-id "s-183549" :form-def-id "id-224127"
-                         :name "foo"}
-                [:headers "if-match"] "\"foo\"")]
+                 :params {:study-id "s-183549" :form-def-id "id-224127"}
+                 :body {:data {:name "foo"}}
+                 [:headers "if-match"] "\"foo\"")]
       (is (= 412 (:status resp)))
-      (is (= "Precondition Failed" (:error (:body resp))))))
+      (is (= "Precondition Failed" (error-msg resp)))))
 
   (testing "Update fails in-transaction on name missmatch"
     (let [form-def (-> (create-study "s-095742")

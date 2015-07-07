@@ -48,45 +48,61 @@
       (is (= [:study-id "id-224127"] (:args (href resp)))))
 
     (testing "Response contains an ETag"
-      (is (get-in resp [:headers "ETag"]))))
+      (is (get-in resp [:headers "ETag"])))
+
+    (testing "Data contains :id"
+      (is (= "id-224127" (-> resp :body :data :id)))))
 
   (testing "Non-conditional update fails"
     (let [resp (execute study-handler :put
-                :params {:study-id "id-224127"})]
+                 :params {:study-id "id-224127"})]
       (is (= 400 (:status resp)))
-      (is (= "Require conditional update." (:error (:body resp))))))
+      (is (= "Require conditional update." (error-msg resp)))))
 
-  (testing "Update fails on missing name"
+  (testing "Update fails on missing request body"
     (create-study "id-174709" "name-202034")
     (let [resp (execute study-handler :put
-                :params {:study-id "id-201514"}
-                [:headers "if-match"] "\"foo\"")]
-      (is (= 422 (:status resp)))
-      (is (= "Unprocessable Entity" (:error (:body resp))))))
+                 :params {:study-id "id-201514"}
+                 [:headers "if-match"] "\"foo\"")]
+      (is (= 400 (:status resp)))
+      (is (= "Missing request body." (error-msg resp)))))
+
+  (testing "Update fails on missing name and description"
+    (create-study "id-174709" "name-202034")
+    (let [resp (execute study-handler :put
+                 :params {:study-id "id-201514"}
+                 :body {:data {}}
+                 [:headers "if-match"] "\"foo\"")]
+      (is (= 422 (:status resp)))))
 
   (testing "Update fails on missing description"
     (create-study "id-174709" "name-202034")
     (let [resp (execute study-handler :put
-                :params {:study-id "id-201514"
-                         :name "name-143536"}
-                [:headers "if-match"] "\"foo\"")]
-      (is (= 422 (:status resp)))))
+                 :params {:study-id "id-201514"}
+                 :body {:data
+                        {:name "name-143536"}}
+                 [:headers "if-match"] "\"foo\"")]
+      (is (= 422 (:status resp)))
+      (is (= "Unprocessable Entity: {:desc missing-required-key}"
+             (error-msg resp)))))
 
   (testing "Update fails on ETag missmatch"
     (create-study "id-201514" "name-201516")
     (let [resp (execute study-handler :put
-                :params {:study-id "id-201514"
-                         :name "name-202906"
-                         :desc "desc-105520"}
-                [:headers "if-match"] "\"foo\"")]
+                 :params {:study-id "id-201514"}
+                 :body {:data
+                        {:name "name-202906"
+                         :desc "desc-105520"}}
+                 [:headers "if-match"] "\"foo\"")]
       (is (= 412 (:status resp)))))
 
   (testing "Update fails in-transaction on name missmatch"
     (create-study "id-202032" "name-202034")
     (let [req (request :put
-                :params {:study-id "id-202032"
-                         :name "name-202906"
-                         :desc "desc-105520"}
+                :params {:study-id "id-202032"}
+                :body {:data
+                       {:name "name-202906"
+                        :desc "desc-105520"}}
                 [:headers "if-match"] (etag "id-202032")
                 :conn (connect))
           update (api/update-study (connect) "id-202032"
@@ -99,37 +115,38 @@
   (testing "Update succeeds"
     (create-study "id-143317" "name-143321")
     (let [resp (execute study-handler :put
-                :params {:study-id "id-143317"
-                         :name "name-143536"
-                         :desc "desc-105520"}
-                [:headers "if-match"] (etag "id-143317")
-                :conn (connect))]
+                 :params {:study-id "id-143317"}
+                 :body {:data
+                        {:name "name-143536"
+                         :desc "desc-105520"}}
+                 [:headers "if-match"] (etag "id-143317")
+                 :conn (connect))]
       (is (= 204 (:status resp)))
       (is (= "name-143536" (:study/name (find-study "id-143317")))))))
 
 (deftest create-study-handler-test
   (testing "Create without id, name and description fails"
     (let [resp (execute create-study-handler :post
-                :conn (connect))]
+                 :conn (connect))]
       (is (= 422 (:status resp)))))
 
   (testing "Create without name and description fails"
     (let [resp (execute create-study-handler :post
-                :params {:id "id-224305"}
-                :conn (connect))]
+                 :params {:id "id-224305"}
+                 :conn (connect))]
       (is (= 422 (:status resp)))))
 
   (testing "Create without description fails"
     (let [resp (execute create-study-handler :post
-                :params {:id "id-224305" :name "name-105943"}
-                :conn (connect))]
+                 :params {:id "id-224305" :name "name-105943"}
+                 :conn (connect))]
       (is (= 422 (:status resp)))))
 
   (testing "Create succeeds"
     (let [resp (execute create-study-handler :post
-                :params {:id "id-224211" :name "name-224240"
-                         :desc "desc-110014"}
-                :conn (connect))]
+                 :params {:id "id-224211" :name "name-224240"
+                          :desc "desc-110014"}
+                 :conn (connect))]
       (is (= 201 (:status resp)))
       (is (= "id-224211" (second (:args (location resp)))))
       (is (nil? (:body resp)))))
@@ -137,7 +154,7 @@
   (testing "Create with existing id fails"
     (create-study "id-224419")
     (let [resp (execute create-study-handler :post
-                :params {:id "id-224419" :name "name-224240"
-                         :desc "desc-110014"}
-                :conn (connect))]
+                 :params {:id "id-224419" :name "name-224240"
+                          :desc "desc-110014"}
+                 :conn (connect))]
       (is (= 409 (:status resp))))))

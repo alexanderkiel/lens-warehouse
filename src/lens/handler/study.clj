@@ -73,72 +73,77 @@
     :name {:type s/Str}
     :desc {:type s/Str :optional true}}})
 
+(def item-def-data-type-schema (s/enum :text :integer))
+
 (defn render-item-def-form [path-for study]
   {:href (child-action-path :item-def :create path-for study)
    :params
    {:id {:type s/Str}
     :name {:type s/Str}
-    :data-type {:type (s/enum :text :integer)}
+    :data-type {:type item-def-data-type-schema}
     :desc {:type s/Str :optional true}
     :question {:type s/Str :optional true}
     :length {:type s/Int :optional true}}})
 
 (defnk render-study [study [:request path-for]]
-  (-> {:id (:study/id study)
-       :name (:study/name study)
-       :desc (:study/desc study)}
-      (assoc
-        :links
-        {:up {:href (path-for :service-document-handler)}
-         :self {:href (study-path path-for study)}
-         :profile {:href (path-for :study-profile-handler)}
-         :lens/study-event-defs
-         {:href (child-list-path :study-event-def path-for study)}
-         :lens/form-defs
-         {:href (child-list-path :form-def path-for study)}
-         :lens/item-group-defs
-         {:href (child-list-path :item-group-def path-for study)}
-         :lens/item-defs
-         {:href (child-list-path :item-def path-for study)}}
+  {:data
+   {:id (:study/id study)
+    :name (:study/name study)
+    :desc (:study/desc study)}
 
-        :queries
-        {:lens/find-study-event-def
-         (render-child-find-query :study-event-def path-for study)
+   :links
+   {:up {:href (path-for :service-document-handler)}
+    :self {:href (study-path path-for study)}
+    :profile {:href (path-for :study-profile-handler)}
+    :lens/study-event-defs
+    {:href (child-list-path :study-event-def path-for study)}
+    :lens/form-defs
+    {:href (child-list-path :form-def path-for study)}
+    :lens/item-group-defs
+    {:href (child-list-path :item-group-def path-for study)}
+    :lens/item-defs
+    {:href (child-list-path :item-def path-for study)}}
 
-         :lens/find-form-def
-         (render-child-find-query :form-def path-for study)
+   :queries
+   {:lens/find-study-event-def
+    (render-child-find-query :study-event-def path-for study)
 
-         :lens/find-item-group-def
-         (render-child-find-query :item-group-def path-for study)
+    :lens/find-form-def
+    (render-child-find-query :form-def path-for study)
 
-         :lens/find-item-def
-         (render-child-find-query :item-def path-for study)}
+    :lens/find-item-group-def
+    (render-child-find-query :item-group-def path-for study)
 
-        :forms
-        {:lens/create-study-event-def
-         (render-study-event-def-form path-for study)
+    :lens/find-item-def
+    (render-child-find-query :item-def path-for study)}
 
-         :lens/create-form-def
-         (render-form-def-form path-for study)
+   :forms
+   {:lens/create-study-event-def
+    (render-study-event-def-form path-for study)
 
-         :lens/create-item-group-def
-         (render-item-group-create-form path-for study)
+    :lens/create-form-def
+    (render-form-def-form path-for study)
 
-         :lens/create-item-def
-         (render-item-def-form path-for study)
+    :lens/create-item-group-def
+    (render-item-group-create-form path-for study)
 
-         :lens/create-subject
-         {:href (child-action-path :subject :create path-for study)
-          :params
-          {:id {:type s/Str}}}}
+    :lens/create-item-def
+    (render-item-def-form path-for study)
 
-        :ops [:update :delete])))
+    :lens/create-subject
+    {:href (child-action-path :subject :create path-for study)
+     :params
+     {:id {:type s/Str}}}}
+
+   :ops #{:update :delete}})
 
 (defnk exists-study? [db [:request [:params study-id]] :as ctx]
   (when-let [study (api/find-study db study-id)]
     (assoc ctx :study study)))
 
 (def select-study-props (hu/select-props :study :name :desc))
+
+(def ^:private schema {:name s/Str :desc s/Str})
 
 (def study-handler
   "Handler for GET, PUT and DELETE on a study.
@@ -155,7 +160,7 @@
 
     :exists? exists-study?
 
-    :processable? (hu/entity-processable :name :desc)
+    :processable? (hu/entity-processable schema)
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag

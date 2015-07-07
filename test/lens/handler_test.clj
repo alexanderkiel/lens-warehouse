@@ -18,57 +18,51 @@
   (api/create-subject (connect) study id))
 
 (deftest get-subject-handler-test
-  (let [study (create-study "s-172046")]
-    (create-subject study "sub-172208")
-    (testing "Body contains self link"
-      (let [req {:request-method :get
-                 :headers {"accept" "application/edn"}
-                 :params {:study-id "s-172046" :subject-id "sub-172208"}
-                 :db (d/db (connect))}
-            resp ((subject-handler path-for) req)]
-        (is (= 200 (:status resp)))
-        (let [self-link (:self (:links (edn/read-string (:body resp))))
-              self-link-href (edn/read-string (:href self-link))]
-          (is (= :subject-handler (:handler self-link-href)))
-          (is (= [:study-id "s-172046" :subject-id "sub-172208"]
-                 (:args self-link-href))))))))
+  (-> (create-study "s-172046")
+      (create-subject "sub-172208"))
+
+  (testing "Body contains self link"
+    (let [resp (execute subject-handler :get
+                 :params {:study-id "s-172046" :subject-id "sub-172208"})]
+      (is (= 200 (:status resp)))
+
+      (testing "Body contains a self link"
+        (is (= :subject-handler (:handler (href resp))))
+        (is (= [:study-id "s-172046" :subject-id "sub-172208"] (:args (href resp)))))
+
+      (testing "contains the id"
+        (is (= "sub-172208" (-> resp :body :data :id)))))))
 
 (deftest create-subject-handler-test
-  (let [study (create-study "s-174305")]
-    (testing "Create without study id fails"
-      (let [req {:request-method :post
-                 :params {}
-                 :conn (connect)
-                 :db (d/db (connect))}]
-        (is (= 422 (:status ((create-subject-handler nil) req))))))
+  (-> (create-study "s-174305")
+      (create-subject "id-182721"))
 
-    (testing "Create without id fails"
-      (let [req {:request-method :post
-                 :params {:study-id "s-174305"}
-                 :conn (connect)
-                 :db (d/db (connect))}]
-        (is (= 422 (:status ((create-subject-handler nil) req))))))
+  (testing "Create without study id fails"
+    (let [resp (execute create-subject-handler :post
+                 :params {})]
+      (is (= 422 (:status resp)))))
 
-    (testing "Create with id only"
-      (let [req {:request-method :post
-                 :params {:study-id "s-174305" :id "id-165339"}
-                 :conn (connect)
-                 :db (d/db (connect))}
-            resp ((create-subject-handler path-for) req)]
-        (is (= 201 (:status resp)))
-        (let [location (location resp)]
-          (is (= "s-174305" (nth (:args location) 1)))
-          (is (= "id-165339" (nth (:args location) 3))))
-        (is (nil? (:body resp)))))
+  (testing "Create without id fails"
+    (let [resp (execute create-subject-handler :post
+                 :params {:study-id "s-174305"})]
+      (is (= 422 (:status resp)))))
 
-    (testing "Create with existing id fails"
-      (create-subject study "id-182721")
-      (let [req {:request-method :post
+  (testing "Create with existing id fails"
+    (let [resp (execute create-subject-handler :post
                  :params {:study-id "s-174305" :id "id-182721"}
-                 :conn (connect)
-                 :db (d/db (connect))}
-            resp ((create-subject-handler path-for) req)]
-        (is (= 409 (:status resp)))))))
+                 :conn (connect))]
+      (is (= 409 (:status resp)))))
+
+  (testing "Create with id only"
+    (let [resp (execute create-subject-handler :post
+                 :params {:study-id "s-174305" :id "id-165339"}
+                 :conn (connect))]
+      (is (= 201 (:status resp)))
+
+      (let [location (location resp)]
+        (is (= "s-174305" (nth (:args location) 1)))
+        (is (= "id-165339" (nth (:args location) 3))))
+      (is (nil? (:body resp))))))
 
 ;; ----------------------------------------------------------------------------
 

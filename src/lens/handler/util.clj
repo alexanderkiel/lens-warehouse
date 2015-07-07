@@ -9,8 +9,8 @@
   (:refer-clojure :exclude [error-handler]))
 
 (defn error-body [path-for msg]
-  {:links {:up {:href (path-for :service-document-handler)}}
-   :error msg})
+  {:data {:message msg}
+   :links {:up {:href (path-for :service-document-handler)}}})
 
 (defn ring-error [path-for status msg]
   {:status status
@@ -62,14 +62,19 @@
   (if (or (not (l/=method :put ctx)) (l/header-exists? "if-match" ctx))
     (when (l/=method :put ctx)
       (if-let [body (:body request)]
-        [false {:new-entity body}]
+        [false {:new-entity (:data body)}]
         {:error "Missing request body."}))
     {:error "Require conditional update."}))
 
-(defn entity-processable [& params]
+(defn- validate [schema x]
+  (if-let [error (s/check schema x)]
+    [false {:error (str "Unprocessable Entity: " (pr-str error))}]
+    true))
+
+(defn entity-processable [schema]
   (fn [ctx]
     (or (not (l/=method :put ctx))
-        (every? identity (map #(get-in ctx [:new-entity %]) params)))))
+        (validate schema (:new-entity ctx)))))
 
 (defn- error-handler [msg]
   (fnk [[:request path-for] :as ctx]

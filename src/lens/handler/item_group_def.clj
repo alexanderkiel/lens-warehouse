@@ -8,7 +8,8 @@
             [lens.api :as api]
             [lens.reducers :as lr]
             [clojure.string :as str]
-            [lens.util :as util]))
+            [lens.util :as util]
+            [schema.core :as s]))
 
 (defn render-embedded [path-for timeout def]
   (-> {:id (:item-group-def/id def)
@@ -84,6 +85,8 @@
 
         :ops [:update :delete])))
 
+(def ^:private schema {:name s/Str})
+
 (def handler
   "Handler for GET and PUT on an item-group-def.
 
@@ -100,7 +103,7 @@
 
     :exists? (fn [ctx] (some-> (exists-study? ctx) (exists?)))
 
-    :processable? (hu/entity-processable :name)
+    :processable? (hu/entity-processable schema)
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
