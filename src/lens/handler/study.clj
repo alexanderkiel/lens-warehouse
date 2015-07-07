@@ -258,7 +258,14 @@
 
 (def study-profile-handler
   (resource
-    (hu/resource-defaults)
+    (hu/resource-defaults :cache-control "max-age=3600")
+
+    ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
+    :etag
+    (fnk [representation {status 200} [:request path-for]]
+      (when (= 200 status)
+        (hu/md5 (str (:media-type representation)
+                     (path-for :study-profile-handler)))))
 
     :handle-ok
     (fnk [[:request path-for]]
