@@ -98,8 +98,7 @@
      [db id old-props new-props]
      (if-let [study (d/entity db [:study/id id])]
        (if (= (select-keys study (keys old-props)) old-props)
-         (concat (for [[prop old-val] study
-                       :when (not= :study/id prop)
+         (concat (for [[prop old-val] old-props
                        :when (nil? (prop new-props))]
                    [:db/retract (:db/id study) prop old-val])
                  (for [[prop val] new-props]
