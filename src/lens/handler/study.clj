@@ -265,15 +265,15 @@
     (fnk [representation {status 200} [:request path-for]]
       (when (= 200 status)
         (hu/md5 (str (:media-type representation)
+                     (path-for :service-document-handler)
                      (path-for :study-profile-handler)))))
 
     :handle-ok
     (fnk [[:request path-for]]
-      {:schema
-       {:name s/Str
-        :desc s/Str}
+      {:schema schema
        :links
-       {:self {:href (path-for :study-profile-handler)}}})))
+       {:up {:href (path-for :service-document-handler)}
+        :self {:href (path-for :study-profile-handler)}}})))
 
 ;; ---- For Childs ------------------------------------------------------------
 
