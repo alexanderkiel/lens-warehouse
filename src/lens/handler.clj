@@ -410,6 +410,7 @@
    :find-study-handler find-study-handler
    :study-handler study-handler
    :create-study-handler create-study-handler
+   :study-profile-handler study-profile-handler
 
    :study-study-event-defs-handler study-event-def/list-handler
    :find-study-event-def-handler study-event-def/find-handler

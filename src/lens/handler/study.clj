@@ -91,6 +91,7 @@
         :links
         {:up {:href (path-for :service-document-handler)}
          :self {:href (study-path path-for study)}
+         :profile {:href (path-for :study-profile-handler)}
          :lens/study-event-defs
          {:href (child-list-path :study-event-def path-for study)}
          :lens/form-defs
@@ -249,6 +250,18 @@
     :location (fnk [study [:request path-for]] (study-path path-for study))
 
     :handle-exception (hu/duplicate-exception "Study exists already.")))
+
+(def study-profile-handler
+  (resource
+    (hu/resource-defaults)
+
+    :handle-ok
+    (fnk [[:request path-for]]
+      {:schema
+       {:name s/Str
+        :desc s/Str}
+       :links
+       {:self {:href (path-for :study-profile-handler)}}})))
 
 ;; ---- For Childs ------------------------------------------------------------
 
