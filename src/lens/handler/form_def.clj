@@ -102,11 +102,11 @@
   (resource
     (hu/standard-entity-resource-defaults)
 
-    :exists? (fn [ctx] (some-> (exists-study? ctx) (exists?)))
-
     :processable?
     (fnk [[:request [:params form-def-id]] :as ctx]
       ((hu/entity-processable (assoc schema :id (s/eq form-def-id))) ctx))
+
+    :exists? (fn [ctx] (some-> (exists-study? ctx) (exists?)))
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag

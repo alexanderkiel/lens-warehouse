@@ -101,9 +101,9 @@
   (resource
     (hu/standard-entity-resource-defaults)
 
-    :exists? (fn [ctx] (some-> (exists-study? ctx) (exists?)))
-
     :processable? (hu/entity-processable schema)
+
+    :exists? (fn [ctx] (some-> (exists-study? ctx) (exists?)))
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
