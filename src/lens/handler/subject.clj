@@ -44,13 +44,9 @@
 
 (def create-handler
   (resource
-    (hu/standard-create-resource-defaults)
+    (study/create-resource-defaults)
 
-    :processable?
-    (fnk [[:request params]]
-      (hu/validate CreateParamSchema params))
-
-    :exists? study/exists?
+    :processable? (hu/validate-params CreateParamSchema)
 
     :post!
     (fnk [conn study [:request [:params id]]]
@@ -62,7 +58,7 @@
     (fnk [subject [:request path-for]] (path path-for subject))
 
     :handle-exception
-    (hu/duplicate-exception "The subject exists already." study/build-up-link)))
+    (study/duplicate-exception "The subject exists already.")))
 
 (def delete-handler
   (fnk [conn [:params id path-for]]

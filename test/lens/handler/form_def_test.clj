@@ -26,13 +26,12 @@
 (defn- refresh-form-def [form-def]
   (d/entity (d/db (connect)) (:db/id form-def)))
 
-(deftest find-form-def-handler-test
+(deftest find-handler-test
   (-> (create-study "s-183549")
       (create-form-def "id-224127"))
 
-  (let [req (request :get
-              :params {:study-id "s-183549" :id "id-224127"})
-        resp (find-handler req)]
+  (let [resp (execute find-handler :get
+              :params {:study-id "s-183549" :id "id-224127"})]
 
     (is (= 301 (:status resp)))
 
@@ -40,9 +39,15 @@
       (let [location (location resp)]
         (is (= :form-def-handler (:handler location)))
         (is (= [:study-id "s-183549" :form-def-id "id-224127"]
-               (:args location)))))))
+               (:args location))))))
 
-(deftest form-def-handler-test
+  (testing "Fails on missing id"
+    (let [resp (execute find-handler :get
+                 :params {:study-id "s-183549"})]
+      (is (= 422 (:status resp)))
+      (is (error-msg resp)))))
+
+(deftest handler-test
   (-> (create-study "s-183549")
       (create-form-def "id-224127"))
 
@@ -141,7 +146,7 @@
       (is (= 204 (:status resp)))
       (is (nil? (:form-def/desc (refresh-form-def form-def)))))))
 
-(deftest create-form-def-handler-test
+(deftest create-handler-test
   (create-study "s-100937")
 
   (testing "Create without id and name fails"

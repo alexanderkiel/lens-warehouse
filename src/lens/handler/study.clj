@@ -21,7 +21,7 @@
 
 (def find-study-handler
   (resource
-    (hu/standard-redirect-resource-defaults)
+    (hu/redirect-resource-defaults)
 
     :processable?
     (fnk [[:request params]]
@@ -241,7 +241,7 @@
                (render-embedded-studies path-for)
                (into []))}}))))
 
-(def CreateParamSchema
+(def ^:private CreateParamSchema
   {:id util/NonBlankStr
    :name util/NonBlankStr
    :desc s/Str
@@ -249,11 +249,9 @@
 
 (def create-handler
   (resource
-    (hu/standard-create-resource-defaults)
+    (hu/create-resource-defaults)
 
-    :processable?
-    (fnk [[:request params]]
-      (hu/validate CreateParamSchema params))
+    :processable? (hu/validate-params CreateParamSchema)
 
     :post!
     (fnk [conn [:request [:params id name desc]]]
@@ -299,5 +297,27 @@
          child-id-key (keyword (str (name child-type) "-id"))]
      (path-for handler :study-id study-id child-id-key child-id))))
 
-(defnk build-up-link [study [:request path-for]]
-  {:links {:up {:href (path path-for study)}}})
+(defnk build-up-link [[:request path-for [:params study-id]]]
+  {:links {:up {:href (path-for :study-handler :study-id study-id)}}})
+
+(def ^:private RedirectParamSchema
+  {:id util/NonBlankStr
+   s/Any s/Any})
+
+(defn redirect-resource-defaults []
+  (assoc
+    (hu/redirect-resource-defaults)
+
+    :processable? (hu/validate-params RedirectParamSchema)
+
+    :handle-unprocessable-entity
+    (hu/error-handler "Unprocessable Entity" build-up-link)))
+
+(defn create-resource-defaults []
+  (assoc
+    (hu/create-resource-defaults)
+
+    :exists? exists?))
+
+(defn duplicate-exception [msg]
+  (hu/duplicate-exception msg build-up-link))

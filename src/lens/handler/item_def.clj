@@ -65,7 +65,7 @@
 
 (def find-handler
   (resource
-    (hu/sub-study-redirect-resource-defaults)
+    (study/redirect-resource-defaults)
 
     :location
     (fnk [[:request path-for [:params study-id id]]]
@@ -165,15 +165,18 @@
     :handle-not-found
     (hu/error-body path-for "Item not found.")))
 
+(def ^:private CreateParamSchema
+  {:id util/NonBlankStr
+   :data-type study/item-def-data-type-schema
+   :name util/NonBlankStr
+   (s/optional-key :desc) s/Str
+   s/Any s/Any})
+
 (def create-handler
   (resource
-    (hu/standard-create-resource-defaults)
+    (study/create-resource-defaults)
 
-    :processable?
-    (fnk [[:request params]]
-      (and (:study-id params) (:id params) (:name params) (:data-type params)))
-
-    :exists? study/exists?
+    :processable? (hu/validate-params CreateParamSchema)
 
     :post!
     (fnk [conn study [:request params]]
@@ -189,5 +192,4 @@
     (fnk [def [:request path-for]] (study/child-path :item-def path-for def))
 
     :handle-exception
-    (hu/duplicate-exception
-      "The item def exists already." study/build-up-link)))
+    (study/duplicate-exception "The item def exists already.")))

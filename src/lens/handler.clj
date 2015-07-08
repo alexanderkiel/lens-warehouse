@@ -3,7 +3,7 @@
   (:require [clojure.core.async :refer [timeout]]
             [clojure.core.reducers :as r]
             [liberator.core :refer [resource to-location]]
-            [lens.handler.util :refer :all]
+            [lens.handler.util :as hu]
             [lens.api :as api]
             [lens.util :as util]
             [clj-time.core :as t]
@@ -46,23 +46,23 @@
 
 (defn service-document-handler [version]
   (resource
-    (resource-defaults :cache-control "max-age=60")
+    (hu/resource-defaults :cache-control "max-age=60")
 
     :etag
     (fnk [representation [:request path-for]]
-      (md5 (str (:media-type representation)
-                (path-for :service-document-handler)
-                (study/all-studies-path path-for)
-                (path-for :all-snapshots-handler)
-                (path-for :most-recent-snapshot-handler)
-                (path-for :find-study-handler)
-                (path-for :create-study-handler))))
+      (hu/md5 (str (:media-type representation)
+                   (path-for :service-document-handler)
+                   (study/all-studies-path path-for)
+                   (path-for :all-snapshots-handler)
+                   (path-for :most-recent-snapshot-handler)
+                   (path-for :find-study-handler)
+                   (path-for :create-study-handler))))
 
     :handle-ok (render-service-document version)))
 
 (defn item-code-list-item-count-handler [path-for]
   (resource
-    (resource-defaults)
+    (hu/resource-defaults)
 
     :exists?
     (fnk [db [:request [:params id code]]]
@@ -82,8 +82,8 @@
 
     :handle-not-found
     (fnk [[:request [:params id code]]]
-      (error-body path-for (str "Item " id " has no code list item with code "
-                                code ".")))))
+      (hu/error-body path-for (str "Item " id " has no code list item with "
+                                   "code " code ".")))))
 
 ;; ---- Code-List -------------------------------------------------------------
 
@@ -98,7 +98,7 @@
 
 (defn code-list-handler [path-for]
   (resource
-    (resource-defaults)
+    (hu/resource-defaults)
 
     :exists?
     (fnk [db [:request [:params id]]]
@@ -122,7 +122,7 @@
           (assoc-when :name (:name code-list))))
 
     :handle-not-found
-    (error-body path-for "Code List not found.")))
+    (hu/error-body path-for "Code List not found.")))
 
 ;; ---- Snapshots -------------------------------------------------------------
 
@@ -140,7 +140,7 @@
 
 (defn all-snapshots-handler [path-for]
   (resource
-    (resource-defaults)
+    (hu/resource-defaults)
 
     :handle-ok
     (fnk [db]
@@ -157,7 +157,7 @@
 
 (defn snapshot-handler [path-for]
   (resource
-    (resource-defaults)
+    (hu/resource-defaults)
 
     :processable?
     (fnk [[:request params]]
@@ -220,7 +220,7 @@
 
 (defn most-recent-snapshot-handler [path-for]
   (resource
-    (resource-defaults)
+    (hu/resource-defaults)
 
     :exists? false
 
@@ -240,7 +240,7 @@
           (to-location)))
 
     :handle-not-found
-    (error-body path-for "No snapshot found.")))
+    (hu/error-body path-for "No snapshot found.")))
 
 ;; ---- Query -----------------------------------------------------------------
 
@@ -281,7 +281,7 @@
 
 (defn query-handler [path-for]
   (resource
-    (resource-defaults :cache-control "max-age=3600")
+    (hu/resource-defaults :cache-control "max-age=3600")
 
     :processable?
     (fnk [[:request params]]
@@ -299,7 +299,7 @@
 
     :etag
     (fnk [snapshot [:representation media-type]]
-      (md5 (str media-type (snapshot-path path-for snapshot))))
+      (hu/md5 (str media-type (snapshot-path path-for snapshot))))
 
     :handle-ok
     (fnk [snapshot db expr]
@@ -328,7 +328,7 @@
    :create-study-event-def-handler study-event-def/create-handler
    :study-event-def-profile-handler (hu/profile-handler :study-event-def study-event-def/schema)
 
-   ;:find-form-ref-handler find-form-ref-handler
+   ;:find-form-ref-handler form-ref/find-handler
    :append-form-ref-handler form-ref/append-handler
 
    :study-form-defs-handler form-def/list-handler

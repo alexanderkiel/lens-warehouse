@@ -13,7 +13,15 @@
   ([path-for study-id form-ref-id]
    (path-for :form-ref-handler :study-id study-id :form-ref-id form-ref-id)))
 
-(def AppendParamSchema
+#_(def find-handler
+  (resource
+    (hse/redirect-resource-defaults)
+
+    :location
+    (fnk [[:request path-for [:params study-id study-event-def-id form-id]]]
+      (path-for :form-ref path-for study-id id))))
+
+(def ^:private AppendParamSchema
   {:study-id s/Str
    :study-event-def-id s/Str
    :form-id s/Str
@@ -21,12 +29,9 @@
 
 (def append-handler
   (resource
-    (hu/standard-create-resource-defaults)
+    (hu/create-resource-defaults)
 
-    :processable?
-    (fnk [[:request params]]
-      (hu/validate AppendParamSchema params))
-
+    :processable? (hu/validate-params AppendParamSchema)
     :exists? (fn [ctx] (some-> (study/exists? ctx) (hse/exists?)))
 
     #_:post!
@@ -41,5 +46,4 @@
     (fnk [form-ref [:request path-for]] (form-ref-path path-for form-ref))
 
     :handle-exception
-    (hu/duplicate-exception
-      "The form-ref exists already." study/build-up-link)))
+    (hu/duplicate-exception "The form ref exists already.")))

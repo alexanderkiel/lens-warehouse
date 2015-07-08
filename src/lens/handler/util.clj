@@ -41,6 +41,14 @@
   clojure.lang.MapEquivalence
   (as-response [this _] {:body this}))
 
+(defn error-handler
+  ([msg]
+   (error-handler msg nil))
+  ([msg more]
+   (fnk [[:request path-for] :as ctx]
+     (error-body path-for (or (:error ctx) msg)
+                 (if (fn? more) (more ctx) more)))))
+
 (defn resource-defaults [& {:as opts}]
   {:available-media-types ["application/transit+json"]
 
@@ -58,6 +66,10 @@
    ;; Just respond with plain text here because the media type is negotiated
    ;; later in the decision graph.
    :handle-unauthorized (fn [{:keys [error]}] (or error "Not authorized."))
+   :handle-malformed (error-handler "Malformed")
+   :handle-unprocessable-entity (error-handler "Unprocessable Entity")
+   :handle-precondition-failed (error-handler "Precondition Failed")
+   :handle-not-found (error-handler "Not Found")
 
    :handle-not-modified nil})
 
@@ -79,14 +91,14 @@
     [false {:error (str "Unprocessable Entity: " (pr-str error))}]
     true))
 
+(defn validate-params [schema]
+  (fnk [[:request params]]
+    (validate schema params)))
+
 (defn entity-processable [schema]
   (fn [ctx]
     (or (not (l/=method :put ctx))
         (validate schema (:new-entity ctx)))))
-
-(defn- error-handler [msg]
-  (fnk [[:request path-for] :as ctx]
-    (error-body path-for (or (:error ctx) msg))))
 
 (defn standard-entity-resource-defaults []
   (assoc
@@ -105,16 +117,9 @@
       (condp = (:update-error ctx)
         :not-found (error path-for 404 "Not Found")
         :conflict (error path-for 409 "Conflict")
-        nil))
+        nil))))
 
-    :handle-malformed (error-handler "Malformed")
-    :handle-unprocessable-entity (error-handler "Unprocessable Entity")
-    :handle-precondition-failed (error-handler "Precondition Failed")
-
-    :handle-not-found
-    (fnk [[:request path-for]] (error-body path-for "Not Found"))))
-
-(defn standard-redirect-resource-defaults []
+(defn redirect-resource-defaults []
   (assoc
     (resource-defaults)
 
@@ -122,27 +127,17 @@
     :existed? true
     :moved-permanently? true))
 
-(defn sub-study-redirect-resource-defaults []
-  (assoc
-    (standard-redirect-resource-defaults)
-
-    :processable?
-    (fnk [[:request params]]
-      (and (:study-id params) (:id params)))))
-
-(defn standard-create-resource-defaults []
+(defn create-resource-defaults []
   (assoc
     (resource-defaults)
 
     :allowed-methods [:post]
 
-    :can-post-to-missing? false
-
-    :handle-unprocessable-entity (error-handler "Unprocessable Entity")))
+    :can-post-to-missing? false))
 
 (defn duplicate-exception
   ([msg]
-    (duplicate-exception msg nil))
+   (duplicate-exception msg nil))
   ([msg more]
    (fnk [exception [:request path-for] :as ctx]
      (if (= :duplicate (util/error-type exception))
