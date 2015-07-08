@@ -11,7 +11,8 @@
             [clojure.edn :as edn]
             [datomic.api :as d]
             [cemerick.url :refer [url url-encode url-decode]]
-            [lens.handler.study :as hs]
+            [lens.handler.subject :as subject]
+            [lens.handler.study :as study]
             [lens.handler.study-event-def :as study-event-def]
             [lens.handler.form-def :as form-def]
             [lens.handler.form-ref :as form-ref]
@@ -30,7 +31,7 @@
       :version version}
      :links
      {:self {:href (path-for :service-document-handler)}
-      :lens/all-studies {:href (hs/all-studies-path path-for)}
+      :lens/all-studies {:href (study/all-studies-path path-for)}
       :lens/all-snapshots {:href (path-for :all-snapshots-handler)}
       :lens/most-recent-snapshot {:href (path-for :most-recent-snapshot-handler)}}
      :queries
@@ -41,7 +42,7 @@
         {:type s/Str}}}}
      :forms
      {:lens/create-study
-      (hs/render-create-study-form path-for)}}))
+      (study/render-create-study-form path-for)}}))
 
 (defn service-document-handler [version]
   (resource
@@ -51,7 +52,7 @@
     (fnk [representation [:request path-for]]
       (md5 (str (:media-type representation)
                 (path-for :service-document-handler)
-                (hs/all-studies-path path-for)
+                (study/all-studies-path path-for)
                 (path-for :all-snapshots-handler)
                 (path-for :most-recent-snapshot-handler)
                 (path-for :find-study-handler)
@@ -122,65 +123,6 @@
 
     :handle-not-found
     (error-body path-for "Code List not found.")))
-
-;; ---- Subject ---------------------------------------------------------------
-
-(defn subject-path [path-for subject]
-  (path-for :subject-handler :study-id (:study/id (:subject/study subject))
-            :subject-id (:subject/id subject)))
-
-(defnk exists-subject? [study [:request [:params subject-id]]]
-  (when-let [subject (api/find-subject study subject-id)]
-    {:subject subject}))
-
-(defnk render-subject [subject [:request path-for]]
-  {:data
-   {:id (:subject/id subject)}
-   :links
-   {:up {:href (path-for :service-document-handler)}
-    :self {:href (subject-path path-for subject)}}})
-
-(def subject-handler
-  (resource
-    (resource-defaults)
-
-    :processable?
-    (fnk [[:request params]]
-      (and (:study-id params) (:subject-id params)))
-
-    :exists? (fn [ctx] (some-> (hs/exists? ctx) (exists-subject?)))
-
-    :handle-ok render-subject
-
-    :handle-not-found
-    (fnk [[:request path-for]] (error-body path-for "Subject not found."))))
-
-(def create-subject-handler
-  (resource
-    (standard-create-resource-defaults)
-
-    :processable?
-    (fnk [[:request params]]
-      (and (:study-id params) (:id params)))
-
-    :exists? hs/exists?
-
-    :post!
-    (fnk [conn study [:request [:params id]]]
-      (if-let [subject (api/create-subject conn study id)]
-        {:subject subject}
-        (throw (ex-info "Duplicate!" {:type :duplicate}))))
-
-    :location
-    (fnk [subject [:request path-for]] (subject-path path-for subject))
-
-    :handle-exception (duplicate-exception "Subject exists already.")))
-
-(defn delete-subject-handler [path-for]
-  (fnk [conn [:params id]]
-    (if (api/retract-subject conn id)
-      {:status 204}
-      (ring-error path-for 404 "Subject not found."))))
 
 ;; ---- Snapshots -------------------------------------------------------------
 
@@ -374,11 +316,11 @@
 (defnk handlers [path-for version]
   {:service-document-handler (service-document-handler version)
 
-   :all-studies-handler hs/all-studies-handler
-   :find-study-handler hs/find-study-handler
-   :study-handler hs/study-handler
-   :create-study-handler hs/create-handler
-   :study-profile-handler (hu/profile-handler :study hs/schema)
+   :all-studies-handler study/all-studies-handler
+   :find-study-handler study/find-study-handler
+   :study-handler study/study-handler
+   :create-study-handler study/create-handler
+   :study-profile-handler (hu/profile-handler :study study/schema)
 
    :study-study-event-defs-handler study-event-def/list-handler
    :find-study-event-def-handler study-event-def/find-handler
@@ -414,9 +356,9 @@
    (item-code-list-item-count-handler path-for)
    :code-list-handler (code-list-handler path-for)
 
-   :subject-handler subject-handler
-   :create-subject-handler create-subject-handler
-   :delete-subject-handler (delete-subject-handler path-for)
+   :subject-handler subject/handler
+   :create-subject-handler subject/create-handler
+   :delete-subject-handler subject/delete-handler
 
    :query-handler (query-handler path-for)
    :snapshot-handler (snapshot-handler path-for)
