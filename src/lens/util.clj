@@ -4,7 +4,9 @@
                                                   alts! alts!! alt!!]]
             [clojure.core.cache :as cache]
             [clojure.core.reducers :as r]
-            [datomic.api :as d])
+            [datomic.api :as d]
+            [clojure.string :as str]
+            [schema.core :as s])
   (:import [datomic Entity]
            [java.util.concurrent ExecutionException]))
 
@@ -192,3 +194,8 @@
         tx-result @(d/transact conn (fn tid))
         db (:db-after tx-result)]
     (d/entity db (d/resolve-tempid db (:tempids tx-result) tid))))
+
+;; ---- Schema ----------------------------------------------------------------
+
+(def NonBlankStr
+  (s/both s/Str (s/pred (complement str/blank?) 'non-blank?)))

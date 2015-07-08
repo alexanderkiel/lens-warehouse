@@ -242,8 +242,8 @@
                (into []))}}))))
 
 (def CreateParamSchema
-  {:id s/Str
-   :name s/Str
+  {:id util/NonBlankStr
+   :name util/NonBlankStr
    :desc s/Str
    s/Any s/Any})
 

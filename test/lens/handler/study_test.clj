@@ -146,6 +146,18 @@
                  :conn (connect))]
       (is (= 422 (:status resp)))))
 
+  (testing "Create with blank id fails"
+    (let [resp (execute create-handler :post
+                 :params {:id "" :name "name-105943" :desc "desc-183610"}
+                 :conn (connect))]
+      (is (= 422 (:status resp)))))
+
+  (testing "Create with blank name fails"
+    (let [resp (execute create-handler :post
+                 :params {:id "id-184118" :name "" :desc "desc-183610"}
+                 :conn (connect))]
+      (is (= 422 (:status resp)))))
+
   (testing "Create succeeds"
     (let [resp (execute create-handler :post
                  :params {:id "id-224211" :name "name-224240"
