@@ -26,7 +26,8 @@
 (defn- create-study
   ([] (create-study "s-134745"))
   ([id] (create-study id "name-134748"))
-  ([id name & [more]] (api/create-study (connect) id name "desc-171439" more)))
+  ([id name] (create-study id name "desc-171439"))
+  ([id name desc & [more]] (api/create-study (connect) id name desc more)))
 
 (defn- update-study [id old-props new-props]
   (api/update-study (connect) id old-props new-props))
@@ -47,12 +48,11 @@
   (testing "create with id and name only"
     (let [study (create-study "id-221752" "name-222227")]
       (is (= "id-221752" (:study/id study)))
-      (is (= "name-222227" (:name study)))))
+      (is (= "name-222227" (:study/name study)))))
 
   (testing "create with id, name and desc"
-    (let [study (create-study "id-222745" "name-222227"
-                              {:desc "desc-222413"})]
-      (is (= "desc-222413" (:desc study)))))
+    (let [study (create-study "id-222745" "name-222227" "desc-222413")]
+      (is (= "desc-222413" (:study/desc study)))))
 
   (testing "create with existing id fails"
     (create-study "id-221808")
@@ -70,25 +70,26 @@
                                    {:name "name-195920"}))))
 
   (testing "update with matching name"
-    (is (nil? (update-study "id-195829" {:name "name-195834"}
-                            {:name "name-195920"})))
-    (is (= "name-195920" (:name (study "id-195829")))))
+    (is (nil? (update-study "id-195829" {:study/name "name-195834"}
+                            {:study/name "name-195920"})))
+    (is (= "name-195920" (:study/name (study "id-195829")))))
 
   (create-study "id-170349" "name-195834")
 
   (testing "update can add description"
-    (is (nil? (api/update-study (connect) "id-170349" {:name "name-195834"}
-                                {:name "name-195920"
-                                 :desc "desc-164555"})))
-    (is (= "desc-164555" (:desc (study "id-170349")))))
+    (is (nil? (api/update-study (connect) "id-170349"
+                                {:study/name "name-195834"}
+                                {:study/name "name-195920"
+                                 :study/desc "desc-164555"})))
+    (is (= "desc-164555" (:study/desc (study "id-170349")))))
 
-  (create-study "id-162717" "name-162720" {:desc "desc-162727"})
+  (create-study "id-162717" "name-162720" "desc-162727")
 
   (testing "update can remove desc"
-    (is (nil? (update-study "id-162717" {:name "name-162720"
-                                         :desc "desc-162727"}
-                            {:name "name-162720"})))
-    (is (nil? (:desc (study "id-195829"))))))
+    (is (nil? (update-study "id-162717" {:study/name "name-162720"
+                                         :study/desc "desc-162727"}
+                            {:study/name "name-162720"})))
+    (is (nil? (:study/desc (study "id-162717"))))))
 
 ;; ---- Study Child -----------------------------------------------------------
 
@@ -159,7 +160,7 @@
     (testing "create with id and name only"
       (let [form-def (create-form-def study "id-221752" "name-222227")]
         (is (= "id-221752" (:form-def/id form-def)))
-        (is (= "name-222227" (:name form-def)))))
+        (is (= "name-222227" (:form-def/name form-def)))))
 
     (testing "create with id, name and desc"
       (let [form-def (create-form-def study "id-222745" "name-222227"
@@ -184,24 +185,24 @@
 
     (testing "update with matching name"
       (let [form-def (create-form-def study "id-214924" "name-195834")]
-        (is (nil? (update-form-def form-def {:name "name-195834"}
-                                   {:name "name-195920"})))
-        (is (= "name-195920" (:name (refresh-form-def form-def))))))
+        (is (nil? (update-form-def form-def {:form-def/name "name-195834"}
+                                   {:form-def/name "name-195920"})))
+        (is (= "name-195920" (:form-def/name (refresh-form-def form-def))))))
 
     (testing "update can add description"
       (let [form-def (create-form-def study "id-215227" "name-195834")]
-        (is (nil? (update-form-def form-def {:name "name-195834"}
-                                   {:name "name-195920"
-                                    :desc "desc-164555"})))
-        (is (= "desc-164555" (:desc (refresh-form-def form-def))))))
+        (is (nil? (update-form-def form-def {:form-def/name "name-195834"}
+                                   {:form-def/name "name-195920"
+                                    :form-def/desc "desc-164555"})))
+        (is (= "desc-164555" (:form-def/desc (refresh-form-def form-def))))))
 
     (testing "update can remove description"
       (let [form-def (create-form-def study "id-162717" "name-162720"
-                                      {:desc "desc-162727"})]
-        (is (nil? (update-form-def form-def {:name "name-162720"
-                                             :desc "desc-162727"}
-                                   {:name "name-162720"})))
-        (is (nil? (:desc (refresh-form-def form-def))))))))
+                                      {:form-def/desc "desc-162727"})]
+        (is (nil? (update-form-def form-def {:form-def/name "name-162720"
+                                             :form-def/desc "desc-162727"}
+                                   {:form-def/name "name-162720"})))
+        (is (nil? (:form-def/desc (refresh-form-def form-def))))))))
 
 ;; ---- Item Group ------------------------------------------------------------
 
@@ -247,12 +248,12 @@
                       (r/map :study/id)
                       (into #{})))))
     (testing "with one study"
-      (api/create-study conn "id-144922" "name-225358")
+      (api/create-study conn "id-144922" "name-225358" "desc-150924")
       (is (= #{"id-144922"} (->> (api/all-studies (d/db conn))
                                  (r/map :study/id)
                                  (into #{})))))
     (testing "with two studies"
-      (api/create-study conn "id-150211" "name-225425")
+      (api/create-study conn "id-150211" "name-225425" "desc-150932")
       (is (= #{"id-144922"
                "id-150211"} (->> (api/all-studies (d/db conn))
                                  (r/map :study/id)
@@ -283,7 +284,7 @@
             form-def (refresh-form-def form-def)]
         (is (= 1 (api/num-form-def-study-events form-def)))))
     (testing "with form repetition"
-      (let [form-def (create-form-def study "fdr" "n" {:repeating true})
+      (let [form-def (create-form-def study "fdr" "n" {:form-def/repeating true})
             _ (create-form study-event form-def "1")
             _ (create-form study-event form-def "2")
             form-def (refresh-form-def form-def)]
@@ -302,7 +303,7 @@
             form-def (refresh-form-def form-def)]
         (is (= 1 (api/num-forms form-def)))))
     (testing "with form repetition"
-      (let [form-def (create-form-def study "fdr" "n" {:repeating true})
+      (let [form-def (create-form-def study "fdr" "n" {:form-def/repeating true})
             _ (create-form study-event form-def "1")
             _ (create-form study-event form-def "2")
             form-def (refresh-form-def form-def)]

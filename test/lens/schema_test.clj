@@ -35,7 +35,7 @@
 
 (defn- create-study [id]
   (create :part/meta-data (fn [tid] [[:study.fn/create tid id "name-100932"
-                                      {}]])))
+                                      "desc-145133" {}]])))
 
 (defn- create-study-event-def [study-eid study-event-def-id]
   (create :part/meta-data (fn [tid] [[:study-event-def.fn/create tid study-eid
