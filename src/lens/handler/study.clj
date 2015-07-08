@@ -137,7 +137,7 @@
 
    :ops #{:update :delete}})
 
-(defnk exists-study? [db [:request [:params study-id]] :as ctx]
+(defnk exists? [db [:request [:params study-id]] :as ctx]
   (when-let [study (api/find-study db study-id)]
     (assoc ctx :study study)))
 
@@ -162,7 +162,7 @@
     (fnk [[:request [:params study-id]] :as ctx]
       ((hu/entity-processable (assoc schema :id (s/eq study-id))) ctx))
 
-    :exists? exists-study?
+    :exists? exists?
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
@@ -266,7 +266,7 @@
 
     :processable? (fnk [[:request params]] (:study-id params))
 
-    :exists? exists-study?))
+    :exists? exists?))
 
 (defn exists-study-child?
   "Child types can be:

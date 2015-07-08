@@ -11,7 +11,7 @@
             [clojure.edn :as edn]
             [datomic.api :as d]
             [cemerick.url :refer [url url-encode url-decode]]
-            [lens.handler.study :refer :all]
+            [lens.handler.study :as hs]
             [lens.handler.study-event-def :as study-event-def]
             [lens.handler.form-def :as form-def]
             [lens.handler.item-group-def :as item-group-def]
@@ -29,7 +29,7 @@
       :version version}
      :links
      {:self {:href (path-for :service-document-handler)}
-      :lens/all-studies {:href (all-studies-path path-for)}
+      :lens/all-studies {:href (hs/all-studies-path path-for)}
       :lens/all-snapshots {:href (path-for :all-snapshots-handler)}
       :lens/most-recent-snapshot {:href (path-for :most-recent-snapshot-handler)}}
      :queries
@@ -40,7 +40,7 @@
         {:type s/Str}}}}
      :forms
      {:lens/create-study
-      (render-create-study-form path-for)}}))
+      (hs/render-create-study-form path-for)}}))
 
 (defn service-document-handler [version]
   (resource
@@ -50,7 +50,7 @@
     (fnk [representation [:request path-for]]
       (md5 (str (:media-type representation)
                 (path-for :service-document-handler)
-                (all-studies-path path-for)
+                (hs/all-studies-path path-for)
                 (path-for :all-snapshots-handler)
                 (path-for :most-recent-snapshot-handler)
                 (path-for :find-study-handler)
@@ -79,7 +79,7 @@
       (and (:study-id params) (:study-event-def-id params) (:form-id params)
            (:order-number params)))
 
-    :exists? (fn [ctx] (some-> (exists-study? ctx) (study-event-def/exists?)))
+    :exists? (fn [ctx] (some-> (hs/exists? ctx) (study-event-def/exists?)))
 
     #_:post!
     #_(fnk [conn study-event-def [:request params]]
@@ -183,7 +183,7 @@
     (fnk [[:request params]]
       (and (:study-id params) (:subject-id params)))
 
-    :exists? (fn [ctx] (some-> (exists-study? ctx) (exists-subject?)))
+    :exists? (fn [ctx] (some-> (hs/exists? ctx) (exists-subject?)))
 
     :handle-ok render-subject
 
@@ -198,7 +198,7 @@
     (fnk [[:request params]]
       (and (:study-id params) (:id params)))
 
-    :exists? exists-study?
+    :exists? hs/exists?
 
     :post!
     (fnk [conn study [:request [:params id]]]
@@ -409,11 +409,11 @@
 (defnk handlers [path-for version]
   {:service-document-handler (service-document-handler version)
 
-   :all-studies-handler all-studies-handler
-   :find-study-handler find-study-handler
-   :study-handler study-handler
-   :create-study-handler create-study-handler
-   :study-profile-handler (hu/profile-handler :study schema)
+   :all-studies-handler hs/all-studies-handler
+   :find-study-handler hs/find-study-handler
+   :study-handler hs/study-handler
+   :create-study-handler hs/create-study-handler
+   :study-profile-handler (hu/profile-handler :study hs/schema)
 
    :study-study-event-defs-handler study-event-def/list-handler
    :find-study-event-def-handler study-event-def/find-handler

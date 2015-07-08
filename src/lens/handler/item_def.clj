@@ -119,7 +119,7 @@
     (fnk [[:request [:params item-def-id]] :as ctx]
       ((hu/entity-processable (assoc schema :id (s/eq item-def-id))) ctx))
 
-    :exists? (fn [ctx] (some-> (hs/exists-study? ctx) (exists?)))
+    :exists? (fn [ctx] (some-> (hs/exists? ctx) (exists?)))
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
@@ -173,7 +173,7 @@
     (fnk [[:request params]]
       (and (:study-id params) (:id params) (:name params) (:data-type params)))
 
-    :exists? hs/exists-study?
+    :exists? hs/exists?
 
     :post!
     (fnk [conn study [:request params]]
