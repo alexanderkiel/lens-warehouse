@@ -74,18 +74,20 @@
 (def select-props (hu/select-props :form-def :name :desc))
 
 (defnk render [def [:request path-for]]
-  (-> {:id (:form-def/id def)
-       ;;TODO: alias
-       :name (:form-def/name def)}
-      (assoc-when :desc (:form-def/desc def))
-      (assoc
-        :links
-        {:up (study-link path-for (:study/_form-defs def))
-         :self {:href (child-path :form-def path-for def)}}
+  {:data
+   (-> {:id (:form-def/id def)
+        ;;TODO: alias
+        :name (:form-def/name def)}
+       (assoc-when :desc (:form-def/desc def)))
 
-        :ops [:update :delete])))
+   :links
+   {:up (study-link path-for (:study/_form-defs def))
+    :self {:href (child-path :form-def path-for def)}
+    :profile {:href (path-for :form-def-profile-handler)}}
 
-(def ^:private schema {:name s/Str})
+   :ops #{:update :delete}})
+
+(def ^:private schema {:name s/Str (s/optional-key :desc) s/Str})
 
 (def handler
   "Handler for GET and PUT on a form-def.
@@ -102,7 +104,9 @@
 
     :exists? (fn [ctx] (some-> (exists-study? ctx) (exists?)))
 
-    :processable? (hu/entity-processable schema)
+    :processable?
+    (fnk [[:request [:params form-def-id]] :as ctx]
+      ((hu/entity-processable (assoc schema :id (s/eq form-def-id))) ctx))
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
@@ -167,3 +171,23 @@
 
     :handle-exception
     (hu/duplicate-exception "The form def exists already.")))
+
+(def profile-handler
+  (resource
+    (hu/resource-defaults :cache-control "max-age=3600")
+
+    ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
+    :etag
+    (fnk [representation {status 200} [:request path-for]]
+      (when (= 200 status)
+        (hu/md5 (str (:media-type representation)
+                     (path-for :service-document-handler)
+                     (path-for :form-def-profile-handler)))))
+
+    :handle-ok
+    (fnk [[:request path-for]]
+      {:data
+       {:schema schema}
+       :links
+       {:up {:href (path-for :service-document-handler)}
+        :self {:href (path-for :form-def-profile-handler)}}})))

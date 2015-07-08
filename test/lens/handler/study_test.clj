@@ -80,7 +80,8 @@
     (let [resp (execute study-handler :put
                  :params {:study-id "id-201514"}
                  :body {:data
-                        {:name "name-143536"}}
+                        {:id "id-201514"
+                         :name "name-143536"}}
                  [:headers "if-match"] "\"foo\"")]
       (is (= 422 (:status resp)))
       (is (= "Unprocessable Entity: {:desc missing-required-key}"
@@ -91,7 +92,8 @@
     (let [resp (execute study-handler :put
                  :params {:study-id "id-201514"}
                  :body {:data
-                        {:name "name-202906"
+                        {:id "id-201514"
+                         :name "name-202906"
                          :desc "desc-105520"}}
                  [:headers "if-match"] "\"foo\"")]
       (is (= 412 (:status resp)))))
@@ -101,7 +103,8 @@
     (let [req (request :put
                 :params {:study-id "id-202032"}
                 :body {:data
-                       {:name "name-202906"
+                       {:id "id-202032"
+                        :name "name-202906"
                         :desc "desc-105520"}}
                 [:headers "if-match"] (etag "id-202032")
                 :conn (connect))
@@ -117,7 +120,8 @@
     (let [resp (execute study-handler :put
                  :params {:study-id "id-143317"}
                  :body {:data
-                        {:name "name-143536"
+                        {:id "id-143317"
+                         :name "name-143536"
                          :desc "desc-105520"}}
                  [:headers "if-match"] (etag "id-143317")
                  :conn (connect))]

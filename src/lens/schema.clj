@@ -97,13 +97,16 @@
      the in-transaction study."
      [db id old-props new-props]
      (if-let [study (d/entity db [:study/id id])]
-       (if (= (select-keys study (keys old-props)) old-props)
-         (concat (for [[prop old-val] old-props
-                       :when (nil? (prop new-props))]
-                   [:db/retract (:db/id study) prop old-val])
-                 (for [[prop val] new-props]
-                   [:db/add (:db/id study) prop val]))
-         (throw (ex-info "Conflict!" {:type :conflict})))
+       (let [cur-props (select-keys study (keys old-props))]
+         (if (= cur-props old-props)
+           (concat (for [[prop old-val] cur-props
+                         :when (nil? (prop new-props))]
+                     [:db/retract (:db/id study) prop old-val])
+                   (for [[prop val] new-props]
+                     [:db/add (:db/id study) prop val]))
+           (throw (ex-info "Conflict!" {:type :conflict
+                                        :old-props old-props
+                                        :cur-props cur-props}))))
        (throw (ex-info "Study not found." {:type :not-found}))))])
 
 (def protocol
@@ -156,14 +159,16 @@
      [db study-event-def-eid old-props new-props]
      (let [study-event-def (d/entity db study-event-def-eid)]
        (if (:study-event-def/id study-event-def)
-         (if (= (select-keys study-event-def (keys old-props)) old-props)
-           (concat (for [[prop old-val] study-event-def
-                         :when (not= :study-event-def/id prop)
-                         :when (nil? (prop new-props))]
-                     [:db/retract (:db/id study-event-def) prop old-val])
-                   (for [[prop val] new-props]
-                     [:db/add (:db/id study-event-def) prop val]))
-           (throw (ex-info "Conflict!" {:type :conflict})))
+         (let [cur-props (select-keys study-event-def (keys old-props))]
+           (if (= cur-props old-props)
+             (concat (for [[prop old-val] cur-props
+                           :when (nil? (prop new-props))]
+                       [:db/retract (:db/id study-event-def) prop old-val])
+                     (for [[prop val] new-props]
+                       [:db/add (:db/id study-event-def) prop val]))
+             (throw (ex-info "Conflict!" {:type :conflict
+                                          :old-props old-props
+                                          :cur-props cur-props}))))
          (throw (ex-info "Study-event not found." {:type :not-found})))))
 
    (func add-form-def
@@ -238,14 +243,16 @@
      [db form-def-eid old-props new-props]
      (let [form-def (d/entity db form-def-eid)]
        (if (:form-def/id form-def)
-         (if (= (select-keys form-def (keys old-props)) old-props)
-           (concat (for [[prop old-val] form-def
-                         :when (not= :form-def/id prop)
-                         :when (nil? (prop new-props))]
-                     [:db/retract (:db/id form-def) prop old-val])
-                   (for [[prop val] new-props]
-                     [:db/add (:db/id form-def) prop val]))
-           (throw (ex-info "Conflict!" {:type :conflict})))
+         (let [cur-props (select-keys form-def (keys old-props))]
+           (if (= cur-props old-props)
+             (concat (for [[prop old-val] cur-props
+                           :when (nil? (prop new-props))]
+                       [:db/retract (:db/id form-def) prop old-val])
+                     (for [[prop val] new-props]
+                       [:db/add (:db/id form-def) prop val]))
+             (throw (ex-info "Conflict!" {:type :conflict
+                                          :old-props old-props
+                                          :cur-props cur-props}))))
          (throw (ex-info "Form not found." {:type :not-found})))))])
 
 (def item-group-ref
@@ -291,14 +298,16 @@
      [db item-group-def-eid old-props new-props]
      (let [item-group-def (d/entity db item-group-def-eid)]
        (if (:item-group-def/id item-group-def)
-         (if (= (select-keys item-group-def (keys old-props)) old-props)
-           (concat (for [[prop old-val] item-group-def
-                         :when (not= :item-group-def/id prop)
-                         :when (nil? (prop new-props))]
-                     [:db/retract (:db/id item-group-def) prop old-val])
-                   (for [[prop val] new-props]
-                     [:db/add (:db/id item-group-def) prop val]))
-           (throw (ex-info "Conflict!" {:type :conflict})))
+         (let [cur-props (select-keys item-group-def (keys old-props))]
+           (if (= cur-props old-props)
+             (concat (for [[prop old-val] cur-props
+                           :when (nil? (prop new-props))]
+                       [:db/retract (:db/id item-group-def) prop old-val])
+                     (for [[prop val] new-props]
+                       [:db/add (:db/id item-group-def) prop val]))
+             (throw (ex-info "Conflict!" {:type :conflict
+                                          :old-props old-props
+                                          :cur-props cur-props}))))
          (throw (ex-info "Form not found." {:type :not-found})))))])
 
 (def item-ref
@@ -363,14 +372,16 @@
      [db item-def-eid old-props new-props]
      (let [item-def (d/entity db item-def-eid)]
        (if (:item-def/id item-def)
-         (if (= (select-keys item-def (keys old-props)) old-props)
-           (concat (for [[prop old-val] item-def
-                         :when (not= :item-def/id prop)
-                         :when (nil? (prop new-props))]
-                     [:db/retract (:db/id item-def) prop old-val])
-                   (for [[prop val] new-props]
-                     [:db/add (:db/id item-def) prop val]))
-           (throw (ex-info "Conflict!" {:type :conflict})))
+         (let [cur-props (select-keys item-def (keys old-props))]
+           (if (= cur-props old-props)
+             (concat (for [[prop old-val] cur-props
+                           :when (nil? (prop new-props))]
+                       [:db/retract (:db/id item-def) prop old-val])
+                     (for [[prop val] new-props]
+                       [:db/add (:db/id item-def) prop val]))
+             (throw (ex-info "Conflict!" {:type :conflict
+                                          :old-props old-props
+                                          :cur-props cur-props}))))
          (throw (ex-info "Item not found." {:type :not-found})))))])
 
 (def alias

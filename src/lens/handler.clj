@@ -427,6 +427,7 @@
    :form-def-handler form-def/handler
    :form-count-handler (form-def/form-def-count-handler path-for)
    :create-form-def-handler form-def/create-handler
+   :form-def-profile-handler form-def/profile-handler
 
    :study-item-group-defs-handler item-group-def/list-handler
    :find-item-group-def-handler item-group-def/find-handler
