@@ -76,28 +76,28 @@
 (def select-props (hu/select-props :study-event-def :name :desc))
 
 (defnk render [def [:request path-for]]
-  (-> {:id (:study-event-def/id def)
-       ;;TODO: alias
-       :name (:study-event-def/name def)}
-      (assoc-when :desc (:study-event-def/desc def))
-      (assoc
-        :links
-        {:up
-         {:href (study-path path-for (:study/_study-event-defs def))}
-         :self
-         {:href (child-path :study-event-def path-for def)}}
+  {:data
+   (-> {:id (:study-event-def/id def)
+        ;;TODO: alias
+        :name (:study-event-def/name def)}
+       (assoc-when :desc (:study-event-def/desc def)))
 
-        :queries
-        {:lens/find-form-ref
-         {:href (find-form-ref-path path-for def)
-          :params {:form-id {:type s/Str}}}}
+   :links
+   {:up {:href (study-path path-for (:study/_study-event-defs def))}
+    :self {:href (child-path :study-event-def path-for def)}
+    :profile {:href (path-for :study-event-def-profile-handler)}}
 
-        :forms
-        {:lens/append-form-ref
-         {:href (append-form-ref-path path-for def)
-          :params {:form-id {:type s/Str}}}}
+   :queries
+   {:lens/find-form-ref
+    {:href (find-form-ref-path path-for def)
+     :params {:form-id {:type s/Str}}}}
 
-        :ops [:update :delete])))
+   :forms
+   {:lens/append-form-ref
+    {:href (append-form-ref-path path-for def)
+     :params {:form-id {:type s/Str}}}}
+
+   :ops #{:update :delete}})
 
 (def ^:private schema {:name s/Str})
 
@@ -115,7 +115,9 @@
   (resource
     (hu/standard-entity-resource-defaults)
 
-    :processable? (hu/entity-processable schema)
+    :processable?
+    (fnk [[:request [:params study-event-def-id]] :as ctx]
+      ((hu/entity-processable (assoc schema :id (s/eq study-event-def-id))) ctx))
 
     :exists? (fn [ctx] (some-> (exists-study? ctx) (exists?)))
 
@@ -168,3 +170,23 @@
 
     :handle-exception
     (hu/duplicate-exception "The study event def exists already.")))
+
+(def profile-handler
+  (resource
+    (hu/resource-defaults :cache-control "max-age=3600")
+
+    ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
+    :etag
+    (fnk [representation {status 200} [:request path-for]]
+      (when (= 200 status)
+        (hu/md5 (str (:media-type representation)
+                     (path-for :service-document-handler)
+                     (path-for :form-def-profile-handler)))))
+
+    :handle-ok
+    (fnk [[:request path-for]]
+      {:data
+       {:schema schema}
+       :links
+       {:up {:href (path-for :service-document-handler)}
+        :self {:href (path-for :form-def-profile-handler)}}})))

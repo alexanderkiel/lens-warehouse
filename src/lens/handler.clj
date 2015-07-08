@@ -418,6 +418,7 @@
    :find-study-event-def-handler study-event-def/find-handler
    :study-event-def-handler study-event-def/handler
    :create-study-event-def-handler study-event-def/create-handler
+   :study-event-def-profile-handler study-event-def/profile-handler
 
    ;:find-form-ref-handler find-form-ref-handler
    :create-form-ref-handler create-form-ref-handler

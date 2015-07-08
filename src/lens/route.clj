@@ -68,5 +68,6 @@
     "/find-study" :find-study-handler
 
     "/study-profile" :study-profile-handler
+    "/study-event-def-profile" :study-event-def-profile-handler
     "/form-def-profile" :form-def-profile-handler
     "/item-def-profile" :item-def-profile-handler}])
