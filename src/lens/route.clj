@@ -66,4 +66,6 @@
      ["/" :id "/query"] :query-handler}
     "/most-recent-snapshot" :most-recent-snapshot-handler
     "/find-study" :find-study-handler
-    "/study-profile" :study-profile-handler}])
+
+    "/study-profile" :study-profile-handler
+    "/item-def-profile" :item-def-profile-handler}])

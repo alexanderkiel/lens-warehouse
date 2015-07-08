@@ -88,7 +88,10 @@
 
    :links
    {:up (study-link path-for (:study/_item-defs def))
-    :self {:href (child-path :item-def path-for def)}}})
+    :self {:href (child-path :item-def path-for def)}
+    :profile {:href (path-for :item-def-profile-handler)}}
+
+   :ops #{:update :delete}})
 
 (def ^:private schema {:name s/Str :data-type item-def-data-type-schema})
 
@@ -107,7 +110,9 @@
 
     :exists? (fn [ctx] (some-> (exists-study? ctx) (exists?)))
 
-    :processable? (hu/entity-processable schema)
+    :processable?
+    (fnk [[:request [:params item-def-id]] :as ctx]
+      ((hu/entity-processable (assoc schema :id (s/eq item-def-id))) ctx))
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
@@ -124,8 +129,8 @@
 
     :put!
     (fnk [conn def new-entity]
-      (let [new-entity (-> (update new-entity :data-type prefix-data-type)
-                           (util/prefix-namespace :item-def))]
+      (let [new-entity (->> (update new-entity :data-type prefix-data-type)
+                            (util/prefix-namespace :item-def))]
         {:update-error (api/update conn def (select-props def)
                                    (select-props new-entity))}))
 
@@ -178,3 +183,23 @@
 
     :handle-exception
     (hu/duplicate-exception "The item def exists already.")))
+
+(def profile-handler
+  (resource
+    (hu/resource-defaults :cache-control "max-age=3600")
+
+    ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
+    :etag
+    (fnk [representation {status 200} [:request path-for]]
+      (when (= 200 status)
+        (hu/md5 (str (:media-type representation)
+                     (path-for :service-document-handler)
+                     (path-for :item-def-profile-handler)))))
+
+    :handle-ok
+    (fnk [[:request path-for]]
+      {:data
+       {:schema schema}
+       :links
+       {:up {:href (path-for :service-document-handler)}
+        :self {:href (path-for :item-def-profile-handler)}}})))

@@ -439,6 +439,7 @@
    :item-def-handler item-def/handler
    :item-def-count-handler (item-def/item-def-count-handler path-for)
    :create-item-def-handler item-def/create-handler
+   :item-def-profile-handler item-def/profile-handler
 
    :item-code-list-item-count-handler
    (item-code-list-item-count-handler path-for)
