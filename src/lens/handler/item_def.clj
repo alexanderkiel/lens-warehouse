@@ -44,7 +44,7 @@
             path #(-> (hs/child-list-path :item-def path-for study %)
                       (hu/assoc-filter filter))]
         {:links
-         (-> {:up {:href (hs/study-path path-for study)}
+         (-> {:up {:href (hs/path path-for study)}
               :self {:href (path page-num)}}
              (hu/assoc-prev page-num path)
              (hu/assoc-next next-page? page-num path))
@@ -127,7 +127,7 @@
       (when (= 200 status)
         (letk [[def] ctx]
           (hu/md5 (str (:media-type representation)
-                       (hs/study-path path-for (:study/_item-defs def))
+                       (hs/path path-for (:study/_item-defs def))
                        (hs/child-path :item-def path-for def)
                        (:item-def/name def)
                        (:item-def/data-type def)

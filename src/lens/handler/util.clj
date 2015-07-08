@@ -8,9 +8,14 @@
             [schema.core :as s])
   (:refer-clojure :exclude [error-handler]))
 
-(defn error-body [path-for msg]
-  {:data {:message msg}
-   :links {:up {:href (path-for :service-document-handler)}}})
+(defn error-body
+  ([path-for msg]
+   (error-body path-for msg nil))
+  ([path-for msg more]
+   (merge
+     {:data {:message msg}
+      :links {:up {:href (path-for :service-document-handler)}}}
+     more)))
 
 (defn ring-error [path-for status msg]
   {:status status
@@ -21,8 +26,11 @@
   (as-response [_ context]
     (assoc (as-response response context) :status status)))
 
-(defn error [path-for status msg]
-  (->StatusResponse status (error-body path-for msg)))
+(defn error
+  ([path-for status msg]
+   (error path-for status msg nil))
+  ([path-for status msg more]
+   (->StatusResponse status (error-body path-for msg more))))
 
 (defn handle-cache-control [resp opts]
   (if-let [cache-control (:cache-control opts)]
@@ -132,11 +140,14 @@
 
     :handle-unprocessable-entity (error-handler "Unprocessable Entity")))
 
-(defn duplicate-exception [msg]
-  (fnk [exception [:request path-for]]
-    (if (= :duplicate (util/error-type exception))
-      (error path-for 409 msg)
-      (throw exception))))
+(defn duplicate-exception
+  ([msg]
+    (duplicate-exception msg nil))
+  ([msg more]
+   (fnk [exception [:request path-for] :as ctx]
+     (if (= :duplicate (util/error-type exception))
+       (error path-for 409 msg (if (fn? more) (more ctx) more))
+       (throw exception)))))
 
 ;; TODO: remove on release of https://github.com/clojure-liberator/liberator/pull/201
 (defmethod l/to-location java.net.URI [uri] (l/to-location (str uri)))

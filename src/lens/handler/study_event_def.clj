@@ -37,7 +37,7 @@
             path #(-> (hs/child-list-path :study-event-def path-for study %)
                       (hu/assoc-filter filter))]
         {:links
-         (-> {:up {:href (hs/study-path path-for study)}
+         (-> {:up {:href (hs/path path-for study)}
               :self {:href (path page-num)}}
              (hu/assoc-prev page-num path)
              (hu/assoc-next next-page? page-num path))
@@ -83,7 +83,7 @@
        (assoc-when :desc (:study-event-def/desc def)))
 
    :links
-   {:up {:href (hs/study-path path-for (:study/_study-event-defs def))}
+   {:up {:href (hs/path path-for (:study/_study-event-defs def))}
     :self {:href (hs/child-path :study-event-def path-for def)}
     :profile {:href (path-for :study-event-def-profile-handler)}}
 
@@ -127,7 +127,7 @@
       (when (= 200 status)
         (letk [[def] ctx]
           (hu/md5 (str (:media-type representation)
-                       (hs/study-path path-for (:study/_study-event-defs def))
+                       (hs/path path-for (:study/_study-event-defs def))
                        (hs/child-path :study-event-def path-for def)
                        (find-form-ref-path path-for def)
                        (append-form-ref-path path-for def)

@@ -13,11 +13,11 @@
   ([path-for] (all-studies-path path-for 1))
   ([path-for page-num] (path-for :all-studies-handler :page-num page-num)))
 
-(defn study-path [path-for study]
+(defn path [path-for study]
   (path-for :study-handler :study-id (:study/id study)))
 
 (defn study-link [path-for study]
-  {:href (study-path path-for study) :title (:study/name study)})
+  {:href (path path-for study) :title (:study/name study)})
 
 (def find-study-handler
   (resource
@@ -29,7 +29,7 @@
 
     :location
     (fnk [[:request path-for [:params id]]]
-      (study-path path-for {:study/id id}))))
+      (path path-for {:study/id id}))))
 
 (defn child-list-path
   ([child-type path-for study] (child-list-path child-type path-for study 1))
@@ -85,6 +85,11 @@
     :question {:type s/Str :optional true}
     :length {:type s/Int :optional true}}})
 
+(defn render-create-subject-form [path-for study]
+  {:href (child-action-path :subject :create path-for study)
+   :params
+   {:id {:type s/Str}}})
+
 (defnk render-study [study [:request path-for]]
   {:data
    {:id (:study/id study)
@@ -93,7 +98,7 @@
 
    :links
    {:up {:href (path-for :service-document-handler)}
-    :self {:href (study-path path-for study)}
+    :self {:href (path path-for study)}
     :profile {:href (path-for :study-profile-handler)}
     :lens/study-event-defs
     {:href (child-list-path :study-event-def path-for study)}
@@ -131,9 +136,7 @@
     (render-item-def-form path-for study)
 
     :lens/create-subject
-    {:href (child-action-path :subject :create path-for study)
-     :params
-     {:id {:type s/Str}}}}
+    (render-create-subject-form path-for study)}
 
    :ops #{:update :delete}})
 
@@ -171,7 +174,7 @@
         (let [study (:study ctx)]
           (hu/md5 (str (:media-type representation)
                        (all-studies-path path-for)
-                       (study-path path-for study)
+                       (path path-for study)
                        (child-list-path :study-event-def path-for study)
                        (child-list-path :form-def path-for study)
                        (child-list-path :item-group-def path-for study)
@@ -205,7 +208,7 @@
   {:id (:study/id study)
    :name (:study/name study)
    :desc (:study/desc study)
-   :links {:self {:href (study-path path-for study)}}})
+   :links {:self {:href (path path-for study)}}})
 
 (defn render-embedded-studies [path-for studies]
   (r/map #(render-embedded-study path-for %) studies))
@@ -258,7 +261,7 @@
         {:study study}
         (throw (ex-info "Duplicate!" {:type :duplicate}))))
 
-    :location (fnk [study [:request path-for]] (study-path path-for study))
+    :location (fnk [study [:request path-for]] (path path-for study))
 
     :handle-exception (hu/duplicate-exception "Study exists already.")))
 

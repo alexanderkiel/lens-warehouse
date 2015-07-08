@@ -1,14 +1,13 @@
 (ns lens.handler.subject
   (:use plumbing.core)
-    (:require [clojure.core.async :refer [timeout]]
-              [clojure.core.reducers :as r]
-              [liberator.core :refer [resource to-location]]
-              [lens.api :as api]
-              [lens.handler.study :as hs]
-              [schema.core :as s]
-              [lens.handler.util :as hu]))
+  (:require [clojure.core.async :refer [timeout]]
+            [liberator.core :refer [resource to-location]]
+            [lens.api :as api]
+            [lens.handler.study :as study]
+            [schema.core :as s]
+            [lens.handler.util :as hu]))
 
-(defn subject-path [path-for subject]
+(defn path [path-for subject]
   (path-for :subject-handler :study-id (:study/id (:subject/study subject))
             :subject-id (:subject/id subject)))
 
@@ -16,12 +15,12 @@
   (when-let [subject (api/find-subject study subject-id)]
     {:subject subject}))
 
-(defnk render-subject [subject [:request path-for]]
+(defnk render [subject [:request path-for]]
   {:data
    {:id (:subject/id subject)}
    :links
-   {:up {:href (path-for :service-document-handler)}
-    :self {:href (subject-path path-for subject)}}})
+   {:up {:href (study/path path-for (:subject/study subject))}
+    :self {:href (path path-for subject)}}})
 
 (def handler
   (resource
@@ -31,9 +30,9 @@
     (fnk [[:request params]]
       (and (:study-id params) (:subject-id params)))
 
-    :exists? (fn [ctx] (some-> (hs/exists? ctx) (exists-subject?)))
+    :exists? (fn [ctx] (some-> (study/exists? ctx) (exists-subject?)))
 
-    :handle-ok render-subject
+    :handle-ok render
 
     :handle-not-found
     (fnk [[:request path-for]] (hu/error-body path-for "Subject not found."))))
@@ -51,7 +50,7 @@
     (fnk [[:request params]]
       (hu/validate CreateParamSchema params))
 
-    :exists? hs/exists?
+    :exists? study/exists?
 
     :post!
     (fnk [conn study [:request [:params id]]]
@@ -60,9 +59,17 @@
         (throw (ex-info "Duplicate!" {:type :duplicate}))))
 
     :location
-    (fnk [subject [:request path-for]] (subject-path path-for subject))
+    (fnk [subject [:request path-for]] (path path-for subject))
 
-    :handle-exception (hu/duplicate-exception "Subject exists already.")))
+    :handle-exception
+    (hu/duplicate-exception
+      "Subject exists already."
+      (fnk [study [:request path-for]]
+        {:links
+         {:up {:href (study/path path-for study)}}
+         :forms
+         {:lens/create-subject
+          (study/render-create-subject-form path-for study)}}))))
 
 (def delete-handler
   (fnk [conn [:params id path-for]]
