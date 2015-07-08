@@ -4,7 +4,7 @@
             [clojure.core.reducers :as r]
             [liberator.core :refer [resource to-location]]
             [lens.handler.util :as hu]
-            [lens.handler.study :as hs]
+            [lens.handler.study :as study]
             [lens.api :as api]
             [lens.reducers :as lr]
             [clojure.string :as str]
@@ -15,7 +15,7 @@
   {:id (:study-event-def/id def)
    :name (:study-event-def/name def)
    :links
-   {:self {:href (hs/child-path :study-event-def path-for def)}}})
+   {:self {:href (study/child-path :study-event-def path-for def)}}})
 
 (defn render-embedded-list [path-for defs]
   (r/map #(render-embedded path-for %) defs))
@@ -23,7 +23,7 @@
 (def list-handler
   "Resource of all study-event-defs of a study."
   (resource
-    (hs/study-child-list-resource-defaults)
+    (study/study-child-list-resource-defaults)
 
     :handle-ok
     (fnk [study [:request path-for params]]
@@ -34,19 +34,19 @@
                                 (sort-by :study-event-def/id))
                            (api/list-matching-study-event-defs study filter))
             next-page? (not (lr/empty? (hu/paginate (inc page-num) study-events)))
-            path #(-> (hs/child-list-path :study-event-def path-for study %)
+            path #(-> (study/child-list-path :study-event-def path-for study %)
                       (hu/assoc-filter filter))]
         {:links
-         (-> {:up {:href (hs/path path-for study)}
+         (-> {:up {:href (study/path path-for study)}
               :self {:href (path page-num)}}
              (hu/assoc-prev page-num path)
              (hu/assoc-next next-page? page-num path))
          :queries
          {:lens/filter
-          (hu/render-filter-query (hs/child-list-path :study-event-def path-for study))}
+          (hu/render-filter-query (study/child-list-path :study-event-def path-for study))}
          :forms
          {:lens/create-study-event-def
-          (hs/render-study-event-def-form path-for study)}
+          (study/render-create-study-event-def-form path-for study)}
          :embedded
          {:lens/study-event-defs
           (->> (hu/paginate page-num study-events)
@@ -59,7 +59,7 @@
 
     :location
     (fnk [[:request path-for [:params study-id id]]]
-      (hs/child-path :study-event-def path-for study-id id))))
+      (study/child-path :study-event-def path-for study-id id))))
 
 (defn- find-form-ref-path [path-for study-event-def]
   (path-for :find-form-ref-handler
@@ -71,7 +71,7 @@
             :study-id (-> study-event-def :study/_study-event-defs :study/id)
             :study-event-def-id (:study-event-def/id study-event-def)))
 
-(def exists? (hs/exists-study-child? :study-event-def))
+(def exists? (study/exists-study-child? :study-event-def))
 
 (def select-props (hu/select-props :study-event-def :name :desc))
 
@@ -83,8 +83,8 @@
        (assoc-when :desc (:study-event-def/desc def)))
 
    :links
-   {:up {:href (hs/path path-for (:study/_study-event-defs def))}
-    :self {:href (hs/child-path :study-event-def path-for def)}
+   {:up {:href (study/path path-for (:study/_study-event-defs def))}
+    :self {:href (study/child-path :study-event-def path-for def)}
     :profile {:href (path-for :study-event-def-profile-handler)}}
 
    :queries
@@ -119,7 +119,7 @@
     (fnk [[:request [:params study-event-def-id]] :as ctx]
       ((hu/entity-processable (assoc schema :id (s/eq study-event-def-id))) ctx))
 
-    :exists? (fn [ctx] (some-> (hs/exists? ctx) (exists?)))
+    :exists? (fn [ctx] (some-> (study/exists? ctx) (exists?)))
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
@@ -127,8 +127,8 @@
       (when (= 200 status)
         (letk [[def] ctx]
           (hu/md5 (str (:media-type representation)
-                       (hs/path path-for (:study/_study-event-defs def))
-                       (hs/child-path :study-event-def path-for def)
+                       (study/path path-for (:study/_study-event-defs def))
+                       (study/child-path :study-event-def path-for def)
                        (find-form-ref-path path-for def)
                        (append-form-ref-path path-for def)
                        (:name def)
@@ -153,7 +153,7 @@
     (fnk [[:request params]]
       (and (:study-id params) (:id params) (:name params)))
 
-    :exists? hs/exists?
+    :exists? study/exists?
 
     :post!
     (fnk [conn study [:request params]]
@@ -166,7 +166,9 @@
           (throw (ex-info "Duplicate!" {:type :duplicate})))))
 
     :location
-    (fnk [def [:request path-for]] (hs/child-path :study-event-def path-for def))
+    (fnk [def [:request path-for]]
+      (study/child-path :study-event-def path-for def))
 
     :handle-exception
-    (hu/duplicate-exception "The study event def exists already.")))
+    (hu/duplicate-exception
+      "The study event def exists already." study/build-up-link)))

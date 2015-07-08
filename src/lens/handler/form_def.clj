@@ -4,7 +4,7 @@
             [clojure.core.reducers :as r]
             [liberator.core :refer [resource to-location]]
             [lens.handler.util :as hu]
-            [lens.handler.study :as hs]
+            [lens.handler.study :as study]
             [lens.api :as api]
             [lens.reducers :as lr]
             [clojure.string :as str]
@@ -17,7 +17,7 @@
        :name (:name def)
        :links
        {:self
-        {:href (hs/child-path :form-def path-for def)}}}
+        {:href (study/child-path :form-def path-for def)}}}
       #_(assoc-count
         (util/try-until timeout (api/num-form-subjects form-def))
         (path-for :form-count-handler :id (:form-def/id form-def)))))
@@ -28,7 +28,7 @@
 (def list-handler
   "Resource of all form-defs of a study."
   (resource
-    (hs/study-child-list-resource-defaults)
+    (study/study-child-list-resource-defaults)
 
     :handle-ok
     (fnk [study [:request path-for params]]
@@ -39,21 +39,21 @@
                              (sort-by :form-def/id))
                         (api/list-matching-form-defs study filter))
             next-page? (not (lr/empty? (hu/paginate (inc page-num) form-defs)))
-            path #(-> (hs/child-list-path :form-def path-for study %)
+            path #(-> (study/child-list-path :form-def path-for study %)
                       (hu/assoc-filter filter))]
         {:links
-         (-> {:up {:href (hs/path path-for study)}
+         (-> {:up {:href (study/path path-for study)}
               :self {:href (path page-num)}}
              (hu/assoc-prev page-num path)
              (hu/assoc-next next-page? page-num path))
 
          :queries
          {:lens/filter
-          (hu/render-filter-query (hs/child-list-path :form-def path-for study))}
+          (hu/render-filter-query (study/child-list-path :form-def path-for study))}
 
          :forms
          {:lens/create-form-def
-          (hs/render-form-def-form path-for study)}
+          (study/render-create-form-def-form path-for study)}
 
          :embedded
          {:lens/form-defs
@@ -67,9 +67,9 @@
 
     :location
     (fnk [[:request path-for [:params study-id id]]]
-      (hs/child-path :form-def path-for study-id id))))
+      (study/child-path :form-def path-for study-id id))))
 
-(def exists? (hs/exists-study-child? :form-def))
+(def exists? (study/exists-study-child? :form-def))
 
 (def select-props (hu/select-props :form-def :name :desc))
 
@@ -81,8 +81,8 @@
        (assoc-when :desc (:form-def/desc def)))
 
    :links
-   {:up (hs/study-link path-for (:study/_form-defs def))
-    :self {:href (hs/child-path :form-def path-for def)}
+   {:up (study/study-link path-for (:study/_form-defs def))
+    :self {:href (study/child-path :form-def path-for def)}
     :profile {:href (path-for :form-def-profile-handler)}}
 
    :ops #{:update :delete}})
@@ -106,7 +106,7 @@
     (fnk [[:request [:params form-def-id]] :as ctx]
       ((hu/entity-processable (assoc schema :id (s/eq form-def-id))) ctx))
 
-    :exists? (fn [ctx] (some-> (hs/exists? ctx) (exists?)))
+    :exists? (fn [ctx] (some-> (study/exists? ctx) (exists?)))
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
@@ -114,8 +114,8 @@
       (when (= 200 status)
         (letk [[def] ctx]
           (hu/md5 (str (:media-type representation)
-                       (hs/path path-for (:study/_form-defs def))
-                       (hs/child-path :form-def path-for def)
+                       (study/path path-for (:study/_form-defs def))
+                       (study/child-path :form-def path-for def)
                        (:form-def/name def)
                        (:form-def/desc def))))))
 
@@ -134,13 +134,13 @@
   (resource
     (hu/resource-defaults)
 
-    :exists? (fn [ctx] (some-> (hs/exists? ctx) (exists?)))
+    :exists? (fn [ctx] (some-> (study/exists? ctx) (exists?)))
 
     :handle-ok
     (fnk [form-def]
       {:value (api/num-form-subjects form-def)
        :links
-       {:up {:href (hs/child-path :form-def path-for form-def)}
+       {:up {:href (study/child-path :form-def path-for form-def)}
         :self {:href (path-for :form-count-handler :id (:form/id form-def))}}})
 
     :handle-not-found
@@ -154,7 +154,7 @@
     (fnk [[:request params]]
       (and (:study-id params) (:id params) (:name params)))
 
-    :exists? hs/exists?
+    :exists? study/exists?
 
     :post!
     (fnk [conn study [:request params]]
@@ -167,7 +167,8 @@
           (throw (ex-info "Duplicate!" {:type :duplicate})))))
 
     :location
-    (fnk [def [:request path-for]] (hs/child-path :form-def path-for def))
+    (fnk [def [:request path-for]] (study/child-path :form-def path-for def))
 
     :handle-exception
-    (hu/duplicate-exception "The form def exists already.")))
+    (hu/duplicate-exception
+      "The form def exists already." study/build-up-link)))

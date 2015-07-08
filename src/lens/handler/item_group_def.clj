@@ -4,7 +4,7 @@
             [clojure.core.reducers :as r]
             [liberator.core :refer [resource to-location]]
             [lens.handler.util :as hu]
-            [lens.handler.study :as hs]
+            [lens.handler.study :as study]
             [lens.api :as api]
             [lens.reducers :as lr]
             [clojure.string :as str]
@@ -17,7 +17,7 @@
        :name (:item-group-def/name def)
        :links
        {:self
-        {:href (hs/child-path :item-group-def path-for def)}}}
+        {:href (study/child-path :item-group-def path-for def)}}}
       #_(assoc-count
         (util/try-until timeout (api/num-item-group-subjects item-group-def))
         (path-for :item-group-count-handler :id (:item-group/id item-group-def)))))
@@ -28,7 +28,7 @@
 (def list-handler
   "Resource of all item-group-defs of a study."
   (resource
-    (hs/study-child-list-resource-defaults)
+    (study/study-child-list-resource-defaults)
 
     :handle-ok
     (fnk [study [:request path-for params]]
@@ -39,21 +39,22 @@
                                (sort-by :item-group-def/id))
                           (api/list-matching-item-group-defs study filter))
             next-page? (not (lr/empty? (hu/paginate (inc page-num) item-groups)))
-            path #(-> (hs/child-list-path :item-group-def path-for study %)
+            path #(-> (study/child-list-path :item-group-def path-for study %)
                       (hu/assoc-filter filter))]
         {:links
-         (-> {:up {:href (hs/path path-for study)}
+         (-> {:up {:href (study/path path-for study)}
               :self {:href (path page-num)}}
              (hu/assoc-prev page-num path)
              (hu/assoc-next next-page? page-num path))
 
          :queries
          {:lens/filter
-          (hu/render-filter-query (hs/child-list-path :item-group-def path-for study))}
+          (hu/render-filter-query
+            (study/child-list-path :item-group-def path-for study))}
 
          :forms
          {:lens/create-item-group-def
-          (hs/render-item-group-create-form path-for study)}
+          (study/render-create-item-group-create-form path-for study)}
 
          :embedded
          {:lens/item-group-defs
@@ -67,9 +68,9 @@
 
     :location
     (fnk [[:request path-for [:params study-id id]]]
-      (hs/child-path :item-group-def path-for study-id id))))
+      (study/child-path :item-group-def path-for study-id id))))
 
-(def exists? (hs/exists-study-child? :item-group-def))
+(def exists? (study/exists-study-child? :item-group-def))
 
 (def select-props (hu/select-props :item-group-def :name :desc))
 
@@ -81,8 +82,8 @@
        (assoc-when :desc (:item-group-def/desc def)))
 
    :links
-   {:up (hs/study-link path-for (:study/_item-group-defs def))
-    :self {:href (hs/child-path :item-group-def path-for def)}
+   {:up (study/study-link path-for (:study/_item-group-defs def))
+    :self {:href (study/child-path :item-group-def path-for def)}
     :profile {:href (path-for :item-group-def-profile-handler)}}
 
    :ops #{:update :delete}})
@@ -107,7 +108,7 @@
     (fnk [[:request [:params item-group-def-id]] :as ctx]
       ((hu/entity-processable (assoc schema :id (s/eq item-group-def-id))) ctx))
 
-    :exists? (fn [ctx] (some-> (hs/exists? ctx) (exists?)))
+    :exists? (fn [ctx] (some-> (study/exists? ctx) (exists?)))
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
@@ -115,8 +116,8 @@
       (when (= 200 status)
         (letk [[def] ctx]
           (hu/md5 (str (:media-type representation)
-                       (hs/path path-for (:study/_item-group-defs def))
-                       (hs/child-path :item-group-def path-for def)
+                       (study/path path-for (:study/_item-group-defs def))
+                       (study/child-path :item-group-def path-for def)
                        (:name def)
                        (:desc def))))))
 
@@ -135,14 +136,14 @@
   (resource
     (hu/resource-defaults)
 
-    :exists? (fn [ctx] (some-> (hs/exists? ctx) (exists?)))
+    :exists? (fn [ctx] (some-> (study/exists? ctx) (exists?)))
 
     :handle-ok
     (fnk [item-group-def]
       (let [id (:item-group/id item-group-def)]
         {:value (api/num-item-group-subjects item-group-def)
          :links
-         {:up {:href (hs/child-path :item-group-def path-for item-group-def)}
+         {:up {:href (study/child-path :item-group-def path-for item-group-def)}
           :self {:href (path-for :item-group-count-handler :id id)}}}))
 
     :handle-not-found
@@ -156,7 +157,7 @@
     (fnk [[:request params]]
       (and (:study-id params) (:id params) (:name params)))
 
-    :exists? hs/exists?
+    :exists? study/exists?
 
     :post!
     (fnk [conn study [:request params]]
@@ -169,7 +170,9 @@
           (throw (ex-info "Duplicate!" {:type :duplicate})))))
 
     :location
-    (fnk [def [:request path-for]] (hs/child-path :item-group-def path-for def))
+    (fnk [def [:request path-for]]
+      (study/child-path :item-group-def path-for def))
 
     :handle-exception
-    (hu/duplicate-exception "The item group def exists already.")))
+    (hu/duplicate-exception
+      "The item group def exists already." study/build-up-link)))

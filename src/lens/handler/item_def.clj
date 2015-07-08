@@ -4,7 +4,7 @@
             [clojure.core.reducers :as r]
             [liberator.core :refer [resource to-location]]
             [lens.handler.util :as hu]
-            [lens.handler.study :as hs]
+            [lens.handler.study :as study]
             [lens.api :as api]
             [lens.reducers :as lr]
             [clojure.string :as str]
@@ -16,7 +16,7 @@
        :name (:item-def/name def)
        :data-type (keyword (name (:item-def/data-type def)))
        :links
-       (-> {:self {:href (hs/child-path :item-def path-for def)}}
+       (-> {:self {:href (study/child-path :item-def path-for def)}}
            #_(assoc-code-list-link item))}
       (assoc-when :desc (:item-def/desc def))
       (assoc-when :question (:item-def/question def))
@@ -30,7 +30,7 @@
 (def list-handler
   "Resource of all item-defs of a study."
   (resource
-    (hs/study-child-list-resource-defaults)
+    (study/study-child-list-resource-defaults)
 
     :handle-ok
     (fnk [study [:request path-for params]]
@@ -41,21 +41,21 @@
                          (sort-by :item-def/id))
                     (api/list-matching-item-defs study filter))
             next-page? (not (lr/empty? (hu/paginate (inc page-num) items)))
-            path #(-> (hs/child-list-path :item-def path-for study %)
+            path #(-> (study/child-list-path :item-def path-for study %)
                       (hu/assoc-filter filter))]
         {:links
-         (-> {:up {:href (hs/path path-for study)}
+         (-> {:up {:href (study/path path-for study)}
               :self {:href (path page-num)}}
              (hu/assoc-prev page-num path)
              (hu/assoc-next next-page? page-num path))
 
          :queries
          {:lens/filter
-          (hu/render-filter-query (hs/child-list-path :item-def path-for study))}
+          (hu/render-filter-query (study/child-list-path :item-def path-for study))}
 
          :forms
          {:lens/create-item-def
-          (hs/render-item-def-form path-for study)}
+          (study/render-create-item-def-form path-for study)}
 
          :embedded
          {:lens/item-defs
@@ -69,9 +69,9 @@
 
     :location
     (fnk [[:request path-for [:params study-id id]]]
-      (hs/child-path :item-def path-for study-id id))))
+      (study/child-path :item-def path-for study-id id))))
 
-(def exists? (hs/exists-study-child? :item-def))
+(def exists? (study/exists-study-child? :item-def))
 
 (def select-props (hu/select-props :item-def :name :data-type :desc :question))
 
@@ -87,14 +87,14 @@
        (assoc-when :question (:item-def/question def)))
 
    :links
-   {:up (hs/study-link path-for (:study/_item-defs def))
-    :self {:href (hs/child-path :item-def path-for def)}
+   {:up (study/study-link path-for (:study/_item-defs def))
+    :self {:href (study/child-path :item-def path-for def)}
     :profile {:href (path-for :item-def-profile-handler)}}
 
    :ops #{:update :delete}})
 
 (def schema {:name s/Str
-             :data-type hs/item-def-data-type-schema
+             :data-type study/item-def-data-type-schema
              (s/optional-key :length) s/Int
              (s/optional-key :significant-digits) s/Int
              (s/optional-key :origin) s/Str
@@ -119,7 +119,7 @@
     (fnk [[:request [:params item-def-id]] :as ctx]
       ((hu/entity-processable (assoc schema :id (s/eq item-def-id))) ctx))
 
-    :exists? (fn [ctx] (some-> (hs/exists? ctx) (exists?)))
+    :exists? (fn [ctx] (some-> (study/exists? ctx) (exists?)))
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
@@ -127,8 +127,8 @@
       (when (= 200 status)
         (letk [[def] ctx]
           (hu/md5 (str (:media-type representation)
-                       (hs/path path-for (:study/_item-defs def))
-                       (hs/child-path :item-def path-for def)
+                       (study/path path-for (:study/_item-defs def))
+                       (study/child-path :item-def path-for def)
                        (:item-def/name def)
                        (:item-def/data-type def)
                        (:item-def/desc def)
@@ -173,7 +173,7 @@
     (fnk [[:request params]]
       (and (:study-id params) (:id params) (:name params) (:data-type params)))
 
-    :exists? hs/exists?
+    :exists? study/exists?
 
     :post!
     (fnk [conn study [:request params]]
@@ -186,7 +186,8 @@
           (throw (ex-info "Duplicate!" {:type :duplicate})))))
 
     :location
-    (fnk [def [:request path-for]] (hs/child-path :item-def path-for def))
+    (fnk [def [:request path-for]] (study/child-path :item-def path-for def))
 
     :handle-exception
-    (hu/duplicate-exception "The item def exists already.")))
+    (hu/duplicate-exception
+      "The item def exists already." study/build-up-link)))

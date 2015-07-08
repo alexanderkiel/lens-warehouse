@@ -62,14 +62,7 @@
     (fnk [subject [:request path-for]] (path path-for subject))
 
     :handle-exception
-    (hu/duplicate-exception
-      "Subject exists already."
-      (fnk [study [:request path-for]]
-        {:links
-         {:up {:href (study/path path-for study)}}
-         :forms
-         {:lens/create-subject
-          (study/render-create-subject-form path-for study)}}))))
+    (hu/duplicate-exception "The subject exists already." study/build-up-link)))
 
 (def delete-handler
   (fnk [conn [:params id path-for]]

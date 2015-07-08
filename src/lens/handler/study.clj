@@ -52,21 +52,21 @@
     :name {:type s/Str :desc "A short name for the study."}
     :desc {:type s/Str :desc "A free-text description of the study."}}})
 
-(defn render-study-event-def-form [path-for study]
+(defn render-create-study-event-def-form [path-for study]
   {:href (child-action-path :study-event-def :create path-for study)
    :params
    {:id {:type s/Str}
     :name {:type s/Str}
     :desc {:type s/Str :optional true}}})
 
-(defn render-form-def-form [path-for study]
+(defn render-create-form-def-form [path-for study]
   {:href (child-action-path :form-def :create path-for study)
    :params
    {:id {:type s/Str}
     :name {:type s/Str}
     :desc {:type s/Str :optional true}}})
 
-(defn render-item-group-create-form [path-for study]
+(defn render-create-item-group-create-form [path-for study]
   {:href (child-action-path :item-group-def :create path-for study)
    :params
    {:id {:type s/Str}
@@ -75,7 +75,7 @@
 
 (def item-def-data-type-schema (s/enum :text :integer))
 
-(defn render-item-def-form [path-for study]
+(defn render-create-item-def-form [path-for study]
   {:href (child-action-path :item-def :create path-for study)
    :params
    {:id {:type s/Str}
@@ -124,16 +124,16 @@
 
    :forms
    {:lens/create-study-event-def
-    (render-study-event-def-form path-for study)
+    (render-create-study-event-def-form path-for study)
 
     :lens/create-form-def
-    (render-form-def-form path-for study)
+    (render-create-form-def-form path-for study)
 
     :lens/create-item-group-def
-    (render-item-group-create-form path-for study)
+    (render-create-item-group-create-form path-for study)
 
     :lens/create-item-def
-    (render-item-def-form path-for study)
+    (render-create-item-def-form path-for study)
 
     :lens/create-subject
     (render-create-subject-form path-for study)}
@@ -298,3 +298,6 @@
    (let [handler (keyword (str (name child-type) "-handler"))
          child-id-key (keyword (str (name child-type) "-id"))]
      (path-for handler :study-id study-id child-id-key child-id))))
+
+(defnk build-up-link [study [:request path-for]]
+  {:links {:up {:href (path path-for study)}}})

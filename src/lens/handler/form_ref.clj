@@ -3,7 +3,7 @@
   (:require [liberator.core :refer [resource]]
             [schema.core :as s]
             [lens.handler.util :as hu]
-            [lens.handler.study :as hs]
+            [lens.handler.study :as study]
             [lens.handler.study-event-def :as hse]))
 
 (defn- form-ref-path
@@ -27,7 +27,7 @@
     (fnk [[:request params]]
       (hu/validate AppendParamSchema params))
 
-    :exists? (fn [ctx] (some-> (hs/exists? ctx) (hse/exists?)))
+    :exists? (fn [ctx] (some-> (study/exists? ctx) (hse/exists?)))
 
     #_:post!
     #_(fnk [conn study-event-def [:request params]]
@@ -40,4 +40,6 @@
     :location
     (fnk [form-ref [:request path-for]] (form-ref-path path-for form-ref))
 
-    :handle-exception (hu/duplicate-exception "Form-def exists already.")))
+    :handle-exception
+    (hu/duplicate-exception
+      "The form-ref exists already." study/build-up-link)))
