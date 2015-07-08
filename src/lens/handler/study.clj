@@ -143,7 +143,7 @@
 
 (def select-study-props (hu/select-props :study :name :desc))
 
-(def ^:private schema {:name s/Str :desc s/Str})
+(def schema {:name s/Str :desc s/Str})
 
 (def study-handler
   "Handler for GET, PUT and DELETE on a study.
@@ -257,26 +257,6 @@
     :location (fnk [study [:request path-for]] (study-path path-for study))
 
     :handle-exception (hu/duplicate-exception "Study exists already.")))
-
-(def study-profile-handler
-  (resource
-    (hu/resource-defaults :cache-control "max-age=3600")
-
-    ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
-    :etag
-    (fnk [representation {status 200} [:request path-for]]
-      (when (= 200 status)
-        (hu/md5 (str (:media-type representation)
-                     (path-for :service-document-handler)
-                     (path-for :study-profile-handler)))))
-
-    :handle-ok
-    (fnk [[:request path-for]]
-      {:data
-       {:schema schema}
-       :links
-       {:up {:href (path-for :service-document-handler)}
-        :self {:href (path-for :study-profile-handler)}}})))
 
 ;; ---- For Childs ------------------------------------------------------------
 

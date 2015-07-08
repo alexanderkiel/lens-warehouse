@@ -1,7 +1,7 @@
 (ns lens.handler.util
   (:use plumbing.core)
   (:require [cemerick.url :refer [url url-encode url-decode]]
-            [liberator.core :as l]
+            [liberator.core :as l :refer [resource]]
             [liberator.representation :refer [Representation as-response]]
             [lens.util :as util]
             [pandect.algo.md5 :as md5]
@@ -182,3 +182,24 @@
    {:filter
     {:type s/Str
      :desc "Search query which allows Lucene syntax."}}})
+
+(defn profile-handler [key schema]
+  (let [name (keyword (str (name key) "-profile-handler"))]
+    (resource
+      (resource-defaults :cache-control "max-age=3600")
+
+      ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
+      :etag
+      (fnk [representation {status 200} [:request path-for]]
+        (when (= 200 status)
+          (md5 (str (:media-type representation)
+                    (path-for :service-document-handler)
+                    (path-for name)))))
+
+      :handle-ok
+      (fnk [[:request path-for]]
+        {:data
+         {:schema schema}
+         :links
+         {:up {:href (path-for :service-document-handler)}
+          :self {:href (path-for name)}}}))))

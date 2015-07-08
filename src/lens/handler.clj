@@ -16,7 +16,8 @@
             [lens.handler.form-def :as form-def]
             [lens.handler.item-group-def :as item-group-def]
             [lens.handler.item-def :as item-def]
-            [schema.core :as s])
+            [schema.core :as s]
+            [lens.handler.util :as hu])
   (:import [java.util UUID]))
 
 ;; ---- Service Document ------------------------------------------------------
@@ -412,13 +413,13 @@
    :find-study-handler find-study-handler
    :study-handler study-handler
    :create-study-handler create-study-handler
-   :study-profile-handler study-profile-handler
+   :study-profile-handler (hu/profile-handler :study schema)
 
    :study-study-event-defs-handler study-event-def/list-handler
    :find-study-event-def-handler study-event-def/find-handler
    :study-event-def-handler study-event-def/handler
    :create-study-event-def-handler study-event-def/create-handler
-   :study-event-def-profile-handler study-event-def/profile-handler
+   :study-event-def-profile-handler (hu/profile-handler :study-event-def study-event-def/schema)
 
    ;:find-form-ref-handler find-form-ref-handler
    :create-form-ref-handler create-form-ref-handler
@@ -428,20 +429,21 @@
    :form-def-handler form-def/handler
    :form-count-handler (form-def/form-def-count-handler path-for)
    :create-form-def-handler form-def/create-handler
-   :form-def-profile-handler form-def/profile-handler
+   :form-def-profile-handler (hu/profile-handler :form-def form-def/schema)
 
    :study-item-group-defs-handler item-group-def/list-handler
    :find-item-group-def-handler item-group-def/find-handler
    :item-group-def-handler item-group-def/handler
    :item-group-count-handler (item-group-def/item-group-def-count-handler path-for)
    :create-item-group-def-handler item-group-def/create-handler
+   :item-group-def-profile-handler (hu/profile-handler :item-group-def item-group-def/schema)
 
    :study-item-defs-handler item-def/list-handler
    :find-item-def-handler item-def/find-handler
    :item-def-handler item-def/handler
    :item-def-count-handler (item-def/item-def-count-handler path-for)
    :create-item-def-handler item-def/create-handler
-   :item-def-profile-handler item-def/profile-handler
+   :item-def-profile-handler (hu/profile-handler :item-def item-def/schema)
 
    :item-code-list-item-count-handler
    (item-code-list-item-count-handler path-for)

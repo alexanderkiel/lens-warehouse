@@ -70,4 +70,5 @@
     "/study-profile" :study-profile-handler
     "/study-event-def-profile" :study-event-def-profile-handler
     "/form-def-profile" :form-def-profile-handler
+    "/item-group-def-profile" :item-group-def-profile-handler
     "/item-def-profile" :item-def-profile-handler}])
