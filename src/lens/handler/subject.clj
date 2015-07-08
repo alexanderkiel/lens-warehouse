@@ -38,13 +38,18 @@
     :handle-not-found
     (fnk [[:request path-for]] (hu/error-body path-for "Subject not found."))))
 
+(def CreateParamSchema
+  {:study-id s/Str
+   :id s/Str
+   s/Any s/Any})
+
 (def create-handler
   (resource
     (hu/standard-create-resource-defaults)
 
     :processable?
     (fnk [[:request params]]
-      (and (:study-id params) (:id params)))
+      (hu/validate CreateParamSchema params))
 
     :exists? hs/exists?
 
