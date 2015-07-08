@@ -146,13 +146,20 @@
     :handle-not-found
     (hu/error-body path-for "Form not found.")))
 
+(def CreateParamSchema
+  {:study-id util/NonBlankStr
+   :id util/NonBlankStr
+   :name util/NonBlankStr
+   (s/optional-key :desc) s/Str
+   s/Any s/Any})
+
 (def create-handler
   (resource
     (hu/standard-create-resource-defaults)
 
     :processable?
     (fnk [[:request params]]
-      (and (:study-id params) (:id params) (:name params)))
+      (hu/validate CreateParamSchema params))
 
     :exists? study/exists?
 

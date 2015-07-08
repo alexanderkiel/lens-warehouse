@@ -156,6 +156,18 @@
                  :conn (connect))]
       (is (= 422 (:status resp)))))
 
+  (testing "Create with blank id fails"
+    (let [resp (execute create-handler :post
+                 :params {:study-id "s-100937" :id "" :name "name-185223"}
+                 :conn (connect))]
+      (is (= 422 (:status resp)))))
+
+  (testing "Create with blank name fails"
+    (let [resp (execute create-handler :post
+                 :params {:study-id "s-100937" :id "id-224305" :name ""}
+                 :conn (connect))]
+      (is (= 422 (:status resp)))))
+
   (testing "Create with id and name only"
     (let [resp (execute create-handler :post
                  :params {:study-id "s-100937"
