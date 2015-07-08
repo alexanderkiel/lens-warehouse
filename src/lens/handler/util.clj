@@ -66,7 +66,7 @@
         {:error "Missing request body."}))
     {:error "Require conditional update."}))
 
-(defn- validate [schema x]
+(defn validate [schema x]
   (if-let [error (s/check schema x)]
     [false {:error (str "Unprocessable Entity: " (pr-str error))}]
     true))
@@ -128,7 +128,9 @@
 
     :allowed-methods [:post]
 
-    :can-post-to-missing? false))
+    :can-post-to-missing? false
+
+    :handle-unprocessable-entity (error-handler "Unprocessable Entity")))
 
 (defn duplicate-exception [msg]
   (fnk [exception [:request path-for]]

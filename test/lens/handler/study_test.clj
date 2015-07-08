@@ -130,24 +130,24 @@
 
 (deftest create-study-handler-test
   (testing "Create without id, name and description fails"
-    (let [resp (execute create-study-handler :post
+    (let [resp (execute create-handler :post
                  :conn (connect))]
       (is (= 422 (:status resp)))))
 
   (testing "Create without name and description fails"
-    (let [resp (execute create-study-handler :post
+    (let [resp (execute create-handler :post
                  :params {:id "id-224305"}
                  :conn (connect))]
       (is (= 422 (:status resp)))))
 
   (testing "Create without description fails"
-    (let [resp (execute create-study-handler :post
+    (let [resp (execute create-handler :post
                  :params {:id "id-224305" :name "name-105943"}
                  :conn (connect))]
       (is (= 422 (:status resp)))))
 
   (testing "Create succeeds"
-    (let [resp (execute create-study-handler :post
+    (let [resp (execute create-handler :post
                  :params {:id "id-224211" :name "name-224240"
                           :desc "desc-110014"}
                  :conn (connect))]
@@ -157,7 +157,7 @@
 
   (testing "Create with existing id fails"
     (create-study "id-224419")
-    (let [resp (execute create-study-handler :post
+    (let [resp (execute create-handler :post
                  :params {:id "id-224419" :name "name-224240"
                           :desc "desc-110014"}
                  :conn (connect))]

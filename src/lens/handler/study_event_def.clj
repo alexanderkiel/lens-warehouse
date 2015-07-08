@@ -67,7 +67,7 @@
             :study-event-def-id (:study-event-def/id study-event-def)))
 
 (defn- append-form-ref-path [path-for study-event-def]
-  (path-for :create-form-ref-handler
+  (path-for :append-form-ref-handler
             :study-id (-> study-event-def :study/_study-event-defs :study/id)
             :study-event-def-id (:study-event-def/id study-event-def)))
 

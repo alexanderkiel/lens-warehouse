@@ -238,15 +238,19 @@
                (render-embedded-studies path-for)
                (into []))}}))))
 
-(def create-study-handler
+(def CreateParamSchema
+  {:id s/Str
+   :name s/Str
+   :desc s/Str
+   s/Any s/Any})
+
+(def create-handler
   (resource
     (hu/standard-create-resource-defaults)
 
     :processable?
     (fnk [[:request params]]
-      (or (and (:id params) (:name params) (:desc params))
-          [false {:error (str ":id, :name or :desc missing in "
-                              (keys params))}]))
+      (hu/validate CreateParamSchema params))
 
     :post!
     (fnk [conn [:request [:params id name desc]]]

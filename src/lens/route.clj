@@ -24,7 +24,7 @@
 
         "/form-refs"
         {"" {:get :form-refs-handler
-             :post :create-form-ref-handler}
+             :post :append-form-ref-handler}
          ["/" :form-def-id] :form-ref-handler}}}
 
       "/find-form-def" :find-form-def-handler

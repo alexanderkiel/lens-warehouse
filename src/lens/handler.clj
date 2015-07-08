@@ -14,6 +14,7 @@
             [lens.handler.study :as hs]
             [lens.handler.study-event-def :as study-event-def]
             [lens.handler.form-def :as form-def]
+            [lens.handler.form-ref :as form-ref]
             [lens.handler.item-group-def :as item-group-def]
             [lens.handler.item-def :as item-def]
             [schema.core :as s]
@@ -57,42 +58,6 @@
                 (path-for :create-study-handler))))
 
     :handle-ok (render-service-document version)))
-
-;; ---- Form Refs --------------------------------------------------------------
-
-(defn- form-ref-path
-  ([path-for form-ref]
-   (form-ref-path path-for (:study/id (:study/_form-refs form-ref))
-                  (:form-ref/id form-ref)))
-  ([path-for study-id form-ref-id]
-   (path-for :form-ref-handler :study-id study-id :form-ref-id form-ref-id)))
-
-
-;; ---- Form Ref --------------------------------------------------------------
-
-(def create-form-ref-handler
-  (resource
-    (standard-create-resource-defaults)
-
-    :processable?
-    (fnk [[:request params]]
-      (and (:study-id params) (:study-event-def-id params) (:form-id params)
-           (:order-number params)))
-
-    :exists? (fn [ctx] (some-> (hs/exists? ctx) (study-event-def/exists?)))
-
-    #_:post!
-    #_(fnk [conn study-event-def [:request params]]
-      (if-let [form-ref (api/create-form-ref conn study-event-def 
-                                             (:form-id params)
-                                             (:order-number params))]
-        {:form-ref form-ref}
-        (throw (ex-info "Duplicate!" {:type :duplicate}))))
-
-    :location
-    (fnk [form-ref [:request path-for]] (form-ref-path path-for form-ref))
-
-    :handle-exception (duplicate-exception "Form-def exists already.")))
 
 (defn item-code-list-item-count-handler [path-for]
   (resource
@@ -412,7 +377,7 @@
    :all-studies-handler hs/all-studies-handler
    :find-study-handler hs/find-study-handler
    :study-handler hs/study-handler
-   :create-study-handler hs/create-study-handler
+   :create-study-handler hs/create-handler
    :study-profile-handler (hu/profile-handler :study hs/schema)
 
    :study-study-event-defs-handler study-event-def/list-handler
@@ -422,7 +387,7 @@
    :study-event-def-profile-handler (hu/profile-handler :study-event-def study-event-def/schema)
 
    ;:find-form-ref-handler find-form-ref-handler
-   :create-form-ref-handler create-form-ref-handler
+   :append-form-ref-handler form-ref/append-handler
 
    :study-form-defs-handler form-def/list-handler
    :find-form-def-handler form-def/find-handler
