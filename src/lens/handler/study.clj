@@ -206,10 +206,12 @@
     :handle-ok render))
 
 (defn render-embedded-study [path-for study]
-  {:id (:study/id study)
-   :name (:study/name study)
-   :desc (:study/desc study)
-   :links {:self {:href (path path-for study)}}})
+  {:data
+   {:id (:study/id study)
+    :name (:study/name study)
+    :desc (:study/desc study)}
+   :links
+   {:self {:href (path path-for study)}}})
 
 (defn render-embedded-studies [path-for studies]
   (r/map #(render-embedded-study path-for %) studies))
