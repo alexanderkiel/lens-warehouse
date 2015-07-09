@@ -26,12 +26,18 @@
   {:pre [db (string? id)]}
   (d/entity db [:study/id id]))
 
+(defn- to-eid [db part id]
+  (+ (bit-shift-left (:db/id (d/entity db part)) 42) id))
+
 (defn find-entity
   "Returns the entity with type and eid or nil if none was found.
 
   Type is something like :study or :form-def."
   [db type eid]
-  (let [e (d/entity db (if (string? eid) (sid/base62-to-int eid) eid))]
+  (let [eid (if (string? eid)
+              (to-eid db :part/meta-data (sid/base62-to-int eid))
+              eid)
+        e (d/entity db eid)]
     (when ((keyword (name type) "id") e)
       e)))
 

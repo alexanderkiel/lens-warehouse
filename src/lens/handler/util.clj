@@ -7,7 +7,8 @@
             [pandect.algo.md5 :as md5]
             [schema.core :as s]
             [lens.api :as api]
-            [shortid.core :as sid])
+            [shortid.core :as sid]
+            [datomic.api :as d])
   (:refer-clojure :exclude [error-handler]))
 
 (defn error-body
@@ -220,4 +221,6 @@
       {type entity})))
 
 (defn entity-id [entity]
-  (sid/int-to-base62 (:db/id entity)))
+  (let [db (d/entity-db entity)
+        part-id (:db/id (d/entity db :part/meta-data))]
+    (sid/int-to-base62 (- (:db/id entity) (bit-shift-left part-id 42)))))
