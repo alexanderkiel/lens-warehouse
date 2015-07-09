@@ -14,12 +14,12 @@
   ([path-for page-num] (path-for :all-studies-handler :page-num page-num)))
 
 (defn path [path-for study]
-  (path-for :study-handler :study-id (:study/id study)))
+  (path-for :study-handler :eid (hu/entity-id study)))
 
 (defn study-link [path-for study]
   {:href (path path-for study) :title (:study/name study)})
 
-(def find-study-handler
+(def find-handler
   (resource
     (hu/redirect-resource-defaults)
 
@@ -27,19 +27,24 @@
     (fnk [[:request params]]
       (:id params))
 
+    :existed?
+    (fnk [db [:request [:params id]]]
+      (when-let [study (api/find-study db id)]
+        {:study study}))
+
     :location
-    (fnk [[:request path-for [:params id]]]
-      (path path-for {:study/id id}))))
+    (fnk [study [:request path-for]]
+      (path path-for study))))
 
 (defn child-list-path
   ([child-type path-for study] (child-list-path child-type path-for study 1))
   ([child-type path-for study page-num]
    (let [list-handler (keyword (str "study-" (name child-type) "s-handler"))]
-     (path-for list-handler :study-id (:study/id study) :page-num page-num))))
+     (path-for list-handler :eid (hu/entity-id study) :page-num page-num))))
 
 (defn child-action-path [child-type action path-for study]
-  (let [find-handler (keyword (str (name action) "-" (name child-type) "-handler"))]
-    (path-for find-handler :study-id (:study/id study))))
+  (let [handler (keyword (str (name action) "-" (name child-type) "-handler"))]
+    (path-for handler :eid (hu/entity-id study))))
 
 (defn- render-child-find-query [child-type path-for study]
   {:href (child-action-path child-type :find path-for study)
@@ -90,7 +95,7 @@
    :params
    {:id {:type s/Str}}})
 
-(defnk render-study [study [:request path-for]]
+(defnk render [study [:request path-for]]
   {:data
    {:id (:study/id study)
     :name (:study/name study)
@@ -140,15 +145,11 @@
 
    :ops #{:update :delete}})
 
-(defnk exists? [db [:request [:params study-id]] :as ctx]
-  (when-let [study (api/find-study db study-id)]
-    (assoc ctx :study study)))
-
 (def select-study-props (hu/select-props :study :name :desc))
 
 (def schema {:name s/Str :desc s/Str})
 
-(def study-handler
+(def handler
   "Handler for GET, PUT and DELETE on a study.
 
   Implementation note on PUT:
@@ -162,16 +163,17 @@
     (hu/standard-entity-resource-defaults)
 
     :processable?
-    (fnk [[:request [:params study-id]] :as ctx]
-      ((hu/entity-processable (assoc schema :id (s/eq study-id))) ctx))
+    (fnk [db [:request [:params eid]] :as ctx]
+      (let [study-id (:study/id (api/find-entity db :study eid))]
+        ((hu/entity-processable (assoc schema :id (s/eq study-id))) ctx)))
 
-    :exists? exists?
+    :exists? (hu/exists? :study)
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
     (fnk [representation {status 200} [:request path-for] :as ctx]
       (when (= 200 status)
-        (let [study (:study ctx)]
+        (letk [[study] ctx]
           (hu/md5 (str (:media-type representation)
                        (all-studies-path path-for)
                        (path path-for study)
@@ -199,10 +201,9 @@
                                          (select-study-props new-entity))}))
 
     :delete!
-    (fnk [conn study]
-      (api/retract-entity conn (:db/id study)))
+    (fnk [conn study] (api/retract-entity conn (:db/id study)))
 
-    :handle-ok render-study))
+    :handle-ok render))
 
 (defn render-embedded-study [path-for study]
   {:id (:study/id study)
@@ -265,40 +266,14 @@
 
 ;; ---- For Childs ------------------------------------------------------------
 
-(defn study-child-list-resource-defaults []
+(defn child-list-resource-defaults []
   (assoc
     (hu/resource-defaults)
 
-    :processable? (fnk [[:request params]] (:study-id params))
+    :exists? (hu/exists? :study)))
 
-    :exists? exists?))
-
-(defn exists-study-child?
-  "Child types can be:
-
-    * :study-event-def
-    * :form-def
-    * :item-group-def
-    * :item-def"
-  [child-type]
-  (fnk [study [:request params]]
-    (let [child-id (params (keyword (str (name child-type) "-id")))]
-      (when-let [child (api/find-study-child study child-type child-id)]
-        {:def child}))))
-
-(defn child-path
-  ([child-type path-for child]
-   (let [study-key (keyword "study" (str "_" (name child-type) "s"))
-         child-id-key (keyword (name child-type) "id")]
-     (child-path child-type path-for (:study/id (study-key child))
-                 (child-id-key child))))
-  ([child-type path-for study-id child-id]
-   (let [handler (keyword (str (name child-type) "-handler"))
-         child-id-key (keyword (str (name child-type) "-id"))]
-     (path-for handler :study-id study-id child-id-key child-id))))
-
-(defnk build-up-link [[:request path-for [:params study-id]]]
-  {:links {:up {:href (path-for :study-handler :study-id study-id)}}})
+(defnk build-up-link [[:request path-for [:params eid]]]
+  {:links {:up {:href (path-for :study-handler :eid eid)}}})
 
 (def ^:private RedirectParamSchema
   {:id util/NonBlankStr
@@ -317,7 +292,23 @@
   (assoc
     (hu/create-resource-defaults)
 
-    :exists? exists?))
+    :exists? (hu/exists? :study)))
 
 (defn duplicate-exception [msg]
   (hu/duplicate-exception msg build-up-link))
+
+(defn find-child [type]
+  (fnk [db [:request [:params eid id]]]
+    (when-let [study (api/find-entity db :study eid)]
+      (when-let [entity (api/find-study-child study type id)]
+        {:entity entity}))))
+
+(defn find-child-handler [type]
+  (resource
+    (redirect-resource-defaults)
+
+    :existed? (find-child type)
+
+    :location
+    (fnk [entity [:request path-for]]
+      (path-for (keyword (str (name type) "-handler")) :eid (hu/entity-id entity)))))

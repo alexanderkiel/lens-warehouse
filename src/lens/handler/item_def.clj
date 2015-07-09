@@ -11,26 +11,29 @@
             [lens.util :as util]
             [schema.core :as s]))
 
-(defn render-embedded [path-for timeout def]
-  (-> {:id (:item-def/id def)
-       :name (:item-def/name def)
-       :data-type (keyword (name (:item-def/data-type def)))
+(defn path [path-for item-def]
+  (path-for :item-def-handler :eid (hu/entity-id item-def)))
+
+(defn render-embedded [path-for timeout entity]
+  (-> {:id (:item-def/id entity)
+       :name (:item-def/name entity)
+       :data-type (keyword (name (:item-def/data-type entity)))
        :links
-       (-> {:self {:href (study/child-path :item-def path-for def)}}
+       (-> {:self {:href (path path-for entity)}}
            #_(assoc-code-list-link item))}
-      (assoc-when :desc (:item-def/desc def))
-      (assoc-when :question (:item-def/question def))
+      (assoc-when :desc (:item-def/desc entity))
+      (assoc-when :question (:item-def/question entity))
       #_(assoc-count
         (util/try-until timeout (api/num-item-subjects item))
         (path-for :item-def-count-handler :id (:item/id item)))))
 
-(defn render-embedded-list [path-for timeout def]
-  (r/map #(render-embedded path-for timeout %) def))
+(defn render-embedded-list [path-for timeout entities]
+  (r/map #(render-embedded path-for timeout %) entities))
 
 (def list-handler
   "Resource of all item-defs of a study."
   (resource
-    (study/study-child-list-resource-defaults)
+    (study/child-list-resource-defaults)
 
     :handle-ok
     (fnk [study [:request path-for params]]
@@ -63,32 +66,22 @@
                (render-embedded-list path-for (timeout 100))
                (into []))}}))))
 
-(def find-handler
-  (resource
-    (study/redirect-resource-defaults)
-
-    :location
-    (fnk [[:request path-for [:params study-id id]]]
-      (study/child-path :item-def path-for study-id id))))
-
-(def exists? (study/exists-study-child? :item-def))
-
 (def select-props (hu/select-props :item-def :name :data-type :desc :question))
 
 (def prefix-data-type (partial util/prefix-namespace :data-type))
 
-(defnk render [def [:request path-for]]
+(defnk render [item-def [:request path-for]]
   {:data
-   (-> {:id (:item-def/id def)
+   (-> {:id (:item-def/id item-def)
         ;;TODO: alias
-        :name (:item-def/name def)
-        :data-type (keyword (name (:item-def/data-type def)))}
-       (assoc-when :desc (:item-def/desc def))
-       (assoc-when :question (:item-def/question def)))
+        :name (:item-def/name item-def)
+        :data-type (keyword (name (:item-def/data-type item-def)))}
+       (assoc-when :desc (:item-def/desc item-def))
+       (assoc-when :question (:item-def/question item-def)))
 
    :links
-   {:up (study/study-link path-for (:study/_item-defs def))
-    :self {:href (study/child-path :item-def path-for def)}
+   {:up (study/study-link path-for (:study/_item-defs item-def))
+    :self {:href (path path-for item-def)}
     :profile {:href (path-for :item-def-profile-handler)}}
 
    :ops #{:update :delete}})
@@ -116,33 +109,34 @@
     (hu/standard-entity-resource-defaults)
 
     :processable?
-    (fnk [[:request [:params item-def-id]] :as ctx]
-      ((hu/entity-processable (assoc schema :id (s/eq item-def-id))) ctx))
+    (fnk [db [:request [:params eid]] :as ctx]
+      (let [item-def-id (:item-def/id (api/find-entity db :item-def eid))]
+        ((hu/entity-processable (assoc schema :id (s/eq item-def-id))) ctx)))
 
-    :exists? (fn [ctx] (some-> (study/exists? ctx) (exists?)))
+    :exists? (hu/exists? :item-def)
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
     (fnk [representation {status 200} [:request path-for] :as ctx]
       (when (= 200 status)
-        (letk [[def] ctx]
+        (letk [[item-def] ctx]
           (hu/md5 (str (:media-type representation)
-                       (study/path path-for (:study/_item-defs def))
-                       (study/child-path :item-def path-for def)
-                       (:item-def/name def)
-                       (:item-def/data-type def)
-                       (:item-def/desc def)
-                       (:item-def/question def))))))
+                       (study/path path-for (:study/_item-defs item-def))
+                       (path path-for item-def)
+                       (:item-def/name item-def)
+                       (:item-def/data-type item-def)
+                       (:item-def/desc item-def)
+                       (:item-def/question item-def))))))
 
     :put!
-    (fnk [conn def new-entity]
+    (fnk [conn item-def new-entity]
       (let [new-entity (->> (update new-entity :data-type prefix-data-type)
                             (util/prefix-namespace :item-def))]
-        {:update-error (api/update conn def (select-props def)
+        {:update-error (api/update conn item-def (select-props item-def)
                                    (select-props new-entity))}))
 
     :delete!
-    (fnk [conn def] (api/retract-entity conn (:db/id def)))
+    (fnk [conn item-def] (api/retract-entity conn (:db/id item-def)))
 
     :handle-ok render))
 
@@ -150,17 +144,14 @@
   (resource
     (hu/resource-defaults)
 
-    :exists?
-    (fnk [db [:request [:params id]]]
-      (when-let [item (api/find-study-child db :item-def id)]
-        {:item item}))
+    :exists? (hu/exists? :item-def)
 
     :handle-ok
-    (fnk [item]
-      {:value (api/num-item-subjects item)
+    (fnk [item-def]
+      {:value (api/num-item-subjects item-def)
        :links
-       {:up {:href (path-for :item-def-handler :id (:item/id item))}
-        :self {:href (path-for :item-def-count-handler :id (:item/id item))}}})
+       {:up {:href (path-for :item-def-handler :id (:item/id item-def))}
+        :self {:href (path-for :item-def-count-handler :id (:item/id item-def))}}})
 
     :handle-not-found
     (hu/error-body path-for "Item not found.")))
@@ -184,12 +175,12 @@
             data-type (keyword "data-type" (clojure.core/name data-type))
             opts (->> (select-keys params [:desc :question :length])
                       (util/prefix-namespace :item-def))]
-        (if-let [def (api/create-item-def conn study id name data-type opts)]
-          {:def def}
+        (if-let [entity (api/create-item-def conn study id name data-type opts)]
+          {:entity entity}
           (throw (ex-info "Duplicate!" {:type :duplicate})))))
 
     :location
-    (fnk [def [:request path-for]] (study/child-path :item-def path-for def))
+    (fnk [entity [:request path-for]] (path path-for entity))
 
     :handle-exception
     (study/duplicate-exception "The item def exists already.")))

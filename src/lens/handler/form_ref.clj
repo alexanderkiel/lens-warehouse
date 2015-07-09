@@ -32,7 +32,7 @@
     (hu/create-resource-defaults)
 
     :processable? (hu/validate-params AppendParamSchema)
-    :exists? (fn [ctx] (some-> (study/exists? ctx) (hse/exists?)))
+    :exists? (hu/exists? :study-event-def)
 
     #_:post!
     #_(fnk [conn study-event-def [:request params]]

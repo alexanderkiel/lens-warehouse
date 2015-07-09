@@ -11,24 +11,27 @@
             [lens.util :as util]
             [schema.core :as s]))
 
-(defn render-embedded [path-for timeout def]
-  (-> {:id (:form-def/id def)
+(defn path [path-for form-def]
+  (path-for :form-def-handler :eid (hu/entity-id form-def)))
+
+(defn render-embedded [path-for timeout entity]
+  (-> {:id (:form-def/id entity)
        ;;TODO: alias
-       :name (:name def)
+       :name (:name entity)
        :links
        {:self
-        {:href (study/child-path :form-def path-for def)}}}
+        {:href (path path-for entity)}}}
       #_(assoc-count
         (util/try-until timeout (api/num-form-subjects form-def))
         (path-for :form-count-handler :id (:form-def/id form-def)))))
 
-(defn render-embedded-list [path-for timeout defs]
-  (r/map #(render-embedded path-for timeout %) defs))
+(defn render-embedded-list [path-for timeout entities]
+  (r/map #(render-embedded path-for timeout %) entities))
 
 (def list-handler
   "Resource of all form-defs of a study."
   (resource
-    (study/study-child-list-resource-defaults)
+    (study/child-list-resource-defaults)
 
     :handle-ok
     (fnk [study [:request path-for params]]
@@ -61,28 +64,18 @@
                (render-embedded-list path-for (timeout 100))
                (into []))}}))))
 
-(def find-handler
-  (resource
-    (study/redirect-resource-defaults)
-
-    :location
-    (fnk [[:request path-for [:params study-id id]]]
-      (study/child-path :form-def path-for study-id id))))
-
-(def exists? (study/exists-study-child? :form-def))
-
 (def select-props (hu/select-props :form-def :name :desc))
 
-(defnk render [def [:request path-for]]
+(defnk render [form-def [:request path-for]]
   {:data
-   (-> {:id (:form-def/id def)
+   (-> {:id (:form-def/id form-def)
         ;;TODO: alias
-        :name (:form-def/name def)}
-       (assoc-when :desc (:form-def/desc def)))
+        :name (:form-def/name form-def)}
+       (assoc-when :desc (:form-def/desc form-def)))
 
    :links
-   {:up (study/study-link path-for (:study/_form-defs def))
-    :self {:href (study/child-path :form-def path-for def)}
+   {:up (study/study-link path-for (:study/_form-defs form-def))
+    :self {:href (path path-for form-def)}
     :profile {:href (path-for :form-def-profile-handler)}}
 
    :ops #{:update :delete}})
@@ -103,30 +96,31 @@
     (hu/standard-entity-resource-defaults)
 
     :processable?
-    (fnk [[:request [:params form-def-id]] :as ctx]
-      ((hu/entity-processable (assoc schema :id (s/eq form-def-id))) ctx))
+    (fnk [db [:request [:params eid]] :as ctx]
+      (let [form-def-id (:form-def/id (api/find-entity db :form-def eid))]
+        ((hu/entity-processable (assoc schema :id (s/eq form-def-id))) ctx)))
 
-    :exists? (fn [ctx] (some-> (study/exists? ctx) (exists?)))
+    :exists? (hu/exists? :form-def)
 
     ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
     (fnk [representation {status 200} [:request path-for] :as ctx]
       (when (= 200 status)
-        (letk [[def] ctx]
+        (letk [[form-def] ctx]
           (hu/md5 (str (:media-type representation)
-                       (study/path path-for (:study/_form-defs def))
-                       (study/child-path :form-def path-for def)
-                       (:form-def/name def)
-                       (:form-def/desc def))))))
+                       (study/path path-for (:study/_form-defs form-def))
+                       (path path-for form-def)
+                       (:form-def/name form-def)
+                       (:form-def/desc form-def))))))
 
     :put!
-    (fnk [conn def new-entity]
+    (fnk [conn form-def new-entity]
       (let [new-entity (util/prefix-namespace :form-def new-entity)]
-        {:update-error (api/update-form-def conn def (select-props def)
+        {:update-error (api/update-form-def conn form-def (select-props form-def)
                                             (select-props new-entity))}))
 
     :delete!
-    (fnk [conn def] (api/retract-entity conn (:db/id def)))
+    (fnk [conn form-def] (api/retract-entity conn (:db/id form-def)))
 
     :handle-ok render))
 
@@ -134,14 +128,14 @@
   (resource
     (hu/resource-defaults)
 
-    :exists? (fn [ctx] (some-> (study/exists? ctx) (exists?)))
+    :exists? (hu/exists? :form-def)
 
     :handle-ok
-    (fnk [form-def]
-      {:value (api/num-form-subjects form-def)
+    (fnk [entity]
+      {:value (api/num-form-subjects entity)
        :links
-       {:up {:href (study/child-path :form-def path-for form-def)}
-        :self {:href (path-for :form-count-handler :id (:form/id form-def))}}})
+       {:up {:href (path path-for entity)}
+        :self {:href (path-for :form-count-handler :id (:form/id entity))}}})
 
     :handle-not-found
     (hu/error-body path-for "Form not found.")))
@@ -164,12 +158,12 @@
             opts (->> (select-keys params [:desc])
                       (util/remove-nil-valued-entries)
                       (util/prefix-namespace :form-def))]
-        (if-let [def (api/create-form-def conn study id name opts)]
-          {:def def}
+        (if-let [entity (api/create-form-def conn study id name opts)]
+          {:entity entity}
           (throw (ex-info "Duplicate!" {:type :duplicate})))))
 
     :location
-    (fnk [def [:request path-for]] (study/child-path :form-def path-for def))
+    (fnk [entity [:request path-for]] (path path-for entity))
 
     :handle-exception
     (study/duplicate-exception "The form def exists already.")))

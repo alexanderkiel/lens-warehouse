@@ -23,7 +23,8 @@
                   :exclusions [org.bouncycastle/bcprov-jdk15on potemkin]]
                  [clj-time "0.6.0"]
                  [org.slf4j/slf4j-api "1.7.7"]
-                 [ch.qos.logback/logback-classic "1.1.2"]]
+                 [ch.qos.logback/logback-classic "1.1.2"]
+                 [org.clojars.akiel/shortid "0.1"]]
 
   :profiles {:dev [:datomic-free :dev-common :base :system :user :provided]
              :dev-pro [:datomic-pro :dev-common :base :system :user :provided]

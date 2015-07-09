@@ -7,7 +7,8 @@
             [datomic.api :as d]
             [schema.core :as s]
             [lens.util :as util :refer [entity?]]
-            [lens.k-means :refer [k-means]])
+            [lens.k-means :refer [k-means]]
+            [shortid.core :as sid])
   (:import [java.util UUID])
   (:refer-clojure :exclude [update]))
 
@@ -24,6 +25,15 @@
   [db id]
   {:pre [db (string? id)]}
   (d/entity db [:study/id id]))
+
+(defn find-entity
+  "Returns the entity with type and eid or nil if none was found.
+
+  Type is something like :study or :form-def."
+  [db type eid]
+  (let [e (d/entity db (if (string? eid) (sid/base62-to-int eid) eid))]
+    (when ((keyword (name type) "id") e)
+      e)))
 
 (defn find-study-child
   "Returns the child of a study with child-type and id.

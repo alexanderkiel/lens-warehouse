@@ -317,13 +317,13 @@
   {:service-document-handler (service-document-handler version)
 
    :all-studies-handler study/all-studies-handler
-   :find-study-handler study/find-study-handler
-   :study-handler study/study-handler
+   :find-study-handler study/find-handler
+   :study-handler study/handler
    :create-study-handler study/create-handler
    :study-profile-handler (hu/profile-handler :study study/schema)
 
    :study-study-event-defs-handler study-event-def/list-handler
-   :find-study-event-def-handler study-event-def/find-handler
+   :find-study-event-def-handler (study/find-child-handler :study-event-def)
    :study-event-def-handler study-event-def/handler
    :create-study-event-def-handler study-event-def/create-handler
    :study-event-def-profile-handler (hu/profile-handler :study-event-def study-event-def/schema)
@@ -332,21 +332,21 @@
    :append-form-ref-handler form-ref/append-handler
 
    :study-form-defs-handler form-def/list-handler
-   :find-form-def-handler form-def/find-handler
+   :find-form-def-handler (study/find-child-handler :form-def)
    :form-def-handler form-def/handler
    :form-count-handler (form-def/form-def-count-handler path-for)
    :create-form-def-handler form-def/create-handler
    :form-def-profile-handler (hu/profile-handler :form-def form-def/schema)
 
    :study-item-group-defs-handler item-group-def/list-handler
-   :find-item-group-def-handler item-group-def/find-handler
+   :find-item-group-def-handler (study/find-child-handler :item-group-def)
    :item-group-def-handler item-group-def/handler
    :item-group-count-handler (item-group-def/item-group-def-count-handler path-for)
    :create-item-group-def-handler item-group-def/create-handler
    :item-group-def-profile-handler (hu/profile-handler :item-group-def item-group-def/schema)
 
    :study-item-defs-handler item-def/list-handler
-   :find-item-def-handler item-def/find-handler
+   :find-item-def-handler (study/find-child-handler :item-def)
    :item-def-handler item-def/handler
    :item-def-count-handler (item-def/item-def-count-handler path-for)
    :create-item-def-handler item-def/create-handler

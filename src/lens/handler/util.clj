@@ -5,7 +5,9 @@
             [liberator.representation :refer [Representation as-response]]
             [lens.util :as util]
             [pandect.algo.md5 :as md5]
-            [schema.core :as s])
+            [schema.core :as s]
+            [lens.api :as api]
+            [shortid.core :as sid])
   (:refer-clojure :exclude [error-handler]))
 
 (defn error-body
@@ -211,3 +213,11 @@
          :links
          {:up {:href (path-for :service-document-handler)}
           :self {:href (path-for name)}}}))))
+
+(defn exists? [type]
+  (fnk [db [:request [:params eid]]]
+    (when-let [entity (api/find-entity db type eid)]
+      {type entity})))
+
+(defn entity-id [entity]
+  (sid/int-to-base62 (:db/id entity)))
