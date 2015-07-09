@@ -14,14 +14,18 @@
 (defn path [path-for study-event-def]
   (path-for :study-event-def-handler :eid (hu/entity-id study-event-def)))
 
-(defn render-embedded [path-for entity]
-  {:id (:study-event-def/id entity)
-   :name (:study-event-def/name entity)
-   :links
-   {:self {:href (path path-for entity)}}})
+(defn link [path-for study-event-def]
+  {:href (path path-for study-event-def)
+   :label (:study-event-def/name study-event-def)})
 
-(defn render-embedded-list [path-for entities]
-  (r/map #(render-embedded path-for %) entities))
+(defn render-embedded [path-for study-event-def]
+  {:id (:study-event-def/id study-event-def)
+   :name (:study-event-def/name study-event-def)
+   :links
+   {:self (link path-for study-event-def)}})
+
+(defn render-embedded-list [path-for study-event-defs]
+  (r/map #(render-embedded path-for %) study-event-defs))
 
 (def list-handler
   "Resource of all study-event-defs of a study."
@@ -40,7 +44,7 @@
             path #(-> (study/child-list-path :study-event-def path-for study %)
                       (hu/assoc-filter filter))]
         {:links
-         (-> {:up {:href (study/path path-for study)}
+         (-> {:up (study/link path-for study)
               :self {:href (path page-num)}}
              (hu/assoc-prev page-num path)
              (hu/assoc-next next-page? page-num path))
@@ -76,8 +80,8 @@
        (assoc-when :desc (:study-event-def/desc study-event-def)))
 
    :links
-   {:up {:href (study/path path-for (:study/_study-event-defs study-event-def))}
-    :self {:href (path path-for study-event-def)}
+   {:up (study/link path-for (:study/_study-event-defs study-event-def))
+    :self (link path-for study-event-def)
     :profile {:href (path-for :study-event-def-profile-handler)}}
 
    :queries

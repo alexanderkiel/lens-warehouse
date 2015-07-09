@@ -14,21 +14,25 @@
 (defn path [path-for item-def]
   (path-for :item-def-handler :eid (hu/entity-id item-def)))
 
-(defn render-embedded [path-for timeout entity]
-  (-> {:id (:item-def/id entity)
-       :name (:item-def/name entity)
-       :data-type (keyword (name (:item-def/data-type entity)))
+(defn link [path-for item-def]
+  {:href (path path-for item-def)
+   :label (str "Item Def " (:item-def/name item-def))})
+
+(defn render-embedded [path-for timeout item-def]
+  (-> {:id (:item-def/id item-def)
+       :name (:item-def/name item-def)
+       :data-type (keyword (name (:item-def/data-type item-def)))
        :links
-       (-> {:self {:href (path path-for entity)}}
+       (-> {:self (link path-for item-def)}
            #_(assoc-code-list-link item))}
-      (assoc-when :desc (:item-def/desc entity))
-      (assoc-when :question (:item-def/question entity))
+      (assoc-when :desc (:item-def/desc item-def))
+      (assoc-when :question (:item-def/question item-def))
       #_(assoc-count
         (util/try-until timeout (api/num-item-subjects item))
         (path-for :item-def-count-handler :id (:item/id item)))))
 
-(defn render-embedded-list [path-for timeout entities]
-  (r/map #(render-embedded path-for timeout %) entities))
+(defn render-embedded-list [path-for timeout item-defs]
+  (r/map #(render-embedded path-for timeout %) item-defs))
 
 (def list-handler
   "Resource of all item-defs of a study."
@@ -47,7 +51,7 @@
             path #(-> (study/child-list-path :item-def path-for study %)
                       (hu/assoc-filter filter))]
         {:links
-         (-> {:up {:href (study/path path-for study)}
+         (-> {:up (study/link path-for study)
               :self {:href (path page-num)}}
              (hu/assoc-prev page-num path)
              (hu/assoc-next next-page? page-num path))
@@ -80,8 +84,8 @@
        (assoc-when :question (:item-def/question item-def)))
 
    :links
-   {:up (study/study-link path-for (:study/_item-defs item-def))
-    :self {:href (path path-for item-def)}
+   {:up (study/link path-for (:study/_item-defs item-def))
+    :self (link path-for item-def)
     :profile {:href (path-for :item-def-profile-handler)}}
 
    :ops #{:update :delete}})

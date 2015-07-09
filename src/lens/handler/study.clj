@@ -16,8 +16,8 @@
 (defn path [path-for study]
   (path-for :study-handler :eid (hu/entity-id study)))
 
-(defn study-link [path-for study]
-  {:href (path path-for study) :title (:study/name study)})
+(defn link [path-for study]
+  {:href (path path-for study) :label (str "Study " (:study/name study))})
 
 (def find-handler
   (resource
@@ -41,6 +41,18 @@
   ([child-type path-for study page-num]
    (let [list-handler (keyword (str "study-" (name child-type) "s-handler"))]
      (path-for list-handler :eid (hu/entity-id study) :page-num page-num))))
+
+(defn upper-first [s]
+  (apply str (str/upper-case (str (first s))) (rest s)))
+
+(defn show [child-type]
+  (str/join " " (map upper-first (str/split (name child-type) #"-"))))
+
+(defn child-list-link
+  ([child-type path-for study] (child-list-link child-type path-for study 1))
+  ([child-type path-for study page-num]
+   {:href (child-list-path child-type path-for study page-num)
+    :label (str (show child-type) "s - Page " page-num)}))
 
 (defn child-action-path [child-type action path-for study]
   (let [handler (keyword (str (name action) "-" (name child-type) "-handler"))]
@@ -103,16 +115,16 @@
 
    :links
    {:up {:href (path-for :service-document-handler)}
-    :self {:href (path path-for study)}
+    :self (link path-for study)
     :profile {:href (path-for :study-profile-handler)}
     :lens/study-event-defs
-    {:href (child-list-path :study-event-def path-for study)}
+    (child-list-link :study-event-def path-for study)
     :lens/form-defs
-    {:href (child-list-path :form-def path-for study)}
+    (child-list-link :form-def path-for study)
     :lens/item-group-defs
-    {:href (child-list-path :item-group-def path-for study)}
+    (child-list-link :item-group-def path-for study)
     :lens/item-defs
-    {:href (child-list-path :item-def path-for study)}}
+    (child-list-link :item-def path-for study)}
 
    :queries
    {:lens/find-study-event-def
@@ -211,7 +223,7 @@
     :name (:study/name study)
     :desc (:study/desc study)}
    :links
-   {:self {:href (path path-for study)}}})
+   {:self (link path-for study)}})
 
 (defn render-embedded-studies [path-for studies]
   (r/map #(render-embedded-study path-for %) studies))

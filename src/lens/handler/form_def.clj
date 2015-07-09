@@ -14,19 +14,23 @@
 (defn path [path-for form-def]
   (path-for :form-def-handler :eid (hu/entity-id form-def)))
 
-(defn render-embedded [path-for timeout entity]
-  (-> {:id (:form-def/id entity)
+(defn link [path-for form-def]
+  {:href (path path-for form-def)
+   :label (str "Form Def " (:form-def/name form-def))})
+
+(defn render-embedded [path-for timeout form-def]
+  (-> {:id (:form-def/id form-def)
        ;;TODO: alias
-       :name (:name entity)
+       :name (:name form-def)
        :links
        {:self
-        {:href (path path-for entity)}}}
+        (link path-for form-def)}}
       #_(assoc-count
         (util/try-until timeout (api/num-form-subjects form-def))
         (path-for :form-count-handler :id (:form-def/id form-def)))))
 
-(defn render-embedded-list [path-for timeout entities]
-  (r/map #(render-embedded path-for timeout %) entities))
+(defn render-embedded-list [path-for timeout form-defs]
+  (r/map #(render-embedded path-for timeout %) form-defs))
 
 (def list-handler
   "Resource of all form-defs of a study."
@@ -45,7 +49,7 @@
             path #(-> (study/child-list-path :form-def path-for study %)
                       (hu/assoc-filter filter))]
         {:links
-         (-> {:up {:href (study/path path-for study)}
+         (-> {:up (study/link path-for study)
               :self {:href (path page-num)}}
              (hu/assoc-prev page-num path)
              (hu/assoc-next next-page? page-num path))
@@ -74,8 +78,8 @@
        (assoc-when :desc (:form-def/desc form-def)))
 
    :links
-   {:up (study/study-link path-for (:study/_form-defs form-def))
-    :self {:href (path path-for form-def)}
+   {:up (study/link path-for (:study/_form-defs form-def))
+    :self (link path-for form-def)
     :profile {:href (path-for :form-def-profile-handler)}}
 
    :ops #{:update :delete}})

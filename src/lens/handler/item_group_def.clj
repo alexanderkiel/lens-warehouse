@@ -14,19 +14,23 @@
 (defn path [path-for item-group-def]
   (path-for :item-group-def-handler :eid (hu/entity-id item-group-def)))
 
-(defn render-embedded [path-for timeout entity]
-  (-> {:id (:item-group-def/id entity)
+(defn link [path-for item-group-def]
+  {:href (path path-for item-group-def)
+   :label (str "Item Group Def " (:item-group-def/name item-group-def))})
+
+(defn render-embedded [path-for timeout item-group-def]
+  (-> {:id (:item-group-def/id item-group-def)
        ;;TODO: alias
-       :name (:item-group-def/name entity)
+       :name (:item-group-def/name item-group-def)
        :links
        {:self
-        {:href (path path-for entity)}}}
+        (link path-for item-group-def)}}
       #_(assoc-count
         (util/try-until timeout (api/num-item-group-subjects item-group-def))
         (path-for :item-group-count-handler :id (:item-group/id item-group-def)))))
 
-(defn render-embedded-list [path-for timeout entities]
-  (r/map #(render-embedded path-for timeout %) entities))
+(defn render-embedded-list [path-for timeout item-group-defs]
+  (r/map #(render-embedded path-for timeout %) item-group-defs))
 
 (def list-handler
   "Resource of all item-group-defs of a study."
@@ -45,7 +49,7 @@
             path #(-> (study/child-list-path :item-group-def path-for study %)
                       (hu/assoc-filter filter))]
         {:links
-         (-> {:up {:href (study/path path-for study)}
+         (-> {:up (study/link path-for study)
               :self {:href (path page-num)}}
              (hu/assoc-prev page-num path)
              (hu/assoc-next next-page? page-num path))
@@ -75,8 +79,8 @@
        (assoc-when :desc (:item-group-def/desc item-group-def)))
 
    :links
-   {:up (study/study-link path-for (:study/_item-group-defs item-group-def))
-    :self {:href (path path-for item-group-def)}
+   {:up (study/link path-for (:study/_item-group-defs item-group-def))
+    :self (link path-for item-group-def)
     :profile {:href (path-for :item-group-def-profile-handler)}}
 
    :ops #{:update :delete}})
@@ -112,8 +116,8 @@
           (hu/md5 (str (:media-type representation)
                        (study/path path-for (:study/_item-group-defs item-group-def))
                        (path path-for item-group-def)
-                       (:name item-group-def)
-                       (:desc item-group-def))))))
+                       (:item-group/name item-group-def)
+                       (:item-group/desc item-group-def))))))
 
     :put!
     (fnk [conn item-group-def new-entity]
