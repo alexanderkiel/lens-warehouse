@@ -90,7 +90,8 @@
     :name {:type s/Str}
     :desc {:type s/Str :optional true}}})
 
-(def item-def-data-type-schema (s/enum :text :integer))
+(def item-def-data-type-schema (s/enum :text :integer :float :date :time
+                                       :datetime :string :boolean))
 
 (defn render-create-item-def-form [path-for study]
   {:href (child-action-path :item-def :create path-for study)
