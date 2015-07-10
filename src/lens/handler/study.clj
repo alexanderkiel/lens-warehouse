@@ -202,8 +202,8 @@
                        (child-action-path :item-def :find path-for study)
                        (child-action-path :item-def :create path-for study)
                        (child-action-path :subject :create path-for study)
-                       (:name study)
-                       (:desc study))))))
+                       (:study/name study)
+                       (:study/desc study))))))
 
     :put!
     (fnk [conn study new-entity]
