@@ -28,6 +28,8 @@
     (let [conn (connect uri)]
       (if (string? conn)
         {:status 503
-         :body conn}
+         :body
+         {:data
+          {:message conn}}}
         (let [request (-> request (assoc-conn conn) (assoc-db conn))]
           (handler request))))))
