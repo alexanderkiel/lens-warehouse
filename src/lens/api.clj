@@ -5,11 +5,9 @@
             [clojure.core.reducers :as r]
             [clojure.core.cache :as cache]
             [datomic.api :as d]
-            [schema.core :as s]
-            [lens.util :as util :refer [entity?]]
-            [lens.k-means :refer [k-means]]
-            [shortid.core :as sid])
-  (:import [java.util UUID])
+            [schema.core :as s :refer [Str Uuid]]
+            [lens.util :as util :refer [entity? EId Study]]
+            [lens.k-means :refer [k-means]])
   (:refer-clojure :exclude [update]))
 
 ;; ---- Last Loaded -----------------------------------------------------------
@@ -20,31 +18,24 @@
 
 ;; ---- Single Accessors ------------------------------------------------------
 
-(defn find-study
+(s/defn find-study
   "Returns the study with the id or nil if none was found."
-  [db id]
-  {:pre [db (string? id)]}
+  [db id :- Str]
   (d/entity db [:study/id id]))
 
-(defn- to-eid [db part id]
-  (+ (bit-shift-left (:db/id (d/entity db part)) 42) id))
-
-(defn find-entity
+(s/defn find-entity
   "Returns the entity with type and eid or nil if none was found.
 
   Type is something like :study or :form-def."
-  ([db type eid]
+  ([db type eid :- EId]
    (find-entity db type :id eid))
   ([db type arg eid]
    (let [pred (keyword (name type) (name arg))
-         eid (if (string? eid)
-               (to-eid db :part/meta-data (sid/base62-to-int eid))
-               eid)
          e (d/entity db eid)]
      (when (pred e)
        e))))
 
-(defn find-study-child
+(s/defn find-study-child
   "Returns the child of a study with child-type and id if there is one.
 
   Child types can be:
@@ -53,31 +44,29 @@
    * :form-def
    * :item-group-def
    * :item-def"
-  [study child-type id]
+  [study child-type id :- Str]
   {:pre [(:study/id study) child-type (string? id)]}
   (let [childs-key (keyword "study" (str (name child-type) "s"))
         child-id-key (keyword (name child-type) "id")]
     (some #(when (= id (child-id-key %)) %) (childs-key study))))
 
-(defn find-subject
+(s/defn find-subject
   "Returns the subject with the id within the study or nil if none was found."
-  [study id]
+  [study :- Study id :- Str]
   {:pre [(:study/id study) (string? id)]}
   (let [db (d/entity-db study)]
     (->> (d/q '[:find ?sub . :in $ ?s ?id :where [?sub :subject/id ?id]
                 [?sub :subject/study ?s]] db (:db/id study) id)
          (d/entity db))))
 
-(defn code-list
+(s/defn code-list
   "Returns the code-list with the given ID or nil if none was found."
-  [db id]
-  {:pre [db (string? id)]}
+  [db id :- Str]
   (d/entity db [:code-list/id id]))
 
-(defn snapshot
+(s/defn snapshot
   "Returns the snapshot with the given ID or nil if none was found."
-  [db id]
-  {:pre [db (instance? UUID id)]}
+  [db id :- Uuid]
   (d/entity db [:tx-id id]))
 
 (def ^:private cli-cache (atom (cache/lru-cache-factory {} :threshold 1024)))

@@ -3,11 +3,12 @@
             [lens.handler.study :refer :all]
             [lens.handler.test-util :refer :all]
             [lens.test-util :refer :all]
-            [clojure.edn :as edn]
-            [lens.api :as api :refer [find-study-child]]
-            [lens.handler.util :as hu]))
+            [lens.api :as api]
+            [lens.handler.util :as hu]
+            [schema.test :refer [validate-schemas]]))
 
 (use-fixtures :each database-fixture)
+(use-fixtures :once validate-schemas)
 
 (defn- etag [eid]
   (-> (execute handler :get :params {:eid eid})
@@ -63,7 +64,7 @@
       (is (= "Missing request body." (error-msg resp)))))
 
   (testing "Update fails on missing name and description"
-    (let [eid (:db/id (create-study "id-174709"))
+    (let [eid (hu/entity-id (create-study "id-174709"))
           resp (execute handler :put
                  :params {:eid eid}
                  :body {:data {}}
@@ -71,7 +72,7 @@
       (is (= 422 (:status resp)))))
 
   (testing "Update fails on missing description"
-    (let [eid (:db/id (create-study "id-113833" "name-202034"))
+    (let [eid (hu/entity-id (create-study "id-113833" "name-202034"))
           resp (execute handler :put
                  :params {:eid eid}
                  :body {:data
@@ -83,7 +84,7 @@
              (error-msg resp)))))
 
   (testing "Update fails on ETag missmatch"
-    (let [eid (:db/id (create-study "id-201514" "name-201516"))
+    (let [eid (hu/entity-id (create-study "id-201514" "name-201516"))
           resp (execute handler :put
                  :params {:eid eid}
                  :body {:data
@@ -94,7 +95,7 @@
       (is (= 412 (:status resp)))))
 
   (testing "Update fails in-transaction on name missmatch"
-    (let [eid (:db/id (create-study "id-114012" "name-202034"))
+    (let [eid (hu/entity-id (create-study "id-114012" "name-202034"))
           req (request :put
                 :params {:eid eid}
                 :body {:data
@@ -111,7 +112,7 @@
       (is (= 409 (:status resp)))))
 
   (testing "Update succeeds"
-    (let [eid (:db/id (create-study "id-143317" "name-143321"))
+    (let [eid (hu/entity-id (create-study "id-143317" "name-143321"))
           resp (execute handler :put
                  :params {:eid eid}
                  :body {:data
@@ -194,7 +195,7 @@
   (let [study (create-study "s-183549")
         _ (api/create-form-def (connect) study "id-224127" "name-124505")
         resp (execute (find-child-handler :form-def) :get
-               :params {:eid (:db/id study) :id "id-224127"})]
+               :params {:eid (hu/entity-id study) :id "id-224127"})]
 
     (is (= 301 (:status resp)))
 

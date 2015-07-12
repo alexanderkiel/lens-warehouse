@@ -1,16 +1,13 @@
 (ns lens.handler-test
   (:require [clojure.test :refer :all]
             [lens.handler :refer :all]
-            [lens.handler.test-util :refer :all]
             [lens.test-util :refer :all]
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
-            [datomic.api :as d]
-            [lens.schema :refer [load-base-schema]]
-            [clojure.edn :as edn]
-            [lens.api :as api :refer [find-study-child]]))
+            [schema.test :refer [validate-schemas]]))
 
 (use-fixtures :each database-fixture)
+(use-fixtures :once validate-schemas)
 
 (defn- visit [birth-date edat]
   {:visit/subject {:subject/birth-date (tc/to-date birth-date)}

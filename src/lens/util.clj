@@ -211,3 +211,10 @@
 
 (def Base62EntityId
   s/Str)
+
+(def EId
+  "Datomic entity id as used in the e-part of the eavt datom."
+  s/Int)
+
+(def Study
+  (s/pred :study/id 'study?))

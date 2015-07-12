@@ -5,9 +5,11 @@
             [lens.test-util :refer :all]
             [lens.api :as api :refer [find-study-child]]
             [datomic.api :as d]
-            [lens.handler.util :as hu]))
+            [lens.handler.util :as hu]
+            [schema.test :refer [validate-schemas]]))
 
 (use-fixtures :each database-fixture)
+(use-fixtures :once validate-schemas)
 
 (defn- etag [eid]
   (-> (execute handler :get :params {:eid eid})
@@ -59,7 +61,7 @@
   (testing "Update fails on missing name"
     (let [eid (-> (create-study "s-114628")
                   (create-form-def "id-224127")
-                  (:db/id))
+                  (hu/entity-id))
           resp (execute handler :put
                  :params {:eid eid}
                  :body {:data {:id "id-224127"}}
@@ -71,7 +73,7 @@
   (testing "Update fails on ETag missmatch"
     (let [eid (-> (create-study "s-114703")
                   (create-form-def "id-224127")
-                  (:db/id))
+                  (hu/entity-id))
           resp (execute handler :put
                  :params {:eid eid}
                  :body {:data {:id "id-224127" :name "foo"}}
@@ -82,7 +84,7 @@
   (testing "Update fails in-transaction on name missmatch"
     (let [form-def (-> (create-study "s-095742")
                        (create-form-def "id-224127" "name-095717"))
-          eid (:db/id form-def)
+          eid (hu/entity-id form-def)
           req (request :put
                 :params {:eid eid}
                 :body {:data {:id "id-224127" :name "name-202906"}}
@@ -98,7 +100,7 @@
   (testing "Update name succeeds"
     (let [form-def (-> (create-study "s-100836")
                        (create-form-def "id-224127" "name-095717"))
-          eid (:db/id form-def)
+          eid (hu/entity-id form-def)
           resp (execute handler :put
                  :params {:eid eid}
                  :body {:data {:id "id-224127" :name "name-143536"}}
@@ -110,7 +112,7 @@
   (testing "Update can add desc"
     (let [form-def (-> (create-study "s-120219")
                        (create-form-def "id-224127" "name-095717"))
-          eid (:db/id form-def)
+          eid (hu/entity-id form-def)
           resp (execute handler :put
                  :params {:eid eid}
                  :body {:data {:id "id-224127"
@@ -124,7 +126,7 @@
   (testing "Update can remove desc"
     (let [form-def (-> (create-study "s-100937")
                        (create-form-def "id-224127" "name-095717" "desc-120029"))
-          eid (:db/id form-def)
+          eid (hu/entity-id form-def)
           resp (execute handler :put
                  :params {:eid eid}
                  :body {:data {:id "id-224127" :name "name-095717"}}
@@ -163,7 +165,7 @@
   (testing "Create with id and name only"
     (let [study (create-study "s-100937")
           resp (execute create-handler :post
-                 :params {:eid (:db/id study)
+                 :params {:eid (hu/entity-id study)
                           :id "id-224211"
                           :name "name-224240"}
                  :conn (connect))]
@@ -175,7 +177,7 @@
   (testing "Create with description"
     (let [study (create-study "s-152055")
           resp (execute create-handler :post
-                 :params {:eid (:db/id study)
+                 :params {:eid (hu/entity-id study)
                           :id "id-121736"
                           :name "name-224240"
                           :desc "desc-224339"}
@@ -187,7 +189,7 @@
     (let [study (create-study "s-153736")
           _ (create-form-def study "id-153739" "name-095717" "desc-120029")
           resp (execute create-handler :post
-                 :params {:eid (:db/id study)
+                 :params {:eid (hu/entity-id study)
                           :id "id-153739"
                           :name "name-224240"}
                  :conn (connect))]

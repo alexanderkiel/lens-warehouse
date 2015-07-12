@@ -3,9 +3,12 @@
             [lens.handler.subject :refer :all]
             [lens.handler.test-util :refer :all]
             [lens.test-util :refer :all]
-            [lens.api :as api]))
+            [lens.api :as api]
+            [schema.test :refer [validate-schemas]]
+            [lens.handler.util :as hu]))
 
 (use-fixtures :each database-fixture)
+(use-fixtures :once validate-schemas)
 
 (defn- create-subject [study id]
   (api/create-subject (connect) study id))
@@ -14,7 +17,7 @@
   (testing "Body contains self link"
     (let [subject (-> (create-study "s-172046") (create-subject "id-172208"))
           resp (execute handler :get
-                 :params {:eid (:db/id subject)})]
+                 :params {:eid (hu/entity-id subject)})]
       (is (= 200 (:status resp)))
 
       (testing "Body contains a self link"
@@ -35,7 +38,7 @@
     (let [study (create-study "s-174305")
           _ (create-subject study "id-182721")
           resp (execute create-handler :post
-                 :params {:eid (:db/id study) :id "id-182721"}
+                 :params {:eid (hu/entity-id study) :id "id-182721"}
                  :conn (connect))]
       (is (= 409 (:status resp)))))
 
@@ -43,7 +46,7 @@
     (let [study (create-study "s-150908")
           _ (create-subject study "id-182721")
           resp (execute create-handler :post
-                 :params {:eid (:db/id study) :id "id-165339"}
+                 :params {:eid (hu/entity-id study) :id "id-165339"}
                  :conn (connect))]
       (is (= 201 (:status resp)))
 

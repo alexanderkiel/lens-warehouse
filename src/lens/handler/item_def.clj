@@ -112,8 +112,8 @@
 
     :processable?
     (fnk [db [:request [:params eid]] :as ctx]
-      (let [item-def-id (:item-def/id (api/find-entity db :item-def eid))]
-        ((hu/entity-processable (assoc schema :id (s/eq item-def-id))) ctx)))
+      (let [item-def (api/find-entity db :item-def (hu/to-eid db eid))]
+        ((hu/entity-processable (assoc schema :id (s/eq (:item-def/id item-def)))) ctx)))
 
     :exists? (hu/exists? :item-def)
 

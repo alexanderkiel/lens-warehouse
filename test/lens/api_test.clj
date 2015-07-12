@@ -4,7 +4,7 @@
             [lens.schema :refer [load-base-schema]]
             [datomic.api :as d]
             [clojure.core.reducers :as r]
-            [schema.test]))
+            [schema.test :refer [validate-schemas]]))
 
 (defn- connect [] (d/connect "datomic:mem:test"))
 
@@ -16,7 +16,7 @@
   (d/delete-database "datomic:mem:test"))
 
 (use-fixtures :each database-fixture)
-(use-fixtures :once schema.test/validate-schemas)
+(use-fixtures :once validate-schemas)
 
 ;; ---- Study -----------------------------------------------------------------
 

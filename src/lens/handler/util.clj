@@ -5,7 +5,7 @@
             [liberator.representation :refer [Representation as-response]]
             [lens.util :as util]
             [pandect.algo.md5 :as md5]
-            [schema.core :as s]
+            [schema.core :as s :refer [Str]]
             [schema.coerce :as c]
             [schema.utils :as su]
             [lens.api :as api]
@@ -199,7 +199,7 @@
    :title "Filter"
    :params
    {:filter
-    {:type s/Str
+    {:type Str
      :desc "Search query which allows Lucene syntax."}}})
 
 (defn profile-handler [key schema]
@@ -223,15 +223,18 @@
          {:up {:href (path-for :service-document-handler)}
           :self {:href (path-for name)}}}))))
 
-(defn exists?
-  ([type]
-    (exists? type :id))
-  ([type arg]
-   (fnk [db [:request [:params eid]]]
-     (when-let [entity (api/find-entity db type arg eid)]
-       {type entity}))))
-
 (defn entity-id [entity]
   (let [db (d/entity-db entity)
         part-id (:db/id (d/entity db :part/meta-data))]
     (sid/int-to-base62 (- (:db/id entity) (bit-shift-left part-id 42)))))
+
+(s/defn to-eid [db id :- Str]
+  (+ (bit-shift-left (:db/id (d/entity db :part/meta-data)) 42) (sid/base62-to-int id)))
+
+(defn exists?
+  ([type]
+   (exists? type :id))
+  ([type arg]
+   (fnk [db [:request [:params eid]]]
+     (when-let [entity (api/find-entity db type arg (to-eid db eid))]
+       {type entity}))))

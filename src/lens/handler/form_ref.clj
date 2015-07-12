@@ -58,7 +58,7 @@
 
 (def find-form-ref
   (fnk [db [:request [:params eid form-id]]]
-    (when-let [study-event-def (api/find-entity db :study-event-def eid)]
+    (when-let [study-event-def (api/find-entity db :study-event-def (hu/to-eid db eid))]
       (when-let [form-ref (some #(when (= form-id (-> % :form-ref/form
                                                       :form-def/id)) %)
                                 (:study-event-def/form-refs study-event-def))]

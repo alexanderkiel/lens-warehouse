@@ -118,7 +118,8 @@
 
     :processable?
     (fnk [db [:request [:params eid]] :as ctx]
-      ((hu/entity-processable (assoc schema :id (s/eq (:study-event-def/id (api/find-entity db :study-event-def eid))))) ctx))
+      (let [study-event-def (api/find-entity db :study-event-def (hu/to-eid db eid))]
+        ((hu/entity-processable (assoc schema :id (s/eq (:study-event-def/id study-event-def)))) ctx)))
 
     :exists? (hu/exists? :study-event-def)
 
