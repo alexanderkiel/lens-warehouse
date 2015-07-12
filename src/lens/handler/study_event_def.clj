@@ -16,7 +16,7 @@
 
 (defn link [path-for study-event-def]
   {:href (path path-for study-event-def)
-   :label (:study-event-def/name study-event-def)})
+   :label (str "Study Event " (:study-event-def/name study-event-def))})
 
 (defn render-embedded [path-for study-event-def]
   {:id (:study-event-def/id study-event-def)
@@ -33,10 +33,8 @@
     (study/child-list-resource-defaults)
 
     :handle-ok
-    (fnk [study [:request path-for params]]
-      (let [page-num (hu/parse-page-num (:page-num params))
-            filter (:filter params)
-            study-events (if (str/blank? filter)
+    (fnk [study [:request path-for [:params page-num {filter nil}]]]
+      (let [study-events (if (str/blank? filter)
                            (->> (:study/study-event-defs study)
                                 (sort-by :study-event-def/id))
                            (api/list-matching-study-event-defs study filter))
@@ -48,12 +46,15 @@
               :self {:href (path page-num)}}
              (hu/assoc-prev page-num path)
              (hu/assoc-next next-page? page-num path))
+
          :queries
          {:lens/filter
           (hu/render-filter-query (study/child-list-path :study-event-def path-for study))}
+
          :forms
          {:lens/create-study-event-def
           (study/render-create-study-event-def-form path-for study)}
+
          :embedded
          {:lens/study-event-defs
           (->> (hu/paginate page-num study-events)
@@ -61,14 +62,17 @@
                (into []))}}))))
 
 (defn- find-form-ref-path [path-for study-event-def]
-  (path-for :find-form-ref-handler
-            :study-id (-> study-event-def :study/_study-event-defs :study/id)
-            :study-event-def-id (:study-event-def/id study-event-def)))
+  (path-for :find-form-ref-handler :eid (hu/entity-id study-event-def)))
 
-(defn- append-form-ref-path [path-for study-event-def]
-  (path-for :append-form-ref-handler
-            :study-id (-> study-event-def :study/_study-event-defs :study/id)
-            :study-event-def-id (:study-event-def/id study-event-def)))
+(defn- form-refs-path [path-for study-event-def]
+  (path-for :form-refs-handler :eid (hu/entity-id study-event-def) :page-num 1))
+
+(defn- create-form-ref-path [path-for study-event-def]
+  (path-for :create-form-ref-handler :eid (hu/entity-id study-event-def)))
+
+(defn create-form-ref-form [path-for study-event-def]
+  {:href (create-form-ref-path path-for study-event-def)
+   :params {:form-id {:type s/Str}}})
 
 (def select-props (hu/select-props :study-event-def :name :desc))
 
@@ -82,7 +86,8 @@
    :links
    {:up (study/link path-for (:study/_study-event-defs study-event-def))
     :self (link path-for study-event-def)
-    :profile {:href (path-for :study-event-def-profile-handler)}}
+    :profile {:href (path-for :study-event-def-profile-handler)}
+    :lens/form-refs {:href (form-refs-path path-for study-event-def)}}
 
    :queries
    {:lens/find-form-ref
@@ -90,9 +95,8 @@
      :params {:form-id {:type s/Str}}}}
 
    :forms
-   {:lens/append-form-ref
-    {:href (append-form-ref-path path-for study-event-def)
-     :params {:form-id {:type s/Str}}}}
+   {:lens/create-form-ref
+    (create-form-ref-form path-for study-event-def)}
 
    :ops #{:update :delete}})
 
@@ -127,7 +131,7 @@
                        (study/path path-for (:study/_study-event-defs study-event-def))
                        (path path-for study-event-def)
                        (find-form-ref-path path-for study-event-def)
-                       (append-form-ref-path path-for study-event-def)
+                       (create-form-ref-path path-for study-event-def)
                        (:name study-event-def)
                        (:desc study-event-def))))))
 
@@ -170,9 +174,23 @@
     :handle-exception
     (study/duplicate-exception "The study event def exists already.")))
 
-(defnk build-up-link [[:request path-for [:params study-id study-event-def-id]]]
-  {:links {:up {:href (path-for :study-event-def-handler :study-id study-id
-                                :study-event-def-id study-event-def-id)}}})
+(defnk build-up-link [[:request path-for [:params eid]]]
+  {:links {:up {:href (path-for :study-event-def-handler :eid eid)}}})
+
+;; ---- For Childs ------------------------------------------------------------
+
+(def ^:private ChildListParamSchema
+  {:eid util/Base62EntityId
+   :page-num util/PosInt
+   s/Any s/Any})
+
+(defn child-list-resource-defaults []
+  (assoc
+    (hu/resource-defaults)
+
+    :processable? (hu/coerce-params ChildListParamSchema)
+
+    :exists? (hu/exists? :study-event-def)))
 
 (defn redirect-resource-defaults []
   (assoc
@@ -180,3 +198,9 @@
 
     :handle-unprocessable-entity
     (hu/error-handler "Unprocessable Entity" build-up-link)))
+
+(defn create-resource-defaults []
+  (assoc
+    (hu/create-resource-defaults)
+
+    :exists? (hu/exists? :study-event-def)))

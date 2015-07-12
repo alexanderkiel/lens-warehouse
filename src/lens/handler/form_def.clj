@@ -9,7 +9,8 @@
             [lens.reducers :as lr]
             [clojure.string :as str]
             [lens.util :as util]
-            [schema.core :as s]))
+            [schema.core :as s]
+            [schema.coerce :as c]))
 
 (defn path [path-for form-def]
   (path-for :form-def-handler :eid (hu/entity-id form-def)))
@@ -32,41 +33,40 @@
 (defn render-embedded-list [path-for timeout form-defs]
   (r/map #(render-embedded path-for timeout %) form-defs))
 
+(defnk render-list [study [:request path-for [:params page-num {filter nil}]]]
+  (let [form-defs (if (str/blank? filter)
+                    (->> (:study/form-defs study)
+                         (sort-by :form-def/id))
+                    (api/list-matching-form-defs study filter))
+        next-page? (not (lr/empty? (hu/paginate (inc page-num) form-defs)))
+        path #(-> (study/child-list-path :form-def path-for study %)
+                  (hu/assoc-filter filter))]
+    {:links
+     (-> {:up (study/link path-for study)
+          :self {:href (path page-num)}}
+         (hu/assoc-prev page-num path)
+         (hu/assoc-next next-page? page-num path))
+
+     :queries
+     {:lens/filter
+      (hu/render-filter-query (study/child-list-path :form-def path-for study))}
+
+     :forms
+     {:lens/create-form-def
+      (study/render-create-form-def-form path-for study)}
+
+     :embedded
+     {:lens/form-defs
+      (->> (hu/paginate page-num form-defs)
+           (render-embedded-list path-for (timeout 100))
+           (into []))}}))
+
 (def list-handler
   "Resource of all form-defs of a study."
   (resource
     (study/child-list-resource-defaults)
 
-    :handle-ok
-    (fnk [study [:request path-for params]]
-      (let [page-num (hu/parse-page-num (:page-num params))
-            filter (:filter params)
-            form-defs (if (str/blank? filter)
-                        (->> (:study/form-defs study)
-                             (sort-by :form-def/id))
-                        (api/list-matching-form-defs study filter))
-            next-page? (not (lr/empty? (hu/paginate (inc page-num) form-defs)))
-            path #(-> (study/child-list-path :form-def path-for study %)
-                      (hu/assoc-filter filter))]
-        {:links
-         (-> {:up (study/link path-for study)
-              :self {:href (path page-num)}}
-             (hu/assoc-prev page-num path)
-             (hu/assoc-next next-page? page-num path))
-
-         :queries
-         {:lens/filter
-          (hu/render-filter-query (study/child-list-path :form-def path-for study))}
-
-         :forms
-         {:lens/create-form-def
-          (study/render-create-form-def-form path-for study)}
-
-         :embedded
-         {:lens/form-defs
-          (->> (hu/paginate page-num form-defs)
-               (render-embedded-list path-for (timeout 100))
-               (into []))}}))))
+    :handle-ok render-list))
 
 (def select-props (hu/select-props :form-def :name :desc))
 
@@ -87,7 +87,7 @@
 (def schema {:name s/Str (s/optional-key :desc) s/Str})
 
 (def handler
-  "Handler for GET and PUT on a form-def.
+  "Handler for GET, PUT and DELETE on a form-def.
 
   Implementation note on PUT:
 

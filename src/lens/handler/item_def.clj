@@ -40,10 +40,8 @@
     (study/child-list-resource-defaults)
 
     :handle-ok
-    (fnk [study [:request path-for params]]
-      (let [page-num (hu/parse-page-num (:page-num params))
-            filter (:filter params)
-            items (if (str/blank? filter)
+    (fnk [study [:request path-for [:params page-num {filter nil}]]]
+      (let [items (if (str/blank? filter)
                     (->> (:study/item-defs study)
                          (sort-by :item-def/id))
                     (api/list-matching-item-defs study filter))
@@ -100,7 +98,7 @@
              (s/optional-key :question) s/Str})
 
 (def handler
-  "Handler for GET and PUT on an item-def.
+  "Handler for GET, PUT and DELETE on an item-def.
 
   Implementation note on PUT:
 

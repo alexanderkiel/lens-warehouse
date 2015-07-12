@@ -328,8 +328,10 @@
    :create-study-event-def-handler study-event-def/create-handler
    :study-event-def-profile-handler (hu/profile-handler :study-event-def study-event-def/schema)
 
-   ;:find-form-ref-handler form-ref/find-handler
-   :append-form-ref-handler form-ref/append-handler
+   :form-refs-handler form-ref/list-handler
+   :find-form-ref-handler form-ref/find-handler
+   :form-ref-handler form-ref/handler
+   :create-form-ref-handler form-ref/create-handler
 
    :study-form-defs-handler form-def/list-handler
    :find-form-def-handler (study/find-child-handler :form-def)

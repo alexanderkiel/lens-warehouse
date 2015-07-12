@@ -120,11 +120,10 @@
   [[:study-event-refs :ref :many :comp]])
 
 (def study-event-ref
-  "A reference to a form-def as it occurs within a specific StudyEventDef. The
-  list of FormRefs identifies the types of forms that are allowed to occur
-  within this type of study event."
-  [[:study-event :ref]
-   [:rank :long]])
+  "A reference to a StudyEventDef as it occurs within a Study. The list of
+  StudyEventRefs identifies the types of study events that are allowed to occur
+  within the study."
+  [[:study-event :ref]])
 
 (def study-event-def
   "A StudyEventDef packages a set of forms."
@@ -169,33 +168,33 @@
              (throw (ex-info "Conflict!" {:type :conflict
                                           :old-props old-props
                                           :cur-props cur-props}))))
-         (throw (ex-info "Study-event not found." {:type :not-found})))))
-
-   (func add-form-def
-     "Adds a reference to a form-def to this study event def.
-
-     Ensures uniquness of form defs within this study event def."
-     [db study-event-def-eid form-def-eid]
-     (let [study-event-def (d/entity db study-event-def-eid)]
-       (when-not (:study-event-def/id study-event-def)
-         (throw (ex-info "Study event def not found."
-                         {:type :study-event-def-not-found})))
-       (let [form-refs (:study-event-def/form-refs study-event-def)
-             f-pred #(when (= form-def-eid (:db/id %)) %)]
-         (if-not (some f-pred (map :form-ref/form form-refs))
-           (let [tid #db/id[:part/meta-data]]
-             [[:db/add study-event-def-eid :study-event-def/form-refs tid]
-              {:db/id tid
-               :form-ref/form form-def-eid
-               :form-ref/rank (inc (apply max 0 (map :form-ref/rank form-refs)))}])
-           (throw (ex-info "Duplicate!" {:type :duplicate}))))))])
+         (throw (ex-info "Study-event not found." {:type :not-found})))))])
 
 (def form-ref
-  "A reference to a form-def as it occurs within a specific StudyEventDef. The
+  "A reference to a FormDef as it occurs within a specific StudyEventDef. The
   list of FormRefs identifies the types of forms that are allowed to occur
   within this type of study event."
   [[:form :ref]
-   [:rank :long]])
+
+   (func create
+     "Creates a form-ref.
+
+     Ensures form uniquness within its study-event-def."
+     [db tid study-event-def-eid form-def-eid]
+     (let [study-event-def (d/entity db study-event-def-eid)
+           form-def (d/entity db form-def-eid)]
+       (when-not (:study-event-def/id study-event-def)
+         (throw (ex-info "Study event def not found."
+                         {:type :study-event-def-not-found})))
+       (when-not (:form-def/id form-def)
+         (throw (ex-info "Form def not found." {:type :form-def-not-found})))
+       (if-not (->> (:study-event-def/form-refs study-event-def)
+                    (map (comp :db/id :form-ref/form))
+                    (some #{(:db/id form-def)}))
+         [[:db/add (:db/id study-event-def) :study-event-def/form-refs tid]
+          {:db/id tid
+           :form-ref/form (:db/id form-def)}]
+         (throw (ex-info "Duplicate!" {:type :duplicate})))))])
 
 (def form-def
   "A form-def describes a type of form that can occur in a study."
@@ -256,11 +255,10 @@
          (throw (ex-info "Form not found." {:type :not-found})))))])
 
 (def item-group-ref
-  "A reference to a item-group-def as it occurs within a specific form-def. The
-  list of item-group-refs identifies the types of item-groups that are allowed
+  "A reference to a ItemGroupDef as it occurs within a specific FormDef. The
+  list of ItemGroupRefs identifies the types of item groups that are allowed
   to occur within this type of form."
-  [[:item-group :ref]
-   [:rank :long]])
+  [[:item-group :ref]])
 
 (def item-group-def
   "An item-group-def describes a type of item-group that can occur within a
@@ -311,11 +309,10 @@
          (throw (ex-info "Form not found." {:type :not-found})))))])
 
 (def item-ref
-  "A reference to an item-def as it occurs within a specific item-group-def. The
-  list of item-refs identifies the types of items that are allowed to occur
-  within this type of item-group."
-  [[:item :ref]
-   [:rank :long]])
+  "A reference to an ItemDef as it occurs within a specific ItemGroupDef. The
+  list of ItemRefs identifies the types of items that are allowed to occur
+  within this type of item group."
+  [[:item :ref]])
 
 (def item-def
   "An item-def describes a type of item that can occur within a study. Item

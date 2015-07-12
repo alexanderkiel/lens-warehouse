@@ -182,6 +182,12 @@
                         (cache/hit % ~key)
                         (cache/miss % ~key ~value-expr))))
 
+(defn transact [conn tx-data]
+  (try
+    @(d/transact conn tx-data)
+    (catch Exception e
+      (throw (unwrap-execution-exception e)))))
+
 (defn create
   "Submits a transaction which creates an entity.
 
@@ -191,7 +197,7 @@
   Returns the created entity."
   [conn partition fn]
   (let [tid (d/tempid partition)
-        tx-result @(d/transact conn (fn tid))
+        tx-result (transact conn (fn tid))
         db (:db-after tx-result)]
     (d/entity db (d/resolve-tempid db (:tempids tx-result) tid))))
 
@@ -199,3 +205,9 @@
 
 (def NonBlankStr
   (s/both s/Str (s/pred (complement str/blank?) 'non-blank?)))
+
+(def PosInt
+  (s/both s/Int (s/pred pos? 'pos?)))
+
+(def Base62EntityId
+  s/Str)

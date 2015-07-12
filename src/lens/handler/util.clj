@@ -6,6 +6,8 @@
             [lens.util :as util]
             [pandect.algo.md5 :as md5]
             [schema.core :as s]
+            [schema.coerce :as c]
+            [schema.utils :as su]
             [lens.api :as api]
             [shortid.core :as sid]
             [datomic.api :as d])
@@ -98,6 +100,17 @@
   (fnk [[:request params]]
     (validate schema params)))
 
+(defn coerce [schema params]
+  (let [coercer (c/coercer schema c/string-coercion-matcher)
+        params (coercer params)]
+    (if (su/error? params)
+      [false {:error (str "Unprocessable Entity: " (su/error-val params))}]
+      {:request {:params params}})))
+
+(defn coerce-params [schema]
+  (fnk [[:request params]]
+    (coerce schema params)))
+
 (defn entity-processable [schema]
   (fn [ctx]
     (or (not (l/=method :put ctx))
@@ -157,11 +170,6 @@
 
 (def paginate (partial util/paginate page-size))
 
-(defn parse-page-num [s]
-  (if (and s (re-matches #"[0-9]+" s))
-    (util/parse-long s)
-    1))
-
 (defn assoc-filter [path filter]
   (if filter
     (str (assoc (url path) :query {:filter (url-encode filter)}))
@@ -215,10 +223,13 @@
          {:up {:href (path-for :service-document-handler)}
           :self {:href (path-for name)}}}))))
 
-(defn exists? [type]
-  (fnk [db [:request [:params eid]]]
-    (when-let [entity (api/find-entity db type eid)]
-      {type entity})))
+(defn exists?
+  ([type]
+    (exists? type :id))
+  ([type arg]
+   (fnk [db [:request [:params eid]]]
+     (when-let [entity (api/find-entity db type arg eid)]
+       {type entity}))))
 
 (defn entity-id [entity]
   (let [db (d/entity-db entity)

@@ -38,10 +38,8 @@
     (study/child-list-resource-defaults)
 
     :handle-ok
-    (fnk [study [:request path-for params]]
-      (let [page-num (hu/parse-page-num (:page-num params))
-            filter (:filter params)
-            item-groups (if (str/blank? filter)
+    (fnk [study [:request path-for [:params page-num {filter nil}]]]
+      (let [item-groups (if (str/blank? filter)
                           (->> (:study/item-group-defs study)
                                (sort-by :item-group-def/id))
                           (api/list-matching-item-group-defs study filter))
@@ -88,7 +86,7 @@
 (def schema {:name s/Str (s/optional-key :desc) s/Str})
 
 (def handler
-  "Handler for GET and PUT on an item-group-def.
+  "Handler for GET, PUT and DELETE on an item-group-def.
 
   Implementation note on PUT:
 

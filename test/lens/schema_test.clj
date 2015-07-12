@@ -1,8 +1,10 @@
 (ns lens.schema-test
   (:require [clojure.test :refer :all]
             [lens.schema :as schema]
+            [clojure.data :refer [diff]]
             [lens.util :as util]
-            [datomic.api :as d]))
+            [datomic.api :as d])
+  (:import [clojure.lang ExceptionInfo]))
 
 (defn- connect [] (d/connect "datomic:mem:test"))
 
@@ -14,6 +16,23 @@
   (d/delete-database "datomic:mem:test"))
 
 (use-fixtures :each database-fixture)
+
+(defmethod assert-expr 'thrown-with-data? [msg form]
+  ;; (is (thrown-with-data? data expr))
+  ;; Asserts that evaluating expr throws an exception with data that at least
+  ;; contains the stuff in data.
+  (let [data (second form)
+        body (nthnext form 2)]
+    `(try ~@body
+          (do-report {:type :fail, :message ~msg, :expected '~form, :actual nil})
+          (catch ExceptionInfo e#
+            (let [d# (ex-data e#)]
+              (if (first (diff ~data d#))
+                (do-report {:type :fail, :message ~msg,
+                            :expected '~data, :actual d#})
+                (do-report {:type :pass, :message ~msg,
+                            :expected '~form, :actual e#})))
+            e#))))
 
 (defn- transact [tx-data]
   @(d/transact (connect) tx-data))
@@ -31,43 +50,63 @@
   (some->> (:study/study-event-defs study)
            (some #(when (= id (:study-event-def/id %)) %))))
 
+(defn uuid []
+  (str (d/squuid)))
+
+(defn- create-study []
+  (create :part/meta-data (fn [tid] [[:study.fn/create tid (uuid)
+                                      "name-100932" "desc-145133" {}]])))
+
+(defn- create-study-event-def [study]
+  (create :part/meta-data (fn [tid] [[:study-event-def.fn/create tid
+                                      (:db/id study) (uuid) "name-100952"
+                                      {}]])))
+
+(defn- create-form-def [study]
+  (create :part/meta-data (fn [tid] [[:form-def.fn/create tid (:db/id study)
+                                      (uuid) "name-130451" {}]])))
+
+(defn- create-form-ref [study-event-def form-def]
+  (create :part/meta-data
+          (fn [tid] [[:form-ref.fn/create tid (:db/id study-event-def)
+                      (:db/id form-def)]])))
+
+(defn- update-form-def [form-def old-props new-props]
+  (transact [[:form-def.fn/update (:db/id form-def) old-props new-props]]))
+
 ;; ---- Study Event -----------------------------------------------------------
 
-(defn- create-study [id]
-  (create :part/meta-data (fn [tid] [[:study.fn/create tid id "name-100932"
-                                      "desc-145133" {}]])))
+;; ---- Form Ref --------------------------------------------------------------
 
-(defn- create-study-event-def [study-eid study-event-def-id]
-  (create :part/meta-data (fn [tid] [[:study-event-def.fn/create tid study-eid
-                                      study-event-def-id "name-100952" {}]])))
+(deftest create-form-ref-test
+  (testing "Form def doesn't exist"
+    (let [study-event-def (-> (create-study) (create-study-event-def))]
+      (is (thrown-with-data? {:type :form-def-not-found}
+                             (create-form-ref study-event-def 1)))))
 
-(defn- create-form-def [study-eid form-def-id]
-  (create :part/meta-data (fn [tid] [[:form-def.fn/create tid study-eid
-                                      form-def-id "name-130451" {}]])))
+  (testing "Form ref to form def exists already"
+    (let [study (create-study)
+          study-event-def (create-study-event-def study)
+          form-def (create-form-def study)
+          _ (create-form-ref study-event-def form-def)]
+      (is (thrown-with-data? {:type :duplicate}
+                             (create-form-ref study-event-def form-def)))))
 
-(defn- add-form-def [study-event-def-eid form-def-eid]
-  (transact [[:study-event-def.fn/add-form-def study-event-def-eid
-              form-def-eid]]))
+  (testing "Succeeds"
+    (let [study (create-study)
+          study-event-def (create-study-event-def study)
+          form-def (create-form-def study)
+          form-ref (create-form-ref study-event-def form-def)
+          study-event-def (:study-event-def/_form-refs form-ref)
+          form-refs (:study-event-def/form-refs study-event-def)]
+      (is (= 1 (count form-refs)))
+      (is (= (:db/id form-def) (:db/id (:form-ref/form form-ref)))))))
 
-(defn- update-form-def [form-def-eid old-props new-props]
-  (transact [[:form-def.fn/update form-def-eid old-props new-props]]))
+;; ---- Form Def --------------------------------------------------------------
 
-(deftest add-form-test
-  (let [study (create-study "study-100925")
-        study-event-def (create-study-event-def (:db/id study)
-                                                "study-event-def-100948")
-        form-def (create-form-def (:db/id study) "form-def-101251")
-        res (add-form-def (:db/id study-event-def) (:db/id form-def))
-        study (d/entity (:db-after res) [:study/id "study-100925"])
-        study-event-def (find-study-event-def study "study-event-def-100948")
-        form-refs (:study-event-def/form-refs study-event-def)]
-    (is (= "study-event-def-100948" (:study-event-def/id study-event-def)))
-    (is (= "form-def-101251" (:form-def/id (:form-ref/form (first form-refs)))))))
-
-(deftest update-form-test
-  (let [study (create-study "study-124731")
-        form-def (create-form-def (:db/id study) "form-124747")]
-    (update-form-def (:db/id form-def) {} {})))
+(deftest update-form-def-test
+  (let [form-def (-> (create-study) (create-form-def))]
+    (update-form-def form-def {} {})))
 
 (deftest data-type-enums
   (is (entity :data-type/text))

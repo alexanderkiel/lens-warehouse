@@ -26,14 +26,9 @@
         (is (= "id-172208" (-> resp :body :data :id)))))))
 
 (deftest create-handler-test
-  (testing "Create without study id fails"
-    (let [resp (execute create-handler :post
-                 :params {})]
-      (is (= 422 (:status resp)))))
-
   (testing "Create without id fails"
     (let [resp (execute create-handler :post
-                 :params {:study-id "s-174305"})]
+                 :params {})]
       (is (= 422 (:status resp)))))
 
   (testing "Create with existing id fails"

@@ -33,16 +33,19 @@
   "Returns the entity with type and eid or nil if none was found.
 
   Type is something like :study or :form-def."
-  [db type eid]
-  (let [eid (if (string? eid)
-              (to-eid db :part/meta-data (sid/base62-to-int eid))
-              eid)
-        e (d/entity db eid)]
-    (when ((keyword (name type) "id") e)
-      e)))
+  ([db type eid]
+   (find-entity db type :id eid))
+  ([db type arg eid]
+   (let [pred (keyword (name type) (name arg))
+         eid (if (string? eid)
+               (to-eid db :part/meta-data (sid/base62-to-int eid))
+               eid)
+         e (d/entity db eid)]
+     (when (pred e)
+       e))))
 
 (defn find-study-child
-  "Returns the child of a study with child-type and id.
+  "Returns the child of a study with child-type and id if there is one.
 
   Child types can be:
 
@@ -271,6 +274,22 @@
                         old-props new-props]])
     nil
     (catch Exception e (if-let [t (util/error-type e)] t (throw e)))))
+
+;; ---- Form ref --------------------------------------------------------------
+
+(defn create-form-ref
+  "Creates a form-ref pointing from a study-event-def to a form-def.
+
+  Returns the created form-ref or nil if there is already one."
+  [conn study-event-def form-def]
+  {:pre [(:study-event-def/id study-event-def)
+         (:form-def/id form-def)]}
+  (try
+    (->> (fn [tid] [[:form-ref.fn/create tid (:db/id study-event-def)
+                     (:db/id form-def)]])
+         (util/create conn :part/meta-data))
+    (catch Exception e
+      (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
 ;; ---- Subject ---------------------------------------------------------------
 

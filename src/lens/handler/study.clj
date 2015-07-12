@@ -229,15 +229,19 @@
 (defn render-embedded-studies [path-for studies]
   (r/map #(render-embedded-study path-for %) studies))
 
+(def ListParamSchema
+  {:page-num util/PosInt
+   s/Any s/Any})
+
 (def all-studies-handler
   (resource
     (hu/resource-defaults)
 
+    :processable? (hu/coerce-params ListParamSchema)
+
     :handle-ok
-    (fnk [db [:request params path-for]]
-      (let [page-num (hu/parse-page-num (:page-num params))
-            filter (:filter params)
-            studies (if (str/blank? filter)
+    (fnk [db [:request path-for [:params page-num {filter nil}]]]
+      (let [studies (if (str/blank? filter)
                       (api/all-studies db)
                       (api/list-matching-studies db filter))
             next-page? (not (lr/empty? (hu/paginate (inc page-num) studies)))
@@ -281,9 +285,16 @@
 
 ;; ---- For Childs ------------------------------------------------------------
 
+(def ^:private ChildListParamSchema
+  {:eid util/Base62EntityId
+   :page-num util/PosInt
+   s/Any s/Any})
+
 (defn child-list-resource-defaults []
   (assoc
     (hu/resource-defaults)
+
+    :processable? (hu/coerce-params ChildListParamSchema)
 
     :exists? (hu/exists? :study)))
 
