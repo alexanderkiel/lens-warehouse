@@ -379,6 +379,7 @@
    (enum :data-type/datetime)
    (enum :data-type/string)
    (enum :data-type/boolean)
+   (enum :data-type/double)
 
    (enum :sds-var/sex)
 
