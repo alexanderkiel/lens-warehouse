@@ -9,8 +9,7 @@
             [lens.reducers :as lr]
             [clojure.string :as str]
             [lens.util :as util]
-            [schema.core :as s]
-            [schema.coerce :as c]))
+            [schema.core :as s]))
 
 (defn path [path-for form-def]
   (path-for :form-def-handler :eid (hu/entity-id form-def)))
@@ -68,6 +67,19 @@
 
     :handle-ok render-list))
 
+(defn- find-item-group-ref-path [path-for form-def]
+  (path-for :find-item-group-ref-handler :eid (hu/entity-id form-def)))
+
+(defn- item-group-refs-path [path-for form-def]
+  (path-for :item-group-refs-handler :eid (hu/entity-id form-def) :page-num 1))
+
+(defn- create-item-group-ref-path [path-for form-def]
+  (path-for :create-item-group-ref-handler :eid (hu/entity-id form-def)))
+
+(defn create-item-group-ref-form [path-for form-def]
+  {:href (create-item-group-ref-path path-for form-def)
+   :params {:form-id {:type s/Str}}})
+
 (def select-props (hu/select-props :form-def :name :desc))
 
 (defnk render [form-def [:request path-for]]
@@ -80,7 +92,17 @@
    :links
    {:up (study/link path-for (:study/_form-defs form-def))
     :self (link path-for form-def)
-    :profile {:href (path-for :form-def-profile-handler)}}
+    :profile {:href (path-for :form-def-profile-handler)}
+    :lens/item-group-refs {:href (item-group-refs-path path-for form-def)}}
+
+   :queries
+   {:lens/find-item-group-ref
+    {:href (find-item-group-ref-path path-for form-def)
+     :params {:item-group-id {:type s/Str}}}}
+
+   :forms
+   {:lens/create-item-group-ref
+    (create-item-group-ref-form path-for form-def)}
 
    :ops #{:update :delete}})
 
@@ -171,3 +193,34 @@
 
     :handle-exception
     (study/duplicate-exception "The form def exists already.")))
+
+;; ---- For Childs ------------------------------------------------------------
+
+(defnk build-up-link [[:request path-for [:params eid]]]
+  {:links {:up {:href (path-for :form-def-handler :eid eid)}}})
+
+(def ^:private ChildListParamSchema
+  {:eid util/Base62EntityId
+   :page-num util/PosInt
+   s/Any s/Any})
+
+(defn child-list-resource-defaults []
+  (assoc
+    (hu/resource-defaults)
+
+    :processable? (hu/coerce-params ChildListParamSchema)
+
+    :exists? (hu/exists? :form-def)))
+
+(defn redirect-resource-defaults []
+  (assoc
+    (hu/redirect-resource-defaults)
+
+    :handle-unprocessable-entity
+    (hu/error-handler "Unprocessable Entity" build-up-link)))
+
+(defn create-resource-defaults []
+  (assoc
+    (hu/create-resource-defaults)
+
+    :exists? (hu/exists? :form-def)))

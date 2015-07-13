@@ -3,7 +3,6 @@
   (:require [liberator.core :refer [resource]]
             [schema.core :as s]
             [lens.handler.util :as hu]
-            [lens.handler.study :as study]
             [lens.handler.study-event-def :as study-event-def]
             [lens.api :as api]
             [lens.util :as util]
@@ -24,8 +23,8 @@
    {:self (link path-for form-ref)
     :lens/form-def (form-def/link path-for (:form-ref/form form-ref))}})
 
-(defn render-embedded-list [path-for form-defs]
-  (r/map #(render-embedded path-for %) form-defs))
+(defn render-embedded-list [path-for form-refs]
+  (r/map #(render-embedded path-for %) form-refs))
 
 (defnk render-list [study-event-def [:request path-for [:params page-num]]]
   (let [form-refs (->> (:study-event-def/form-refs study-event-def)
@@ -120,12 +119,12 @@
 
     :post!
     (fnk [conn study-event-def [:request [:params form-id]]]
-      (if-let [form-def (-> (:study/_study-event-defs study-event-def)
-                            (api/find-study-child :form-def form-id))]
-        (if-let [form-ref (api/create-form-ref conn study-event-def form-def)]
-          {:form-ref form-ref}
-          (throw (ex-info "Duplicate!" {:type :duplicate})))
-        (throw (ex-info "Form def not found." {:type :form-def-not-found}))))
+      (let [study (:study/_study-event-defs study-event-def)]
+        (if-let [form-def (api/find-study-child study :form-def form-id)]
+          (if-let [form-ref (api/create-form-ref conn study-event-def form-def)]
+            {:form-ref form-ref}
+            (throw (ex-info "Duplicate!" {:type :duplicate})))
+          (throw (ex-info "Form def not found." {:type :form-def-not-found})))))
 
     :location
     (fnk [form-ref [:request path-for]] (path path-for form-ref))

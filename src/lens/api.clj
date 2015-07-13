@@ -159,6 +159,22 @@
     nil
     (catch Exception e (if-let [t (util/error-type e)] t (throw e)))))
 
+;; ---- Form Ref --------------------------------------------------------------
+
+(defn create-form-ref
+  "Creates a form-ref pointing from a study-event-def to a form-def.
+
+  Returns the created form-ref or nil if there is already one."
+  [conn study-event-def form-def]
+  {:pre [(:study-event-def/id study-event-def)
+         (:form-def/id form-def)]}
+  (try
+    (->> (fn [tid] [[:form-ref.fn/create tid (:db/id study-event-def)
+                     (:db/id form-def)]])
+         (util/create conn :part/meta-data))
+    (catch Exception e
+      (when-not (= :duplicate (util/error-type e)) (throw e)))))
+
 ;; ---- Form Def --------------------------------------------------------------
 
 (defn create-form-def
@@ -188,6 +204,22 @@
                         new-props]])
     nil
     (catch Exception e (if-let [t (util/error-type e)] t (throw e)))))
+
+;; ---- Item Group Ref --------------------------------------------------------------
+
+(defn create-item-group-ref
+  "Creates a item-group-ref pointing from a form-def to an item-group-def.
+
+  Returns the created item-group-ref or nil if there is already one."
+  [conn form-def item-group-def]
+  {:pre [(:form-def/id form-def)
+         (:item-group-def/id item-group-def)]}
+  (try
+    (->> (fn [tid] [[:item-group-ref.fn/create tid (:db/id form-def)
+                     (:db/id item-group-def)]])
+         (util/create conn :part/meta-data))
+    (catch Exception e
+      (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
 ;; ---- Item Group Def --------------------------------------------------------
 
@@ -220,6 +252,22 @@
                         old-props new-props]])
     nil
     (catch Exception e (if-let [t (util/error-type e)] t (throw e)))))
+
+;; ---- Item Ref --------------------------------------------------------------
+
+(defn create-item-ref
+  "Creates a item-ref pointing from an item-group-def to an item-def.
+
+  Returns the created item-ref or nil if there is already one."
+  [conn item-group-def item-def]
+  {:pre [(:item-group-def/id item-group-def)
+         (:item-def/id item-def)]}
+  (try
+    (->> (fn [tid] [[:item-ref.fn/create tid (:db/id item-group-def)
+                     (:db/id item-def)]])
+         (util/create conn :part/meta-data))
+    (catch Exception e
+      (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
 ;; ---- Item Def --------------------------------------------------------
 
@@ -263,22 +311,6 @@
                         old-props new-props]])
     nil
     (catch Exception e (if-let [t (util/error-type e)] t (throw e)))))
-
-;; ---- Form ref --------------------------------------------------------------
-
-(defn create-form-ref
-  "Creates a form-ref pointing from a study-event-def to a form-def.
-
-  Returns the created form-ref or nil if there is already one."
-  [conn study-event-def form-def]
-  {:pre [(:study-event-def/id study-event-def)
-         (:form-def/id form-def)]}
-  (try
-    (->> (fn [tid] [[:form-ref.fn/create tid (:db/id study-event-def)
-                     (:db/id form-def)]])
-         (util/create conn :part/meta-data))
-    (catch Exception e
-      (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
 ;; ---- Subject ---------------------------------------------------------------
 

@@ -258,7 +258,27 @@
   "A reference to a ItemGroupDef as it occurs within a specific FormDef. The
   list of ItemGroupRefs identifies the types of item groups that are allowed
   to occur within this type of form."
-  [[:item-group :ref]])
+  [[:item-group :ref]
+
+   (func create
+     "Creates a item-group-ref.
+
+     Ensures item-group uniquness within its form-def."
+     [db tid form-def-eid item-group-def-eid]
+     (let [form-def (d/entity db form-def-eid)
+           item-group-def (d/entity db item-group-def-eid)]
+       (when-not (:form-def/id form-def)
+         (throw (ex-info "Form def not found." {:type :form-def-not-found})))
+       (when-not (:item-group-def/id item-group-def)
+         (throw (ex-info "Item group def not found." 
+                         {:type :item-group-def-not-found})))
+       (if-not (->> (:form-def/item-group-refs form-def)
+                    (map (comp :db/id :item-group-ref/item-group))
+                    (some #{(:db/id item-group-def)}))
+         [[:db/add (:db/id form-def) :form-def/item-group-refs tid]
+          {:db/id tid
+           :item-group-ref/item-group (:db/id item-group-def)}]
+         (throw (ex-info "Duplicate!" {:type :duplicate})))))])
 
 (def item-group-def
   "An item-group-def describes a type of item-group that can occur within a
@@ -312,7 +332,27 @@
   "A reference to an ItemDef as it occurs within a specific ItemGroupDef. The
   list of ItemRefs identifies the types of items that are allowed to occur
   within this type of item group."
-  [[:item :ref]])
+  [[:item :ref]
+
+   (func create
+     "Creates an item-ref.
+
+     Ensures item uniquness within its item-group-def."
+     [db tid item-group-def-eid item-def-eid]
+     (let [item-group-def (d/entity db item-group-def-eid)
+           item-def (d/entity db item-def-eid)]
+       (when-not (:item-group-def/id item-group-def)
+         (throw (ex-info "Item group def not found."
+                         {:type :item-group-def-not-found})))
+       (when-not (:item-def/id item-def)
+         (throw (ex-info "Item def not found." {:type :item-def-not-found})))
+       (if-not (->> (:item-group-def/item-refs item-group-def)
+                    (map (comp :db/id :item-ref/item))
+                    (some #{(:db/id item-def)}))
+         [[:db/add (:db/id item-group-def) :item-group-def/item-refs tid]
+          {:db/id tid
+           :item-ref/item (:db/id item-def)}]
+         (throw (ex-info "Duplicate!" {:type :duplicate})))))])
 
 (def item-def
   "An item-def describes a type of item that can occur within a study. Item

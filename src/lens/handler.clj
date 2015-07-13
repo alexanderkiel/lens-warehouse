@@ -14,9 +14,11 @@
             [lens.handler.subject :as subject]
             [lens.handler.study :as study]
             [lens.handler.study-event-def :as study-event-def]
-            [lens.handler.form-def :as form-def]
             [lens.handler.form-ref :as form-ref]
+            [lens.handler.form-def :as form-def]
+            [lens.handler.item-group-ref :as item-group-ref]
             [lens.handler.item-group-def :as item-group-def]
+            [lens.handler.item-ref :as item-ref]
             [lens.handler.item-def :as item-def]
             [schema.core :as s]
             [lens.handler.util :as hu])
@@ -340,12 +342,22 @@
    :create-form-def-handler form-def/create-handler
    :form-def-profile-handler (hu/profile-handler :form-def form-def/schema)
 
+   :item-group-refs-handler item-group-ref/list-handler
+   :find-item-group-ref-handler item-group-ref/find-handler
+   :item-group-ref-handler item-group-ref/handler
+   :create-item-group-ref-handler item-group-ref/create-handler
+
    :study-item-group-defs-handler item-group-def/list-handler
    :find-item-group-def-handler (study/find-child-handler :item-group-def)
    :item-group-def-handler item-group-def/handler
    :item-group-count-handler (item-group-def/item-group-def-count-handler path-for)
    :create-item-group-def-handler item-group-def/create-handler
    :item-group-def-profile-handler (hu/profile-handler :item-group-def item-group-def/schema)
+
+   :item-refs-handler item-ref/list-handler
+   :find-item-ref-handler item-ref/find-handler
+   :item-ref-handler item-ref/handler
+   :create-item-ref-handler item-ref/create-handler
 
    :study-item-defs-handler item-def/list-handler
    :find-item-def-handler (study/find-child-handler :item-def)

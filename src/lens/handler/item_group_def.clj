@@ -67,6 +67,19 @@
                (render-embedded-list path-for (timeout 100))
                (into []))}}))))
 
+(defn- find-item-ref-path [path-for form-def]
+  (path-for :find-item-ref-handler :eid (hu/entity-id form-def)))
+
+(defn- item-refs-path [path-for form-def]
+  (path-for :item-refs-handler :eid (hu/entity-id form-def) :page-num 1))
+
+(defn- create-item-ref-path [path-for form-def]
+  (path-for :create-item-ref-handler :eid (hu/entity-id form-def)))
+
+(defn create-item-ref-form [path-for form-def]
+  {:href (create-item-ref-path path-for form-def)
+   :params {:form-id {:type s/Str}}})
+
 (def select-props (hu/select-props :item-group-def :name :desc))
 
 (defnk render [item-group-def [:request path-for]]
@@ -79,7 +92,17 @@
    :links
    {:up (study/link path-for (:study/_item-group-defs item-group-def))
     :self (link path-for item-group-def)
-    :profile {:href (path-for :item-group-def-profile-handler)}}
+    :profile {:href (path-for :item-group-def-profile-handler)}
+    :lens/item-refs {:href (item-refs-path path-for item-group-def)}}
+
+   :queries
+   {:lens/find-item-ref
+    {:href (find-item-ref-path path-for item-group-def)
+     :params {:item-id {:type s/Str}}}}
+
+   :forms
+   {:lens/create-item-ref
+    (create-item-ref-form path-for item-group-def)}
 
    :ops #{:update :delete}})
 
@@ -172,3 +195,34 @@
 
     :handle-exception
     (study/duplicate-exception "The item group def exists already.")))
+
+;; ---- For Childs ------------------------------------------------------------
+
+(defnk build-up-link [[:request path-for [:params eid]]]
+  {:links {:up {:href (path-for :item-group-def-handler :eid eid)}}})
+
+(def ^:private ChildListParamSchema
+  {:eid util/Base62EntityId
+   :page-num util/PosInt
+   s/Any s/Any})
+
+(defn child-list-resource-defaults []
+  (assoc
+    (hu/resource-defaults)
+
+    :processable? (hu/coerce-params ChildListParamSchema)
+
+    :exists? (hu/exists? :item-group-def)))
+
+(defn redirect-resource-defaults []
+  (assoc
+    (hu/redirect-resource-defaults)
+
+    :handle-unprocessable-entity
+    (hu/error-handler "Unprocessable Entity" build-up-link)))
+
+(defn create-resource-defaults []
+  (assoc
+    (hu/create-resource-defaults)
+
+    :exists? (hu/exists? :item-group-def)))

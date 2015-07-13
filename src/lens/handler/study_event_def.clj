@@ -175,10 +175,10 @@
     :handle-exception
     (study/duplicate-exception "The study event def exists already.")))
 
+;; ---- For Childs ------------------------------------------------------------
+
 (defnk build-up-link [[:request path-for [:params eid]]]
   {:links {:up {:href (path-for :study-event-def-handler :eid eid)}}})
-
-;; ---- For Childs ------------------------------------------------------------
 
 (def ^:private ChildListParamSchema
   {:eid util/Base62EntityId

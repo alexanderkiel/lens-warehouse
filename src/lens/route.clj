@@ -35,17 +35,30 @@
      "/find-form-ref" :find-form-ref-handler
      "/form-refs"
      {"" :create-form-ref-handler
-      ["/page/" :page-num] :form-refs-handler
-      ["/" :form-def-id] :form-ref-handler}}
+      ["/page/" :page-num] :form-refs-handler}}
 
     ["/form-ref/" :eid]
     {"" :form-ref-handler}
 
     ["/form-def/" :eid]
-    {"" :form-def-handler}
+    {"" :form-def-handler
+     "/find-item-group-ref" :find-item-group-ref-handler
+     "/item-group-refs"
+     {"" :create-item-group-ref-handler
+      ["/page/" :page-num] :item-group-refs-handler}}
+
+    ["/item-group-ref/" :eid]
+    {"" :item-group-ref-handler}
 
     ["/item-group-def/" :eid]
-    {"" :item-group-def-handler}
+    {"" :item-group-def-handler
+     "/find-item-ref" :find-item-ref-handler
+     "/item-refs"
+     {"" :create-item-ref-handler
+      ["/page/" :page-num] :item-refs-handler}}
+
+    ["/item-ref/" :eid]
+    {"" :item-ref-handler}
 
     ["/item-def/" :eid]
     {"" :item-def-handler}
