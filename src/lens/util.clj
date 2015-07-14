@@ -4,6 +4,7 @@
                                                   alts! alts!! alt!!]]
             [clojure.core.cache :as cache]
             [clojure.core.reducers :as r]
+            [clojure.tools.logging :refer [trace]]
             [datomic.api :as d]
             [clojure.string :as str]
             [schema.core :as s])
@@ -183,10 +184,13 @@
                         (cache/miss % ~key ~value-expr))))
 
 (defn transact [conn tx-data]
-  (try
-    @(d/transact conn tx-data)
-    (catch Exception e
-      (throw (unwrap-execution-exception e)))))
+  (let [begin (System/nanoTime)]
+    (try
+      @(d/transact conn tx-data)
+      (catch Exception e
+        (throw (unwrap-execution-exception e)))
+      (finally
+        (trace "Transact" tx-data "in" (quot (- (System/nanoTime) begin) 1000000) "ms")))))
 
 (defn create
   "Submits a transaction which creates an entity.
