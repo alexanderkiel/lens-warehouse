@@ -19,7 +19,9 @@
   `{:db/id (d/tempid :db.part/user)
     :db/ident (keyword '~name)
     :db/doc ~doc
-    :db/fn (d/function '{:lang "clojure" :params ~params :code (do ~@code)})})
+    :db/fn (d/function '{:lang "clojure" :params ~params
+                         :requires [[clojure.core.reducers]]
+                         :code (do ~@code)})})
 
 (defn- assoc-opt [opt]
   (condp = opt
@@ -270,7 +272,7 @@
        (when-not (:form-def/id form-def)
          (throw (ex-info "Form def not found." {:type :form-def-not-found})))
        (when-not (:item-group-def/id item-group-def)
-         (throw (ex-info "Item group def not found." 
+         (throw (ex-info "Item group def not found."
                          {:type :item-group-def-not-found})))
        (if-not (->> (:form-def/item-group-refs form-def)
                     (map (comp :db/id :item-group-ref/item-group))
@@ -391,16 +393,16 @@
      (let [study (d/entity db study-eid)]
        (when-not (:study/id study)
          (throw (ex-info "Study not found." {:type :study-not-found})))
-       ;; TODO: possible performance problem to search linear
-       (if-not (some #{id} (map :item-def/id (:study/item-defs study)))
-         [[:db/add (:db/id study) :study/item-defs tid]
-          (merge
-            {:db/id tid
-             :item-def/id id
-             :item-def/name name
-             :item-def/data-type data-type}
-            more)]
-         (throw (ex-info "Duplicate!" {:type :duplicate})))))
+       (let [items (clojure.core.reducers/map #(d/entity db (:e %)) (d/datoms db :avet :item-def/id id))]
+         (if (empty? (into [] (clojure.core.reducers/filter #(= (:db/id study) (:db/id (:study/_item-defs %))) items)))
+           [[:db/add (:db/id study) :study/item-defs tid]
+            (merge
+              {:db/id tid
+               :item-def/id id
+               :item-def/name name
+               :item-def/data-type data-type}
+              more)]
+           (throw (ex-info "Duplicate!" {:type :duplicate}))))))
 
    (func update
      "Updates the item-def.
