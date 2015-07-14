@@ -283,7 +283,7 @@
 (def item-group-def
   "An item-group-def describes a type of item-group that can occur within a
   study."
-  [[:id :string "The id of an item-group. Unique within a study."]
+  [[:id :string :index "The id of an item-group. Unique within a study."]
    [:name :string :fulltext]
    [:repeating :boolean]
    [:desc :string :fulltext]
@@ -358,7 +358,7 @@
   "An item-def describes a type of item that can occur within a study. Item
   properties include name, datatype, measurement units, range or codelist
   restrictions, and several other properties."
-  [[:id :string "The id of an item. Unique within a study."]
+  [[:id :string :index "The id of an item. Unique within a study."]
    [:name :string :fulltext]
    [:data-type :ref]
    [:length :long]
