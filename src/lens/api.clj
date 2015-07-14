@@ -4,6 +4,7 @@
             [clojure.set :as set]
             [clojure.core.reducers :as r]
             [clojure.core.cache :as cache]
+            [clojure.tools.logging :refer [tracef]]
             [datomic.api :as d]
             [schema.core :as s :refer [Str Uuid]]
             [lens.util :as util :refer [entity? EId Study]]
@@ -35,6 +36,14 @@
      (when (pred e)
        e))))
 
+(defn- all-study-childs [study child-type id]
+  (d/datoms (d/entity-db study) :avet (keyword (name child-type) "id") id))
+
+(defn- find-study-xf [study child-type]
+  (let [reverse-childs-key (keyword "study" (str "_" (name child-type) "s"))]
+    (comp (map #(d/entity (d/entity-db study) (:e %)))
+          (filter #(= (:db/id study) (:db/id (reverse-childs-key %)))))))
+
 (s/defn find-study-child
   "Returns the child of a study with child-type and id if there is one.
 
@@ -46,9 +55,12 @@
    * :item-def"
   [study child-type id :- Str]
   {:pre [(:study/id study) child-type (string? id)]}
-  (let [childs-key (keyword "study" (str (name child-type) "s"))
-        child-id-key (keyword (name child-type) "id")]
-    (some #(when (= id (child-id-key %)) %) (childs-key study))))
+  (let [begin (System/nanoTime)
+        childs (all-study-childs study child-type id)
+        child (first (sequence (find-study-xf study child-type) childs))]
+    (tracef "Find %s with id %s in %.3f ms" (name child-type) id
+            (/ (double (- (System/nanoTime) begin)) 1000000))
+    child))
 
 (s/defn find-subject
   "Returns the subject with the id within the study or nil if none was found."
