@@ -51,7 +51,7 @@ service document of Lens Warehouse.
 First you need a running Datomic database. The easiest way to bring one up is
 the following:
 
-    docker run -d --name datomic -p 4334-4336:4334-4336 akiel/datomic-free
+    docker run -d --name lens-warehouse-db -p 4334-4336:4334-4336 akiel/datomic-free
 
 after that, create an `.env` file in the project root with the following
 content:
