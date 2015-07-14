@@ -175,11 +175,15 @@
     (str (assoc (url path) :query {:filter (url-encode filter)}))
     path))
 
+(defn- page-link [path-fn page-num]
+  {:href (path-fn page-num)
+   :label (str "Page " page-num)})
+
 (defn assoc-prev [m page-num path-fn]
-  (assoc-when m :prev (when (< 1 page-num) (path-fn (dec page-num)))))
+  (assoc-when m :prev (when (< 1 page-num) (page-link path-fn (dec page-num)))))
 
 (defn assoc-next [m next-page? page-num path-fn]
-  (assoc-when m :next (when next-page? (path-fn (inc page-num)))))
+  (assoc-when m :next (when next-page? (page-link path-fn (inc page-num)))))
 
 (defn render-embedded-count [self-href count]
   {:value count :links {:self {:href self-href}}})
