@@ -69,3 +69,5 @@
 
 (defn error-msg [resp]
   (-> resp :body :data :message))
+
+(def error-msg' [:body :data :message])
