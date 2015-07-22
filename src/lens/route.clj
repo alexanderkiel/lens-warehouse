@@ -1,6 +1,7 @@
 (ns lens.route)
 
 (defn routes [context-path]
+  (assert (re-matches #"/(?:.*[^/])?" context-path))
   [(if (= "/" context-path) "" context-path)
    {(if (= "/" context-path) "/" "") :service-document-handler
 
