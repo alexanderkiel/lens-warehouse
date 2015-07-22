@@ -55,7 +55,9 @@
                  (if (fn? more) (more ctx) more)))))
 
 (defn resource-defaults [& {:as opts}]
-  {:available-media-types ["application/transit+json"]
+  {:media-type-available?
+   (fnk [[:request headers]]
+     {:representation {:media-type (headers "accept")}})
 
    :service-available?
    (fnk [request]
