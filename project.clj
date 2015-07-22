@@ -16,7 +16,7 @@
                  [slingshot "0.12.2"]
                  [http-kit "2.1.18"]
                  [org.clojars.akiel/ring-hap "0.1-SNAPSHOT"]
-                 [bidi "1.18.11" :exclusions [org.clojure/clojurescript
+                 [bidi "1.20.1" :exclusions [org.clojure/clojurescript
                                               com.cemerick/clojurescript.test]]
                  [liberator "0.13"]
                  [pandect "0.5.2"
@@ -24,7 +24,7 @@
                  [clj-time "0.6.0"]
                  [org.slf4j/slf4j-api "1.7.7"]
                  [ch.qos.logback/logback-classic "1.1.2"]
-                 [org.clojars.akiel/shortid "0.1"]]
+                 [org.clojars.akiel/shortid "0.1.1"]]
 
   :profiles {:dev [:datomic-free :dev-common :base :system :user :provided]
              :dev-pro [:datomic-pro :dev-common :base :system :user :provided]
