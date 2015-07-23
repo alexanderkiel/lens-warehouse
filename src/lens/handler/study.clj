@@ -182,29 +182,12 @@
 
     :exists? (hu/exists? :study)
 
-    ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
-    (fnk [representation {status 200} [:request path-for] :as ctx]
-      (when (= 200 status)
-        (letk [[study] ctx]
-          (hu/md5 (str (:media-type representation)
-                       (all-studies-path path-for)
-                       (path path-for study)
-                       (child-list-path :study-event-def path-for study)
-                       (child-list-path :form-def path-for study)
-                       (child-list-path :item-group-def path-for study)
-                       (child-list-path :item-def path-for study)
-                       (child-action-path :study-event-def :find path-for study)
-                       (child-action-path :study-event-def :create path-for study)
-                       (child-action-path :form-def :find path-for study)
-                       (child-action-path :form-def :create path-for study)
-                       (child-action-path :item-group-def :find path-for study)
-                       (child-action-path :item-group-def :create path-for study)
-                       (child-action-path :item-def :find path-for study)
-                       (child-action-path :item-def :create path-for study)
-                       (child-action-path :subject :create path-for study)
-                       (:study/name study)
-                       (:study/desc study))))))
+    (fnk [representation :as ctx]
+      (when-let [study (:study ctx)]
+        (hu/md5 (:media-type representation)
+                (:study/name study)
+                (:study/desc study))))
 
     :put!
     (fnk [conn study new-entity]

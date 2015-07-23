@@ -52,13 +52,13 @@
 
     :etag
     (fnk [representation [:request path-for]]
-      (hu/md5 (str (:media-type representation)
-                   (path-for :service-document-handler)
-                   (study/all-studies-path path-for)
-                   (path-for :all-snapshots-handler)
-                   (path-for :most-recent-snapshot-handler)
-                   (path-for :find-study-handler)
-                   (path-for :create-study-handler))))
+      (hu/md5 (:media-type representation)
+              (path-for :service-document-handler)
+              (study/all-studies-path path-for)
+              (path-for :all-snapshots-handler)
+              (path-for :most-recent-snapshot-handler)
+              (path-for :find-study-handler)
+              (path-for :create-study-handler)))
 
     :handle-ok (render-service-document version)))
 
@@ -301,7 +301,7 @@
 
     :etag
     (fnk [snapshot [:representation media-type]]
-      (hu/md5 (str media-type (snapshot-path path-for snapshot))))
+      (hu/md5 media-type (snapshot-path path-for snapshot)))
 
     :handle-ok
     (fnk [snapshot db expr]

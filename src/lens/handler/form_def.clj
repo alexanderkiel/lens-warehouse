@@ -128,16 +128,12 @@
 
     :exists? (hu/exists? :form-def)
 
-    ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
-    (fnk [representation {status 200} [:request path-for] :as ctx]
-      (when (= 200 status)
-        (letk [[form-def] ctx]
-          (hu/md5 (str (:media-type representation)
-                       (study/path path-for (:study/_form-defs form-def))
-                       (path path-for form-def)
-                       (:form-def/name form-def)
-                       (:form-def/desc form-def))))))
+    (fnk [representation :as ctx]
+      (when-let [form-def (:form-def ctx)]
+        (hu/md5 (:media-type representation)
+                (:form-def/name form-def)
+                (:form-def/desc form-def))))
 
     :put!
     (fnk [conn form-def new-entity]

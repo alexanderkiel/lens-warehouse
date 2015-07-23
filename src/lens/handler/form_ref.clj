@@ -89,15 +89,7 @@
 
     :exists? (hu/exists? :form-ref :form)
 
-    ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
-    :etag
-    (fnk [representation {status 200} [:request path-for] :as ctx]
-      (when (= 200 status)
-        (letk [[form-ref] ctx]
-          (hu/md5 (str (:media-type representation)
-                       (study-event-def/path
-                         path-for (:study-event-def/_form-refs form-ref))
-                       (path path-for form-ref))))))
+    :etag (fnk [representation] (hu/md5 (:media-type representation)))
 
     :delete!
     (fnk [conn form-ref] (api/retract-entity conn (:db/id form-ref)))

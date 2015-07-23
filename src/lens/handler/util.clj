@@ -11,7 +11,8 @@
             [lens.api :as api]
             [shortid.core :as sid]
             [datomic.api :as d])
-  (:refer-clojure :exclude [error-handler]))
+  (:refer-clojure :exclude [error-handler])
+  (:import [java.nio.charset Charset]))
 
 (defn error-body
   ([path-for msg]
@@ -201,7 +202,12 @@
     (assoc-in e [:embedded :lens/count] (render-embedded-count href count))
     (assoc-in e [:links :lens/count :href] href)))
 
-(def md5 md5/md5)
+(defn md5 [& vals]
+  (let [utf-8 (Charset/forName "utf-8")
+        md5 (java.security.MessageDigest/getInstance "MD5")]
+    (doseq [v vals]
+      (.update md5 ^bytes (.getBytes (str v) utf-8)))
+    (pandect.utils.convert/bytes->hex (.digest md5))))
 
 (defn render-filter-query [uri]
   {:href uri
@@ -216,13 +222,7 @@
     (resource
       (resource-defaults :cache-control "max-age=3600")
 
-      ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
-      :etag
-      (fnk [representation {status 200} [:request path-for]]
-        (when (= 200 status)
-          (md5 (str (:media-type representation)
-                    (path-for :service-document-handler)
-                    (path-for name)))))
+      :etag (fnk [representation] (md5 (:media-type representation)))
 
       :handle-ok
       (fnk [[:request path-for]]

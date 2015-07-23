@@ -92,15 +92,7 @@
 
     :exists? (hu/exists? :item-group-ref :item-group)
 
-    ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
-    :etag
-    (fnk [representation {status 200} [:request path-for] :as ctx]
-      (when (= 200 status)
-        (letk [[item-group-ref] ctx]
-          (hu/md5 (str (:media-type representation)
-                       (form-def/path
-                         path-for (:form-def/_item-group-refs item-group-ref))
-                       (path path-for item-group-ref))))))
+    :etag (fnk [representation] (hu/md5 (:media-type representation)))
 
     :delete!
     (fnk [conn item-group-ref] (api/retract-entity conn (:db/id item-group-ref)))

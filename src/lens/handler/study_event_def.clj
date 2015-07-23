@@ -123,18 +123,12 @@
 
     :exists? (hu/exists? :study-event-def)
 
-    ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
-    (fnk [representation {status 200} [:request path-for] :as ctx]
-      (when (= 200 status)
-        (letk [[study-event-def] ctx]
-          (hu/md5 (str (:media-type representation)
-                       (study/path path-for (:study/_study-event-defs study-event-def))
-                       (path path-for study-event-def)
-                       (find-form-ref-path path-for study-event-def)
-                       (create-form-ref-path path-for study-event-def)
-                       (:name study-event-def)
-                       (:desc study-event-def))))))
+    (fnk [representation :as ctx]
+      (when-let [study-event-def (:study-event-def ctx)]
+        (hu/md5 (:media-type representation)
+                (:name study-event-def)
+                (:desc study-event-def))))
 
     :put!
     (fnk [conn study-event-def new-entity]

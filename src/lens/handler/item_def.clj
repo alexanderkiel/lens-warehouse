@@ -117,18 +117,14 @@
 
     :exists? (hu/exists? :item-def)
 
-    ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
     :etag
-    (fnk [representation {status 200} [:request path-for] :as ctx]
-      (when (= 200 status)
-        (letk [[item-def] ctx]
-          (hu/md5 (str (:media-type representation)
-                       (study/path path-for (:study/_item-defs item-def))
-                       (path path-for item-def)
-                       (:item-def/name item-def)
-                       (:item-def/data-type item-def)
-                       (:item-def/desc item-def)
-                       (:item-def/question item-def))))))
+    (fnk [representation :as ctx]
+      (when-let [item-def (:item-def ctx)]
+        (hu/md5 (:media-type representation)
+                (:item-def/name item-def)
+                (:item-def/data-type item-def)
+                (:item-def/desc item-def)
+                (:item-def/question item-def))))
 
     :put!
     (fnk [conn item-def new-entity]
