@@ -6,16 +6,25 @@
 (defn routes [context-path]
   (assert (re-matches #"/(?:.*[^/])?" context-path))
   [(if (= "/" context-path) "" context-path)
-   [["/item-def/" (eid-handler :item-def-handler)]
+   [[(if (= "/" context-path) "/" "") :service-document-handler]
 
-    ["/item-ref/" (eid-handler :item-ref-handler)]
+    ["/p/"
+     [["id" :item-def-profile-handler]
+      ["igd" :item-group-def-profile-handler]
+      ["fd" :form-def-profile-handler]
+      ["sed" :study-event-def-profile-handler]
+      ["s" :study-profile-handler]]]
 
-    ["/study/"
+    ["/id/" (eid-handler :item-def-handler)]
+
+    ["/ir/" (eid-handler :item-ref-handler)]
+
+    ["/s/"
      (eid-handler
-       [["/find-item-def" :find-item-def-handler]
-        ["/find-item-group-def" :find-item-group-def-handler]
-        ["/find-form-def" :find-form-def-handler]
-        ["/find-study-event-def" :find-study-event-def-handler]
+       [["/fid" :find-item-def-handler]
+        ["/figd" :find-item-group-def-handler]
+        ["/ffd" :find-form-def-handler]
+        ["/fsed" :find-study-event-def-handler]
 
         ["" :study-handler]
 
@@ -78,12 +87,4 @@
       ["/" :id "/query"] :query-handler}]
 
     ["/most-recent-snapshot" :most-recent-snapshot-handler]
-    ["/find-study" :find-study-handler]
-
-    ["/study-profile" :study-profile-handler]
-    ["/study-event-def-profile" :study-event-def-profile-handler]
-    ["/form-def-profile" :form-def-profile-handler]
-    ["/item-group-def-profile" :item-group-def-profile-handler]
-    ["/item-def-profile" :item-def-profile-handler]
-
-    [(if (= "/" context-path) "/" "") :service-document-handler]]])
+    ["/find-study" :find-study-handler]]])
