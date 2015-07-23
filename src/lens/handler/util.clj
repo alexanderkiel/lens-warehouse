@@ -59,6 +59,9 @@
    (fnk [[:request headers]]
      {:representation {:media-type (headers "accept")}})
 
+   :encoding-available? true
+   :charset-available? true
+
    :service-available?
    (fnk [request]
      (let [conn (:conn request)
