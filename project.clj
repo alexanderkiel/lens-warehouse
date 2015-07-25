@@ -16,7 +16,7 @@
                  [slingshot "0.12.2"]
                  [http-kit "2.1.18"]
                  [org.clojars.akiel/ring-hap "0.1"]
-                 [bidi "1.20.1" :exclusions [org.clojure/clojurescript
+                 [bidi "1.20.2" :exclusions [org.clojure/clojurescript
                                               com.cemerick/clojurescript.test]]
                  [liberator "0.13"]
                  [pandect "0.5.2"
