@@ -78,7 +78,7 @@
 
 (defn create-item-group-ref-form [path-for form-def]
   {:href (create-item-group-ref-path path-for form-def)
-   :params {:form-id {:type s/Str}}})
+   :params {:item-group-id {:type s/Str}}})
 
 (def select-props (hu/select-props :form-def :name :desc))
 
@@ -133,7 +133,8 @@
       (when-let [form-def (:form-def ctx)]
         (hu/md5 (:media-type representation)
                 (:form-def/name form-def)
-                (:form-def/desc form-def))))
+                (:form-def/desc form-def)
+                "1")))
 
     :put!
     (fnk [conn form-def new-entity]
