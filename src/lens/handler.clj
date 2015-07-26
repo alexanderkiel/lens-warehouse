@@ -35,7 +35,8 @@
      {:self {:href (path-for :service-document-handler)}
       :lens/all-studies {:href (study/all-studies-path path-for)}
       :lens/all-snapshots {:href (path-for :all-snapshots-handler)}
-      :lens/most-recent-snapshot {:href (path-for :most-recent-snapshot-handler)}}
+      :lens/most-recent-snapshot {:href (path-for :most-recent-snapshot-handler)}
+      :datomic/basis-t {:href (path-for :basis-t-handler)}}
      :queries
      {:lens/find-study
       {:href (path-for :find-study-handler)
@@ -51,16 +52,23 @@
     (hu/resource-defaults :cache-control "max-age=60")
 
     :etag
-    (fnk [representation [:request path-for]]
-      (hu/md5 (:media-type representation)
-              (path-for :service-document-handler)
-              (study/all-studies-path path-for)
-              (path-for :all-snapshots-handler)
-              (path-for :most-recent-snapshot-handler)
-              (path-for :find-study-handler)
-              (path-for :create-study-handler)))
+    (fnk [representation]
+      (hu/md5 (:media-type representation) "1"))
 
     :handle-ok (render-service-document version)))
+
+(defnk render-basis-t [db [:request path-for]]
+  {:data
+   {:basis-t (d/basis-t db)}
+   :links
+   {:up {:href (path-for :service-document-handler)}
+    :self {:href (path-for :basis-t-handler)}}})
+
+(def basis-t-handler
+  (resource
+    (hu/resource-defaults)
+
+    :handle-ok render-basis-t))
 
 (defn item-code-list-item-count-handler [path-for]
   (resource
@@ -317,6 +325,7 @@
 
 (defnk handlers [path-for version]
   {:service-document-handler (service-document-handler version)
+   :basis-t-handler basis-t-handler
 
    :all-studies-handler study/all-studies-handler
    :find-study-handler study/find-handler

@@ -90,4 +90,5 @@
       ["/" :id "/query"] :query-handler}]
 
     ["most-recent-snapshot" :most-recent-snapshot-handler]
-    ["find-study" :find-study-handler]]])
+    ["find-study" :find-study-handler]
+    ["basis-t" :basis-t-handler]]])
