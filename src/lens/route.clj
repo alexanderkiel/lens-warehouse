@@ -1,10 +1,13 @@
-(ns lens.route)
+(ns lens.route
+  (:require [schema.core :as s]))
+
+(def ContextPath
+  #"^/(?:.*[^/])?$")
 
 (defn eid-handler [handler]
   {[:eid] handler})
 
-(defn routes [context-path]
-  (assert (re-matches #"/(?:.*[^/])?" context-path))
+(s/defn routes [context-path :- ContextPath]
   [(if (= "/" context-path) "" context-path)
    [[(if (= "/" context-path) "/" "") :service-document-handler]
 

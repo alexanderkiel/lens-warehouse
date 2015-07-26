@@ -3,7 +3,7 @@
   (:require [bidi.bidi :as bidi]
             [bidi.ring :as bidi-ring]
             [ring-hap.core :refer [wrap-hap]]
-            [lens.route :refer [routes]]
+            [lens.route :refer [ContextPath routes]]
             [lens.handler :refer [handlers]]
             [lens.middleware.datomic :refer [wrap-connection]]
             [lens.middleware.cors :refer [wrap-cors]])
@@ -16,8 +16,7 @@
 (defn wrap-path-for [handler path-for]
   (fn [req] (handler (assoc req :path-for path-for))))
 
-(defnk app [db-uri context-path :as opts]
-  (assert (re-matches #"/(?:.*[^/])?" context-path))
+(defnk app [db-uri context-path :- ContextPath :as opts]
   (let [routes (routes context-path)
         path-for (path-for routes)
         opts (assoc opts :path-for path-for)]
