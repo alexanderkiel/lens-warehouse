@@ -8,21 +8,21 @@
   {[:eid] handler})
 
 (s/defn routes [context-path :- ContextPath]
-  [(if (= "/" context-path) "" context-path)
-   [[(if (= "/" context-path) "/" "") :service-document-handler]
+  [context-path
+   [["" :service-document-handler]
 
-    ["/p/"
+    ["p/"
      [["id" :item-def-profile-handler]
       ["igd" :item-group-def-profile-handler]
       ["fd" :form-def-profile-handler]
       ["sed" :study-event-def-profile-handler]
       ["s" :study-profile-handler]]]
 
-    ["/id/" (eid-handler :item-def-handler)]
+    ["id/" (eid-handler :item-def-handler)]
 
-    ["/ir/" (eid-handler :item-ref-handler)]
+    ["ir/" (eid-handler :item-ref-handler)]
 
-    ["/s/"
+    ["s/"
      (eid-handler
        [["/fid" :find-item-def-handler]
         ["/figd" :find-item-group-def-handler]
@@ -50,7 +50,7 @@
         ["/subjects"
          {"" :create-subject-handler}]])]
 
-    ["/item-group-def/"
+    ["item-group-def/"
      (eid-handler
        [["/find-item-ref" :find-item-ref-handler]
         ["" :item-group-def-handler]
@@ -58,9 +58,9 @@
          {"" :create-item-ref-handler
           ["/page/" :page-num] :item-refs-handler}]])]
 
-    ["/item-group-ref/" (eid-handler :item-group-ref-handler)]
+    ["item-group-ref/" (eid-handler :item-group-ref-handler)]
 
-    ["/form-def/"
+    ["form-def/"
      (eid-handler
        {"" :form-def-handler
         "/find-item-group-ref" :find-item-group-ref-handler
@@ -68,9 +68,9 @@
         {"" :create-item-group-ref-handler
          ["/page/" :page-num] :item-group-refs-handler}})]
 
-    ["/form-ref/" (eid-handler :form-ref-handler)]
+    ["form-ref/" (eid-handler :form-ref-handler)]
 
-    ["/study-event-def/"
+    ["study-event-def/"
      (eid-handler
        {"" :study-event-def-handler
         "/find-form-ref" :find-form-ref-handler
@@ -78,16 +78,16 @@
         {"" :create-form-ref-handler
          ["/page/" :page-num] :form-refs-handler}})]
 
-    ["/studies"
+    ["studies"
      {"" :create-study-handler
       ["/page/" :page-num] :all-studies-handler}]
 
-    [["/code-lists" :id] :code-list-handler]
+    [["code-lists" :id] :code-list-handler]
 
-    ["/snapshots"
+    ["snapshots"
      {"" :all-snapshots-handler
       ["/" :id] :snapshot-handler
       ["/" :id "/query"] :query-handler}]
 
-    ["/most-recent-snapshot" :most-recent-snapshot-handler]
-    ["/find-study" :find-study-handler]]])
+    ["most-recent-snapshot" :most-recent-snapshot-handler]
+    ["find-study" :find-study-handler]]])
