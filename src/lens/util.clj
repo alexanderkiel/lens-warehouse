@@ -15,22 +15,6 @@
 
 ;; ---- Core-Async ------------------------------------------------------------
 
-(defn throw-err
-  "Throws x if throwable returns it otherwise."
-  [x]
-  (when (instance? Throwable x) (throw x))
-  x)
-
-(defmacro <?
-  "Like <! but throws throwable values instead of returning them."
-  [ch]
-  `(throw-err (<! ~ch)))
-
-(defmacro <??
-  "Like <?? but throws throwable values instead of returning them."
-  [ch]
-  `(throw-err (<!! ~ch)))
-
 (defn fan-out
   "Takes an input channel and puts its values to many output channels.
 
