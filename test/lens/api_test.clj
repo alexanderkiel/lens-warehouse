@@ -244,18 +244,18 @@
 (deftest all-studies-test
   (let [conn (connect)]
     (testing "with zero studies"
-      (is (= #{} (->> (api/all-studies (d/db conn))
+      (is (= #{} (->> (api/all-studies (d/db conn) '[:study/id])
                       (r/map :study/id)
                       (into #{})))))
     (testing "with one study"
       (api/create-study conn "id-144922" "name-225358" "desc-150924")
-      (is (= #{"id-144922"} (->> (api/all-studies (d/db conn))
+      (is (= #{"id-144922"} (->> (api/all-studies (d/db conn) '[:study/id])
                                  (r/map :study/id)
                                  (into #{})))))
     (testing "with two studies"
       (api/create-study conn "id-150211" "name-225425" "desc-150932")
       (is (= #{"id-144922"
-               "id-150211"} (->> (api/all-studies (d/db conn))
+               "id-150211"} (->> (api/all-studies (d/db conn) '[:study/id])
                                  (r/map :study/id)
                                  (into #{})))))))
 

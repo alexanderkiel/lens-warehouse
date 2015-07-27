@@ -21,7 +21,8 @@
             [lens.handler.item-ref :as item-ref]
             [lens.handler.item-def :as item-def]
             [schema.core :as s]
-            [lens.handler.util :as hu])
+            [lens.handler.util :as hu]
+            [lens.pull :as pull])
   (:import [java.util UUID]))
 
 ;; ---- Service Document ------------------------------------------------------
@@ -42,7 +43,12 @@
       {:href (path-for :find-study-handler)
        :params
        {:id
-        {:type s/Str}}}}
+        {:type s/Str}}}
+      :lens/all-studies
+      {:href (study/all-studies-path path-for)
+       :params
+       {:pull-pattern
+        {:type pull/Pattern}}}}
      :forms
      {:lens/create-study
       (study/render-create-study-form path-for)}}))
@@ -53,7 +59,7 @@
 
     :etag
     (fnk [representation]
-      (hu/md5 (:media-type representation) "1"))
+      (hu/md5 (:media-type representation) "4"))
 
     :handle-ok (render-service-document version)))
 

@@ -233,7 +233,7 @@
           :self {:href (path-for name)}}}))))
 
 (defn entity-id [entity]
-  (let [db (d/entity-db entity)
+  (let [db (or (:db (meta entity)) (d/entity-db entity))
         part-id (:db/id (d/entity db :part/meta-data))]
     (sid/int-to-base62 (- (:db/id entity) (bit-shift-left part-id 42)))))
 

@@ -4,6 +4,7 @@
             [clojure.string :as str]
             [liberator.core :refer [resource]]
             [lens.api :as api]
+            [lens.pull :as pull]
             [lens.util :as util]
             [lens.handler.util :as hu]
             [lens.reducers :as lr]
@@ -214,7 +215,15 @@
 
 (def ListParamSchema
   {:page-num util/PosInt
+   (s/optional-key :pull-pattern) pull/Pattern
+   (s/optional-key :filter) s/Str
    s/Any s/Any})
+
+(defn db-pull-pattern [pull-pattern]
+  (let [default [:db/id :study/id :study/name]]
+    (if (some #{:desc} (first (map :data pull-pattern)))
+      (conj default :study/desc)
+      default)))
 
 (def all-studies-handler
   (resource
@@ -223,9 +232,9 @@
     :processable? (hu/coerce-params ListParamSchema)
 
     :handle-ok
-    (fnk [db [:request path-for [:params page-num {filter nil}]]]
+    (fnk [db [:request path-for [:params page-num {pull-pattern nil} {filter nil}]]]
       (let [studies (if (str/blank? filter)
-                      (api/all-studies db)
+                      (api/all-studies db (db-pull-pattern pull-pattern))
                       (api/list-matching-studies db filter))
             next-page? (not (lr/empty? (hu/paginate (inc page-num) studies)))
             path #(-> (all-studies-path path-for %)

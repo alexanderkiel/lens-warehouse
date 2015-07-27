@@ -238,3 +238,7 @@
              :params {:eid 1})
       :status := 422
       error-msg' :# "Unprocessable Entity.+")))
+
+(deftest db-pull-pattern-test
+  (testing "{:data [:desc]} is converted to [:study/desc]"
+    (is (some #{:study/desc} (db-pull-pattern [{:data [:desc]}])))))
