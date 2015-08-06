@@ -8,7 +8,8 @@
             [lens.util :as util]
             [lens.handler.util :as hu]
             [lens.reducers :as lr]
-            [schema.core :as s]))
+            [schema.core :as s]
+            [digest.core :as digest]))
 
 (defn all-studies-path
   ([path-for] (all-studies-path path-for 1))
@@ -186,9 +187,9 @@
     :etag
     (fnk [representation :as ctx]
       (when-let [study (:study ctx)]
-        (hu/md5 (:media-type representation)
-                (:study/name study)
-                (:study/desc study))))
+        (digest/md5 (:media-type representation)
+                    (:study/name study)
+                    (:study/desc study))))
 
     :put!
     (fnk [conn study new-entity]

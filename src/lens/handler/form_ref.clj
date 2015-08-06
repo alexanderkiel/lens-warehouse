@@ -8,7 +8,8 @@
             [lens.util :as util]
             [lens.handler.form-def :as form-def]
             [lens.reducers :as lr]
-            [clojure.core.reducers :as r]))
+            [clojure.core.reducers :as r]
+            [digest.core :as digest]))
 
 (defn- path
   ([path-for form-ref]
@@ -89,7 +90,7 @@
 
     :exists? (hu/exists? :form-ref :form)
 
-    :etag (fnk [representation] (hu/md5 (:media-type representation)))
+    :etag (fnk [representation] (digest/md5 (:media-type representation)))
 
     :delete!
     (fnk [conn form-ref] (api/retract-entity conn (:db/id form-ref)))

@@ -9,7 +9,8 @@
             [lens.reducers :as lr]
             [clojure.string :as str]
             [lens.util :as util]
-            [schema.core :as s]))
+            [schema.core :as s]
+            [digest.core :as digest]))
 
 (defn path [path-for item-def]
   (path-for :item-def-handler :eid (hu/entity-id item-def)))
@@ -120,11 +121,11 @@
     :etag
     (fnk [representation :as ctx]
       (when-let [item-def (:item-def ctx)]
-        (hu/md5 (:media-type representation)
-                (:item-def/name item-def)
-                (:item-def/data-type item-def)
-                (:item-def/desc item-def)
-                (:item-def/question item-def))))
+        (digest/md5 (:media-type representation)
+                    (:item-def/name item-def)
+                    (:item-def/data-type item-def)
+                    (:item-def/desc item-def)
+                    (:item-def/question item-def))))
 
     :put!
     (fnk [conn item-def new-entity]

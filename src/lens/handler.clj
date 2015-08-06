@@ -22,7 +22,8 @@
             [lens.handler.item-def :as item-def]
             [schema.core :as s]
             [lens.handler.util :as hu]
-            [lens.pull :as pull])
+            [lens.pull :as pull]
+            [digest.core :as digest])
   (:import [java.util UUID]))
 
 ;; ---- Service Document ------------------------------------------------------
@@ -59,7 +60,7 @@
 
     :etag
     (fnk [representation]
-      (hu/md5 (:media-type representation) "4"))
+      (digest/md5 (:media-type representation) "4"))
 
     :handle-ok (render-service-document version)))
 
@@ -315,7 +316,7 @@
 
     :etag
     (fnk [snapshot [:representation media-type]]
-      (hu/md5 media-type (snapshot-path path-for snapshot)))
+      (digest/md5 media-type (snapshot-path path-for snapshot)))
 
     :handle-ok
     (fnk [snapshot db expr]

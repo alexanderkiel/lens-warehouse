@@ -9,7 +9,8 @@
             [lens.reducers :as lr]
             [clojure.string :as str]
             [lens.util :as util]
-            [schema.core :as s]))
+            [schema.core :as s]
+            [digest.core :as digest]))
 
 (defn path [path-for form-def]
   (path-for :form-def-handler :eid (hu/entity-id form-def)))
@@ -131,10 +132,10 @@
     :etag
     (fnk [representation :as ctx]
       (when-let [form-def (:form-def ctx)]
-        (hu/md5 (:media-type representation)
-                (:form-def/name form-def)
-                (:form-def/desc form-def)
-                "1")))
+        (digest/md5 (:media-type representation)
+                    (:form-def/name form-def)
+                    (:form-def/desc form-def)
+                    "1")))
 
     :put!
     (fnk [conn form-def new-entity]

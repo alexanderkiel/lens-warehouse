@@ -4,13 +4,13 @@
             [liberator.core :as l :refer [resource]]
             [liberator.representation :refer [Representation as-response]]
             [lens.util :as util]
-            [pandect.algo.md5 :as md5]
             [schema.core :as s :refer [Str]]
             [schema.coerce :as c]
             [schema.utils :as su]
             [lens.api :as api]
             [shortid.core :as sid]
-            [datomic.api :as d])
+            [datomic.api :as d]
+            [digest.core :as digest])
   (:refer-clojure :exclude [error-handler])
   (:import [java.nio.charset Charset]))
 
@@ -202,13 +202,6 @@
     (assoc-in e [:embedded :lens/count] (render-embedded-count href count))
     (assoc-in e [:links :lens/count :href] href)))
 
-(defn md5 [& vals]
-  (let [utf-8 (Charset/forName "utf-8")
-        md5 (java.security.MessageDigest/getInstance "MD5")]
-    (doseq [v vals]
-      (.update md5 ^bytes (.getBytes (str v) utf-8)))
-    (pandect.utils.convert/bytes->hex (.digest md5))))
-
 (defn render-filter-query [uri]
   {:href uri
    :title "Filter"
@@ -222,7 +215,7 @@
     (resource
       (resource-defaults :cache-control "max-age=3600")
 
-      :etag (fnk [representation] (md5 (:media-type representation)))
+      :etag (fnk [representation] (digest/md5 (:media-type representation)))
 
       :handle-ok
       (fnk [[:request path-for]]
