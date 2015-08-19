@@ -15,7 +15,7 @@
                  [prismatic/plumbing "0.4.4"]
                  [slingshot "0.12.2"]
                  [http-kit "2.1.18"]
-                 [org.clojars.akiel/ring-hap "0.2"]
+                 [org.clojars.akiel/ring-hap "0.3-SNAPSHOT"]
                  [bidi "1.20.2" :exclusions [org.clojure/clojurescript
                                              com.cemerick/clojurescript.test]]
                  [liberator "0.13"]
