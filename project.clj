@@ -28,14 +28,13 @@
                  [org.slf4j/slf4j-api "1.7.7"]
                  [ch.qos.logback/logback-classic "1.1.2"]]
 
-  :profiles {:dev
+  :profiles {:dev [:dev-common :datomic-free]
+             :dev-pro [:dev-common :datomic-pro]
+
+             :dev-common
              {:source-paths ["dev"]
               :dependencies [[org.clojure/tools.namespace "0.2.4"]
-                             [criterium "0.4.3"]
-                             [com.datomic/datomic-free "0.9.5173"
-                              :exclusions [org.slf4j/slf4j-nop commons-codec
-                                           com.amazonaws/aws-java-sdk
-                                           joda-time]]]
+                             [criterium "0.4.3"]]
               :global-vars {*print-length* 20}}
 
              :datomic-free
