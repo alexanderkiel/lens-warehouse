@@ -1,7 +1,10 @@
 /target/
+/projectFilesBackup/
 /.lein-*
 /.nrepl-port
 /.env
 /*.iml
+/*.jar
+/*.pom
 /.idea/
 /*.sh
