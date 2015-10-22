@@ -1,9 +1,9 @@
 (ns lens.handler.util
   (:use plumbing.core)
-  (:require [clojure.data.json :as json]
-            [cognitect.transit :as transit]
-            [liberator.core :as l]
-            [liberator.representation :refer [Representation as-response]]))
+  (:require [liberator.core :as l]
+            [liberator.representation :refer [Representation as-response]]
+            [lens.util :as util]
+            [clojure.tools.logging :as log]))
 
 (defn error-body [path-for msg]
   {:links {:up {:href (path-for :service-document-handler)}}
@@ -27,8 +27,7 @@
     resp))
 
 (defn resource-defaults [& {:as opts}]
-  {:available-media-types ["application/json" "application/transit+json"
-                           "application/edn"]
+  {:available-media-types ["application/transit+json"]
 
    :service-available?
    (fnk [request]
@@ -48,13 +47,6 @@
 
    :handle-not-modified nil})
 
-(defn parse-body [content-type body]
-  (condp = content-type
-    "application/json"
-    (json/read-str (slurp body) :key-fn keyword)
-    "application/transit+json"
-    (transit/read (transit/reader body :json))))
-
 (defnk entity-malformed
   "Standard malformed decision for single entity resources.
 
@@ -63,11 +55,8 @@
   [request :as ctx]
   (if (or (l/=method :get ctx) (l/header-exists? "if-match" ctx))
     (when (= :put (:request-method request))
-      (if-let [body (:body request)]
-        (let [content-type (get-in request [:headers "content-type"])]
-          (try
-            [false {:new-entity (parse-body content-type body)}]
-            (catch Exception _ {:error "Invalid request body."})))
+      (if-let [params (:params request)]
+        [false {:new-entity params}]
         {:error "Missing request body."}))
     {:error "Require conditional update."}))
 
@@ -88,8 +77,8 @@
     :new? false
 
     :handle-no-content
-    (fnk [update-error [:request path-for]]
-      (condp = update-error
+    (fnk [[:request path-for] :as ctx]
+      (condp = (:update-error ctx)
         :not-found (error path-for 404 "Not found.")
         :conflict (error path-for 409 "Conflict")
         nil))
@@ -107,3 +96,29 @@
     :exists? false
     :existed? true
     :moved-permanently? true))
+
+(defn standard-create-resource-defaults []
+  (assoc
+    (resource-defaults)
+
+    :allowed-methods [:post]
+
+    :can-post-to-missing? false
+
+    :handle-unprocessable-entity
+    (fnk [[:request path-for] :as ctx]
+      (error-body path-for (or (:error ctx) "Unprocessable Entity")))))
+
+(defn duplicate-exception [msg]
+  (fnk [exception [:request path-for]]
+    (if (= ::duplicate (util/error-type exception))
+      (error path-for 409 msg)
+      (throw exception))))
+
+;; TODO: remove on release of https://github.com/clojure-liberator/liberator/pull/201
+(defmethod l/to-location java.net.URI [uri] (l/to-location (str uri)))
+
+(defn prefix-namespace [ns m]
+  (if (map? m)
+    (map-keys #(prefix-namespace ns %) m)
+    (keyword (name ns) (name m))))

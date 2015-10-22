@@ -73,7 +73,7 @@
    [:study-event-defs :ref :many :comp]
    [:form-defs :ref :many :comp]
    [:item-group-defs :ref :many :comp]
-   [:items :ref :many :comp]
+   [:item-defs :ref :many :comp]
    [:code-lists :ref :many :comp]
 
    (func create
@@ -259,8 +259,7 @@
      (let [study (d/entity db study-eid)]
        (when-not (:study/id study)
          (throw (ex-info "Study not found." {:type :study-not-found})))
-       (if-not (some #{id} (map :item-group-def/id
-                                           (-> study :study/item-group-defs)))
+       (if-not (some #{id} (map :item-group-def/id (:study/item-group-defs study)))
          [[:db/add (:db/id study) :study/item-group-defs tid]
           (merge
             {:db/id tid
@@ -268,25 +267,49 @@
              :name name
              :item-group-def/repeating false}
             more)]
-         (throw (ex-info "Duplicate!" {:type :duplicate})))))])
+         (throw (ex-info "Duplicate!" {:type :duplicate})))))
+
+   (func update
+     "Updates the item-group-def.
+
+     Ensures that the values in old-props are still current in the version of
+     the in-transaction item-group."
+     [db item-group-def-eid old-props new-props]
+     (let [item-group-def (d/entity db item-group-def-eid)]
+       (if (:item-group-def/id item-group-def)
+         (if (= (select-keys item-group-def (keys old-props)) old-props)
+           (concat (for [[prop old-val] item-group-def
+                         :when (not= :item-group-def/id prop)
+                         :when (nil? (prop new-props))]
+                     [:db/retract (:db/id item-group-def) prop old-val])
+                   (for [[prop val] new-props]
+                     [:db/add (:db/id item-group-def) prop val]))
+           (throw (ex-info "Conflict!" {:type :conflict})))
+         (throw (ex-info "Form not found." {:type :not-found})))))])
 
 (def item-ref
-  "A reference to an ItemDef as it occurs within a specific item-group-def. The
-  list of ItemRefs identifies the types of items that are allowed to occur
+  "A reference to an item-def as it occurs within a specific item-group-def. The
+  list of item-refs identifies the types of items that are allowed to occur
   within this type of item-group."
   [[:item :ref]
    [:rank :long]])
 
 (def item-def
-  "An ItemDef describes a type of item that can occur within a study. Item
+  "An item-def describes a type of item that can occur within a study. Item
   properties include name, datatype, measurement units, range or codelist
   restrictions, and several other properties."
   [[:id :string "The id of an item. Unique within a study."]
-   [:aliases :ref :many :comp]
+   [:name :string :fulltext]
    [:data-type :ref]
+   [:length :long]
+   [:significant-digits :long]
    [:sds-var :ref]
+   [:origin :string]
+   [:comment :string :fulltext]
+   [:description :string :fulltext]
    [:question :string :fulltext]
    [:code-list :ref]
+   [:aliases :ref :many :comp]
 
    (enum :data-type/text)
    (enum :data-type/integer)
@@ -300,20 +323,41 @@
    (enum :sds-var/sex)
 
    (func create
-     "Creates an item.
+     "Creates an item-def.
 
      Ensures id uniquness within its study."
-     [db tid study-id id name more]
-     (if-let [study (d/entity db [:study/id study-id])]
-       (if-not (some #{id} (-> study :study/items :item/id))
-         [[:db/add (:db/id study) :study/items tid]
+     [db tid study-eid id name data-type more]
+     (let [study (d/entity db study-eid)]
+       (when-not (:study/id study)
+         (throw (ex-info "Study not found." {:type :study-not-found})))
+       ;; TODO: possible performance problem to search linear
+       (if-not (some #{id} (map :item-def/id (:study/item-defs study)))
+         [[:db/add (:db/id study) :study/item-defs tid]
           (merge
             {:db/id tid
-             :item/id id
-             :name name}
+             :item-def/id id
+             :item-def/name name
+             :item-def/data-type data-type}
             more)]
-         (throw (ex-info "Duplicate!" {:type :duplicate})))
-       (throw (ex-info "Study not found." {:type :study-not-found}))))])
+         (throw (ex-info "Duplicate!" {:type :duplicate})))))
+
+   (func update
+     "Updates the item-def.
+
+     Ensures that the values in old-props are still current in the version of
+     the in-transaction item."
+     [db item-def-eid old-props new-props]
+     (let [item-def (d/entity db item-def-eid)]
+       (if (:item-def/id item-def)
+         (if (= (select-keys item-def (keys old-props)) old-props)
+           (concat (for [[prop old-val] item-def
+                         :when (not= :item-def/id prop)
+                         :when (nil? (prop new-props))]
+                     [:db/retract (:db/id item-def) prop old-val])
+                   (for [[prop val] new-props]
+                     [:db/add (:db/id item-def) prop val]))
+           (throw (ex-info "Conflict!" {:type :conflict})))
+         (throw (ex-info "Item not found." {:type :not-found})))))])
 
 (def alias
   "An Alias provides an additional name for an element. The Context attribute

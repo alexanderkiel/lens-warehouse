@@ -5,6 +5,7 @@
             [clojure.core.reducers :as r]
             [clojure.core.cache :as cache]
             [datomic.api :as d]
+            [schema.core :as s]
             [lens.util :as util :refer [entity?]]
             [lens.k-means :refer [k-means]])
   (:import [java.util UUID]))
@@ -36,6 +37,12 @@
   {:pre [(:study/id study) (string? id)]}
   (some #(when (= id (:item-group-def/id %)) %) (:study/item-group-defs study)))
 
+(defn find-item-def
+  "Returns the item-def with the id within the study or nil if none was found."
+  [study id]
+  {:pre [(:study/id study) (string? id)]}
+  (some #(when (= id (:item-def/id %)) %) (:study/item-defs study)))
+
 (defn find-subject
   "Returns the subject with the id within the study or nil if none was found."
   [study id]
@@ -50,12 +57,6 @@
   [db id]
   {:pre [db (string? id)]}
   (d/entity db [:study-event/id id]))
-
-(defn item
-  "Returns the item with the given ID or nil if none was found."
-  [db id]
-  {:pre [db (string? id)]}
-  (d/entity db [:item/id id]))
 
 (defn code-list
   "Returns the code-list with the given ID or nil if none was found."
@@ -133,7 +134,7 @@
 
   More can be a map of :description were :description should be a string.
 
-  Returns the created study event def or nil if there is already one with the 
+  Returns the created study event def or nil if there is already one with the
   id."
   [conn study id name & [more]]
   {:pre [(:study/id study)]}
@@ -206,6 +207,49 @@
          (map? new-props)]}
   (try
     @(d/transact conn [[:item-group-def.fn/update (:db/id item-group-def)
+                        old-props new-props]])
+    nil
+    (catch Exception e (if-let [t (util/error-type e)] t (throw e)))))
+
+;; ---- Item Def --------------------------------------------------------
+
+(def DataType
+  (s/enum :data-type/text
+          :data-type/integer
+          :data-type/float
+          :data-type/date
+          :data-type/time
+          :data-type/datetime
+          :data-type/string
+          :data-type/boolean
+          :data-type/double))
+
+(s/defn create-item-def
+  "Creates an item-def with the id, name, data-type and more within a study.
+
+  More can be a map of :description, :question and :length were :description and
+  :question should be both strings and :length a positive integer.
+
+  Returns the created item-def or nil if there is already one with the id."
+  [conn study id name data-type :- DataType & [more]]
+  {:pre [(:study/id study) (s/validate DataType data-type)]}
+  (try
+    (->> (fn [tid] [[:item-def.fn/create tid (:db/id study) id name data-type
+                     more]])
+         (util/create conn :part/meta-data))
+    (catch Exception e
+      (when-not (= :duplicate (util/error-type e)) (throw e)))))
+
+(defn update-item-def
+  "Updates the item-def.
+
+  Ensures that the values in old-props are still current in the version of the
+  in-transaction item."
+  [conn item-def old-props new-props]
+  {:pre [conn (:item-def/id item-def) (map? old-props)
+         (map? new-props)]}
+  (try
+    @(d/transact conn [[:item-def.fn/update (:db/id item-def)
                         old-props new-props]])
     nil
     (catch Exception e (if-let [t (util/error-type e)] t (throw e)))))
@@ -419,13 +463,13 @@
            (sort-by :form/id)))))
 
 (defn list-matching-item-group-defs
-  "Returns a seq of item-groups of a form matching the filter expression sorted
-  by :item-groups/rank."
+  "Returns a seq of item-group-defs of a form matching the filter expression
+  sorted by :item-groups/rank."
   [form filter]
   {:pre [(entity? form) (string? filter)]}
   (util/timer
     {:fn 'list-matching-item-group-defs :args {:form (:form/id form)
-                                           :filter filter}}
+                                               :filter filter}}
     (when-not (str/blank? filter)
       (let [db (d/entity-db form)]
         (->> (d/q '[:find [?ig ...] :in $ % ?f ?filter
@@ -434,14 +478,14 @@
              (map #(d/entity db %))
              (sort-by :item-group/rank))))))
 
-(defn list-matching-items
-  "Returns a seq of items of an item-group matching the filter expression
+(defn list-matching-item-defs
+  "Returns a seq of item-defs of an item-group matching the filter expression
   sorted by :item/rank."
   [item-group filter]
   {:pre [(entity? item-group) (string? filter)]}
   (util/timer
-    {:fn 'list-matching-items :args {:item-group (:name item-group)
-                                     :filter filter}}
+    {:fn 'list-matching-item-defs :args {:item-group (:name item-group)
+                                         :filter filter}}
     (when-not (str/blank? filter)
       (let [db (d/entity-db item-group)]
         (->> (d/q '[:find [?i ...] :in $ % ?ig ?filter
@@ -608,7 +652,7 @@
 
 (defn atom-entity [db {:keys [type id]}]
   (if (= :code-list-item type)
-    (code-list-item (item db (:item-id id)) (:code id))
+    (code-list-item (find-item-def db (:item-id id)) (:code id))
     (d/entity db [(keyword (name type) "id") id])))
 
 (defn visit-stat-visits

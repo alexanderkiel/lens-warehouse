@@ -5,6 +5,7 @@
             [clojure.tools.logging :as log]
             [liberator.core :refer [resource to-location]]
             [pandect.algo.md5 :refer [md5]]
+            [schema.core :as s]
             [lens.handler.util :refer :all]
             [lens.api :as api]
             [lens.reducers :as lr]
@@ -59,14 +60,12 @@
     (resource-defaults :cache-control "max-age=60")
 
     :etag
-    (fnk [[:representation media-type]]
-      (md5 (str media-type
+    (fnk [representation]
+      (md5 (str (:media-type representation)
                 (path-for :service-document-handler)
                 (all-studies-path path-for)
                 (path-for :all-snapshots-handler)
-                (path-for :find-item-handler)
                 (path-for :most-recent-snapshot-handler)
-                (path-for :create-subject-handler)
                 (path-for :create-study-handler)
                 (path-for :find-study-handler))))
 
@@ -78,29 +77,23 @@
       :lens/all-studies {:href (all-studies-path path-for)}
       :lens/all-snapshots {:href (path-for :all-snapshots-handler)}
       :lens/most-recent-snapshot {:href (path-for :most-recent-snapshot-handler)}}
-     :forms
+     :actions
      {:lens/find-study
-      {:action (path-for :find-study-handler)
-       :method "GET"
+      {:href (path-for :find-study-handler)
+       :method :get
        :params
        {:id
-        {:type :string}}}
-      :lens/find-item
-      {:action (path-for :find-item-handler)
-       :method "GET"
-       :params
-       {:id
-        {:type :string}}}
+        {:type 'Str}}}
       :lens/create-study
-      {:action (path-for :create-study-handler)
-       :method "POST"
+      {:href (path-for :create-study-handler)
+       :method :post
        :params
        {:id
-        {:type :string}
+        {:type 'Str}
         :name
-        {:type :string}
+        {:type 'Str}
         :description
-        {:type :string}}}}}))
+        {:type 'Str}}}}}))
 
 ;; ---- Study -----------------------------------------------------------------
 
@@ -133,6 +126,18 @@
 
 (defn- create-item-group-def-path [path-for study]
   (path-for :create-item-group-def-handler :study-id (:study/id study)))
+
+(defn- study-item-defs-path
+  ([path-for study] (study-item-defs-path path-for study 1))
+  ([path-for study page-num]
+   (path-for :study-item-defs-handler :study-id (:study/id study)
+             :page-num page-num)))
+
+(defn- find-item-def-path [path-for study]
+  (path-for :find-item-def-handler :study-id (:study/id study)))
+
+(defn- create-item-def-path [path-for study]
+  (path-for :create-item-def-handler :study-id (:study/id study)))
 
 (defn- create-subject-path [path-for study]
   (path-for :create-subject-handler :study-id (:study/id study)))
@@ -181,7 +186,10 @@
                     (find-form-def-path path-for study)
                     (create-form-def-path path-for study)
                     (find-item-group-def-path path-for study)
+                    (find-item-def-path path-for study)
                     (create-item-group-def-path path-for study)
+                    (find-item-def-path path-for study)
+                    (create-item-def-path path-for study)
                     (create-subject-path path-for study)
                     (:name study)
                     (:description study))))))
@@ -196,7 +204,6 @@
     :handle-ok
     (fnk [study [:request path-for]]
       (-> {:id (:study/id study)
-           :type :study
            :name (:name study)}
           (assoc-when :description (:description study))
           (assoc
@@ -206,46 +213,70 @@
              :lens/form-defs
              {:href (study-form-defs-path path-for study)}
              :lens/item-group-defs
-             {:href (study-item-group-defs-path path-for study)}}
-            :forms
+             {:href (study-item-group-defs-path path-for study)}
+             :lens/item-defs
+             {:href (study-item-defs-path path-for study)}}
+            :actions
             {:lens/find-form-def
-             {:action (find-form-def-path path-for study)
-              :method "GET"
+             {:href (find-form-def-path path-for study)
+              :method :get
               :params
               {:id
-               {:type :string}}}
+               {:type 'Str}}}
              :lens/create-form-def
-             {:action (create-form-def-path path-for study)
-              :method "POST"
+             {:href (create-form-def-path path-for study)
+              :method :post
               :params
               {:id
-               {:type :string}
+               {:type 'Str}
                :name
-               {:type :string}
+               {:type 'Str}
                :description
-               {:type :string}}}
+               {:type 'Str}}}
              :lens/find-item-group-def
-             {:action (find-item-group-def-path path-for study)
-              :method "GET"
+             {:href (find-item-group-def-path path-for study)
+              :method :get
               :params
               {:id
-               {:type :string}}}
+               {:type 'Str}}}
              :lens/create-item-group-def
-             {:action (create-item-group-def-path path-for study)
-              :method "POST"
+             {:href (create-item-group-def-path path-for study)
+              :method :post
               :params
               {:id
-               {:type :string}
+               {:type 'Str}
                :name
-               {:type :string}
+               {:type 'Str}
                :description
-               {:type :string}}}
-             :lens/create-subject
-             {:action (create-subject-path path-for study)
-              :method "POST"
+               {:type 'Str}}}
+             :lens/find-item-def
+             {:href (find-item-def-path path-for study)
+              :method :get
               :params
               {:id
-               {:type :string}}}})))))
+               {:type 'Str}}}
+             :lens/create-item-def
+             {:href (create-item-def-path path-for study)
+              :method :post
+              :params
+              {:id
+               {:type 'Str}
+               :name
+               {:type 'Str}
+               :data-type
+               {:type '(enum :text :integer)}
+               :description
+               {:type 'Str}
+               :question
+               {:type 'Str}
+               :length
+               {:type 'Int}}}
+             :lens/create-subject
+             {:href (create-subject-path path-for study)
+              :method :post
+              :params
+              {:id
+               {:type 'Str}}}})))))
 
 (defn render-embedded-study [path-for study]
   (-> {:id (:study/id study)
@@ -256,7 +287,7 @@
       (assoc-when :description (:description study))))
 
 (defn render-embedded-studies [path-for studies]
-  (mapv #(render-embedded-study path-for %) studies))
+  (r/map #(render-embedded-study path-for %) studies))
 
 (defn all-studies-handler [path-for]
   (resource
@@ -280,18 +311,17 @@
          :embedded
          {:lens/studies
           (->> (paginate page-num studies)
-               (into [])
-               (render-embedded-studies path-for))}}))))
+               (render-embedded-studies path-for)
+               (into []))}}))))
 
-(defn create-study-handler [path-for]
+(def create-study-handler
   (resource
-    (resource-defaults)
-
-    :allowed-methods [:post]
+    (standard-create-resource-defaults)
 
     :processable?
     (fnk [[:request params]]
-      (and (:id params) (:name params)))
+      (or (and (:id params) (:name params))
+          [false {:error (str ":id or :name missing in " (keys params))}]))
 
     :post!
     (fnk [conn [:request params]]
@@ -300,14 +330,9 @@
           {:study study}
           (throw (ex-info "Duplicate!" {:type ::duplicate})))))
 
-    :location
-    (fnk [study] (study-path path-for study))
+    :location (fnk [study [:request path-for]] (study-path path-for study))
 
-    :handle-exception
-    (fnk [exception]
-      (if (= ::duplicate (util/error-type exception))
-        (error path-for 409 "Study exists already.")
-        (throw exception)))))
+    :handle-exception (duplicate-exception "Study exists already.")))
 
 (defn study-child-list-resource-defaults []
   (assoc
@@ -365,12 +390,12 @@
    (path-for :form-def-handler :study-id study-id :form-def-id form-def-id)))
 
 (defn search-item-groups-form [form]
-  {:action (str "/forms/" (:form/id form) "/search-item-groups")
-   :method "GET"
+  {:href (str "/forms/" (:form/id form) "/search-item-groups")
+   :method :get
    :title (str "Search Item Groups of Form " (:form/id form))
    :params
    {:query
-    {:type :string
+    {:type 'Str
      :description "Search query which allows Lucene syntax."}}})
 
 (defn render-embedded-form-def [path-for timeout form-def]
@@ -379,11 +404,9 @@
        :name (:name form-def)
        :links
        {:self
-        {:href (form-def-path path-for form-def)}
-        :lens/item-groups
-        {:href (str "/forms/" (:form/id form-def) "/item-groups")}}
-       :forms
-       {:lens/search-item-groups (search-item-groups-form form-def)}}
+        {:href (form-def-path path-for form-def)}}
+       #_:actions
+       #_{:lens/search-item-groups (search-item-groups-form form-def)}}
       #_(assoc-count
         (util/try-until timeout (api/num-form-subjects form-def))
         (path-for :form-count-handler :id (:form-def/id form-def)))))
@@ -412,14 +435,14 @@
               :up {:href (study-path path-for study)}}
              (assoc-prev page-num path)
              (assoc-next next-page? page-num path))
-         :forms
+         :actions
          {:lens/filter
-          {:action (study-form-defs-path path-for study)
-           :method "GET"
+          {:href (study-form-defs-path path-for study)
+           :method :get
            :title "Filter Form Defs"
            :params
            {:filter
-            {:type :string
+            {:type 'Str
              :description "Search query which allows Lucene syntax."}}}}
          :embedded
          {:lens/form-defs
@@ -506,11 +529,9 @@
     :handle-not-found
     (error-body path-for "Form not found.")))
 
-(defn create-form-def-handler [path-for]
+(def create-form-def-handler
   (resource
-    (resource-defaults)
-
-    :allowed-methods [:post]
+    (standard-create-resource-defaults)
 
     :processable?
     (fnk [[:request params]]
@@ -527,13 +548,9 @@
           (throw (ex-info "Duplicate!" {:type ::duplicate})))))
 
     :location
-    (fnk [form-def] (form-def-path path-for form-def))
+    (fnk [form-def [:request path-for]] (form-def-path path-for form-def))
 
-    :handle-exception
-    (fnk [exception]
-      (if (= ::duplicate (util/error-type exception))
-        (error path-for 409 "Form exists already.")
-        (throw exception)))))
+    :handle-exception (duplicate-exception "Form-def exists already.")))
 
 ;; ---- Search Item Groups ----------------------------------------------------
 
@@ -547,12 +564,12 @@
              item-group-def-id)))
 
 (defn search-items-form [path-for item-group]
-  {:action (path-for :search-items-handler :id (:item-group/id item-group))
-   :method "GET"
+  {:href (path-for :search-items-handler :id (:item-group/id item-group))
+   :method :get
    :title (str "Search Items of Item Group " (:name item-group))
    :params
    {:query
-    {:type :string
+    {:type 'Str
      :description "Search query which allows Lucene syntax."}}})
 
 (defn render-embedded-item-group-def [path-for timeout item-group-def]
@@ -562,7 +579,7 @@
        :links
        {:self
         {:href (item-group-def-path path-for item-group-def)}}
-       #_:forms
+       #_:actions
        #_{:lens/search-items (search-items-form path-for item-group-def)}}
       #_(assoc-count
         (util/try-until timeout (api/num-item-group-subjects item-group-def))
@@ -587,7 +604,7 @@
     :handle-ok
     (fnk [form-def [:request [:params query]]]
       {:links {:up {:href (form-def-path path-for form-def)}}
-       :forms
+       :actions
        {:lens/search-item-groups (search-item-groups-form form-def)}
        :embedded
        {:lens/item-groups
@@ -618,14 +635,14 @@
               :up {:href (study-path path-for study)}}
              (assoc-prev page-num path)
              (assoc-next next-page? page-num path))
-         :forms
+         :actions
          {:lens/filter
-          {:action (study-item-group-defs-path path-for study)
-           :method "GET"
+          {:href (study-item-group-defs-path path-for study)
+           :method :get
            :title "Filter item-group Defs"
            :params
            {:filter
-            {:type :string
+            {:type 'Str
              :description "Search query which allows Lucene syntax."}}}}
          :embedded
          {:lens/item-group-defs
@@ -652,16 +669,16 @@
     {:item-group-def item-group-def}))
 
 (def item-group-def-handler
-  "Handler for GET and PUT on a item-group.
+  "Handler for GET and PUT on an item-group-def.
 
   Implementation note on PUT:
 
   The resource compares the current ETag with the If-Match header based on a
-  possibly old version of the item-group taken from a database outside of the
-  transaction. The update transaction is than tried with name and description
-  from that possibly old item-group as reference. The transaction only succeeds
-  if the name and description are still the same on the in-transaction
-  item-group."
+  possibly old version of the item-group-def taken from a database outside of
+  the transaction. The update transaction is than tried with name and
+  description from that possibly old item-group-def as reference. The
+  transaction only succeeds if the name and description are still the same on
+  the in-transaction item-group-def."
   (resource
     (standard-entity-resource-defaults)
 
@@ -706,11 +723,9 @@
     :handle-not-found
     (error-body path-for "Item group not found.")))
 
-(defn create-item-group-def-handler [path-for]
+(def create-item-group-def-handler
   (resource
-    (resource-defaults)
-
-    :allowed-methods [:post]
+    (standard-create-resource-defaults)
 
     :processable?
     (fnk [[:request params]]
@@ -721,21 +736,26 @@
     :post!
     (fnk [conn study [:request params]]
       (let [opts (select-keys params [:description])]
-        (if-let [item-group-def (api/create-item-group-def conn study (:id params)
-                                                           (:name params) opts)]
+        (if-let [item-group-def
+                 (api/create-item-group-def conn study (:id params)
+                                            (:name params) opts)]
           {:item-group-def item-group-def}
           (throw (ex-info "Duplicate!" {:type ::duplicate})))))
 
     :location
-    (fnk [item-group-def] (item-group-def-path path-for item-group-def))
+    (fnk [item-group-def [:request path-for]]
+      (item-group-def-path path-for item-group-def))
 
-    :handle-exception
-    (fnk [exception]
-      (if (= ::duplicate (util/error-type exception))
-        (error path-for 409 "item-group exists already.")
-        (throw exception)))))
+    :handle-exception (duplicate-exception "Item-group-def exists already.")))
 
 ;; ---- Search Items ----------------------------------------------------------
+
+(defn- item-def-path
+  ([path-for item-def]
+   (item-def-path path-for (:study/id (:study/_item-defs item-def))
+                  (:item-def/id item-def)))
+  ([path-for study-id item-def-id]
+   (path-for :item-def-handler :study-id study-id :item-def-id item-def-id)))
 
 (defn value-type [item]
   (->> (:item/attr item)
@@ -752,21 +772,21 @@
   (assoc-when m :lens/code-list
               (some-> (:item/code-list item) (code-list-link))))
 
-(defn render-embedded-item [path-for timeout item]
-  (-> {:id (:item/id item)
-       :question (:item/question item)
-       :type :item
-       :value-type (value-type item)
+(defn render-embedded-item-def [path-for timeout item-def]
+  (-> {:id (:item-def/id item-def)
+       :name (:name item-def)
+       :data-type (keyword (name (:item-def/data-type item-def)))
        :links
-       (-> {:self {:href (path-for :item-handler :id (:item/id item))}}
-           (assoc-code-list-link item))}
-      (assoc-when :name (:name item))
-      (assoc-count
+       (-> {:self {:href (item-def-path path-for item-def)}}
+           #_(assoc-code-list-link item))}
+      (assoc-when :description (:item-def/description item-def))
+      (assoc-when :question (:item-def/question item-def))
+      #_(assoc-count
         (util/try-until timeout (api/num-item-subjects item))
-        (path-for :item-count-handler :id (:item/id item)))))
+        (path-for :item-def-count-handler :id (:item/id item)))))
 
-(defn render-embedded-items [path-for timeout items]
-  (r/map #(render-embedded-item path-for timeout %) items))
+(defn render-embedded-item-defs [path-for timeout items]
+  (r/map #(render-embedded-item-def path-for timeout %) items))
 
 (defn search-items-handler [path-for]
   (resource
@@ -781,17 +801,53 @@
     :handle-ok
     (fnk [item-group-def [:request [:params query]]]
       {:links {:up {:href (item-group-def-path path-for item-group-def)}}
-       :forms
+       :actions
        {:lens/search-items (search-items-form path-for item-group-def)}
        :embedded
        {:lens/items
-        (->> (api/list-matching-items item-group-def query)
-             (render-embedded-items path-for (timeout 100)))}})
+        (->> (api/list-matching-item-defs item-group-def query)
+             (render-embedded-item-defs path-for (timeout 100)))}})
 
     :handle-not-found
     (error-body path-for "Item group not found.")))
 
-;; ---- Item ------------------------------------------------------------------
+(def study-item-defs-handler
+  "Resource of all item-defs of a study."
+  (resource
+    (study-child-list-resource-defaults)
+
+    :handle-ok
+    (fnk [study [:request path-for params]]
+      (let [page-num (parse-page-num (:page-num params))
+            filter (:filter params)
+            items (if (str/blank? filter)
+                    (->> (:study/item-defs study)
+                         (sort-by :item-def/id))
+                    (api/list-matching-item-defs study filter))
+            next-page? (not (lr/empty? (paginate (inc page-num) items)))
+            path #(-> (study-item-defs-path path-for study %)
+                      (assoc-filter filter))]
+        {:links
+         (-> {:self {:href (path page-num)}
+              :up {:href (study-path path-for study)}}
+             (assoc-prev page-num path)
+             (assoc-next next-page? page-num path))
+         :actions
+         {:lens/filter
+          {:href (study-item-defs-path path-for study)
+           :method :get
+           :title "Filter item Defs"
+           :params
+           {:filter
+            {:type 'Str
+             :description "Search query which allows Lucene syntax."}}}}
+         :embedded
+         {:lens/item-defs
+          (->> (paginate page-num items)
+               (render-embedded-item-defs path-for (timeout 100))
+               (into []))}}))))
+
+;; ---- Item Def --------------------------------------------------------------
 
 (defn numeric? [item]
   (#{:data-point/long-value :data-point/float-value} (:item/attr item)))
@@ -814,61 +870,120 @@
   (map #(render-embedded-item-code-list-item path-for timeout item %)
        code-list-items))
 
-(defn item-handler [path-for]
+(def find-item-def-handler
   (resource
-    (resource-defaults)
+    (standard-redirect-resource-defaults)
 
-    :exists?
-    (fnk [db [:request [:params id]]]
-      (when-let [item (api/item db id)]
-        {:item item}))
+    :processable?
+    (fnk [[:request params]]
+      (and (:study-id params) (:id params)))
+
+    :location
+    (fnk [[:request path-for [:params study-id id]]]
+      (item-def-path path-for study-id id))))
+
+(defnk exists-item-def? [study [:request [:params item-def-id]]]
+  (when-let [item-def (api/find-item-def study item-def-id)]
+    {:item-def item-def}))
+
+(def item-def-handler
+  "Handler for GET and PUT on an item-def.
+
+  Implementation note on PUT:
+
+  The resource compares the current ETag with the If-Match header based on a
+  possibly old version of the item-def taken from a database outside of the
+  transaction. The update transaction is than tried with name and description
+  from that possibly old item as reference. The transaction only succeeds if the
+  name and description are still the same on the in-transaction item-def."
+  (resource
+    (standard-entity-resource-defaults)
+
+    :exists? (fn [ctx] (some-> (exists-study? ctx) (exists-item-def?)))
+
+    ;;TODO: simplyfy when https://github.com/clojure-liberator/liberator/issues/219 is closed
+    :etag
+    (fnk [representation {status 200} [:request path-for] :as ctx]
+      (when (= 200 status)
+        (let [item-def (:item-def ctx)]
+          (md5 (str (:media-type representation)
+                    (study-path path-for (:study/_item-defs item-def))
+                    (item-def-path path-for item-def)
+                    (:name item-def)
+                    (:item-def/data-type item-def)
+                    (:description item-def)
+                    (:item-def/question item-def))))))
+
+    :put!
+    (fnk [conn item-def new-entity]
+      (let [new-entity (->> (update-in new-entity [:data-type]
+                                       #(prefix-namespace :data-type %))
+                            (prefix-namespace :item-def))
+            select-props (fn [item-def]
+                           (select-keys item-def [:item-def/name
+                                                  :item-def/data-type
+                                                  :item-def/description
+                                                  :item-def/question]))]
+        {:update-error (api/update-item-def conn item-def
+                                            (select-props item-def)
+                                            (select-props new-entity))}))
 
     :handle-ok
-    (fnk [item]
-      (-> {:id (:item/id item)
-           :type :item
-           :value-type (value-type item)
-           :links
-           (-> {:up
-                {:href (item-group-def-path path-for (:item/item-group item))}
-                :self
-                {:href (path-for :item-handler :id (:item/id item))}}
-               (assoc-code-list-link item))}
-          (assoc-when
-            :embedded
-            (when-let [code-list (:item/code-list item)]
-              {:lens/item-code-list-items
-               (->> (api/code-list-items code-list)
-                    ;; TODO: use :code-list-item/rank instead
-                    (sort-by (:code-list/attr code-list))
-                    (render-embedded-item-code-list-items path-for (timeout 100)
-                                                          item))}))
-          (assoc-when :name (:name item))
-          (assoc-when :question (:item/question item))
-          (assoc-when :value-histogram (when (numeric? item)
-                                         (api/value-histogram item)))))
+    (fnk [item-def [:request path-for]]
+      (-> {:id (:item-def/id item-def)
+           ;;TODO: alias
+           :name (:item-def/name item-def)
+           :data-type (keyword (name (:item-def/data-type item-def)))}
+          (assoc-when :description (:item-def/description item-def))
+          (assoc-when :question (:item-def/question item-def))
+          (assoc
+            :links
+            {:up (study-link path-for (:study/_item-defs item-def))
+             :self {:href (item-def-path path-for item-def)}})))))
 
-    :handle-not-found
-    (error-body path-for "Item not found.")))
-
-(defn item-count-handler [path-for]
+(defn item-def-count-handler [path-for]
   (resource
     (resource-defaults)
 
     :exists?
     (fnk [db [:request [:params id]]]
-      (when-let [item (api/item db id)]
+      (when-let [item (api/find-item-def db id)]
         {:item item}))
 
     :handle-ok
     (fnk [item]
       {:value (api/num-item-subjects item)
        :links
-       {:up {:href (path-for :item-handler :id (:item/id item))}
-        :self {:href (path-for :item-count-handler :id (:item/id item))}}})
+       {:up {:href (path-for :item-def-handler :id (:item/id item))}
+        :self {:href (path-for :item-def-count-handler :id (:item/id item))}}})
 
     :handle-not-found
     (error-body path-for "Item not found.")))
+
+(def create-item-def-handler
+  (resource
+    (standard-create-resource-defaults)
+
+    :processable?
+    (fnk [[:request params]]
+      (and (:study-id params) (:id params) (:name params) (:data-type params)))
+
+    :exists? exists-study?
+
+    :post!
+    (fnk [conn study [:request params]]
+      (let [data-type (keyword "data-type" (name (:data-type params)))
+            opts (->> (select-keys params [:description :question :length])
+                      (prefix-namespace :item-def))]
+        (if-let [item-def (api/create-item-def conn study (:id params)
+                                               (:name params) data-type opts)]
+          {:item-def item-def}
+          (throw (ex-info "Duplicate!" {:type ::duplicate})))))
+
+    :location
+    (fnk [item-def [:request path-for]] (item-def-path path-for item-def))
+
+    :handle-exception (duplicate-exception "Item-def exists already.")))
 
 (defn item-code-list-item-count-handler [path-for]
   (resource
@@ -876,7 +991,7 @@
 
     :exists?
     (fnk [db [:request [:params id code]]]
-      (when-let [item (api/item db id)]
+      (when-let [item (api/find-item-def db id)]
         (when-let [code-list-item (api/code-list-item item code)]
           {:item item
            :code-list-item code-list-item})))
@@ -885,7 +1000,7 @@
     (fnk [item code-list-item]
       {:value (api/num-code-list-item-subjects code-list-item)
        :links
-       {:up {:href (path-for :item-handler :id (:item/id item))}
+       {:up {:href (path-for :item-def-handler :id (:item/id item))}
         :self {:href (path-for :item-code-list-item-count-handler
                                :id (:item/id item)
                                :code (api/code code-list-item))}}})
@@ -944,7 +1059,7 @@
   (when-let [subject (api/find-subject study subject-id)]
     {:subject subject}))
 
-(defn subject-handler [path-for]
+(def subject-handler
   (resource
     (resource-defaults)
 
@@ -955,7 +1070,7 @@
     :exists? (fn [ctx] (some-> (exists-study? ctx) (exists-subject?)))
 
     :handle-ok
-    (fnk [subject]
+    (fnk [subject [:request path-for]]
       {:id (:subject/id subject)
        :type :subject
        :links
@@ -963,13 +1078,11 @@
         :self {:href (subject-path path-for subject)}}})
 
     :handle-not-found
-    (error-body path-for "Subject not found.")))
+    (fnk [[:request path-for]] (error-body path-for "Subject not found."))))
 
-(defn create-subject-handler [path-for]
+(def create-subject-handler
   (resource
-    (resource-defaults)
-
-    :allowed-methods [:post]
+    (standard-create-resource-defaults)
 
     :processable?
     (fnk [[:request params]]
@@ -984,13 +1097,9 @@
         (throw (ex-info "" {:type ::conflict}))))
 
     :location
-    (fnk [subject] (subject-path path-for subject))
+    (fnk [subject [:request path-for]] (subject-path path-for subject))
 
-    :handle-exception
-    (fnk [exception]
-      (if (= ::conflict (util/error-type exception))
-        (error path-for 409 "Subject exists already.")
-        (throw exception)))))
+    :handle-exception (duplicate-exception "Subject exists already.")))
 
 (defn delete-subject-handler [path-for]
   (fnk [conn [:params id]]
@@ -1048,14 +1157,14 @@
        {:self {:href (snapshot-path path-for snapshot)}}
        :id (str (:tx-id snapshot))
        :time (:db/txInstant snapshot)
-       :forms
+       :actions
        {:lens/query
-        {:action (path-for :query-handler :id (:tx-id snapshot))
-         :method "GET"
+        {:href (path-for :query-handler :id (:tx-id snapshot))
+         :method :get
          :title "Query"
          :params
          {:expr
-          {:type :string
+          {:type 'Str
            :description "Issues a query against the database.
 
     The query consists of two parts. Part one specifies the :items which have to
@@ -1194,19 +1303,19 @@
    :all-studies-handler (all-studies-handler path-for)
    :find-study-handler find-study-handler
    :study-handler study-handler
-   :create-study-handler (create-study-handler path-for)
+   :create-study-handler create-study-handler
 
    :study-event-def-handler (study-event-def-handler path-for)
 
-   :subject-handler (subject-handler path-for)
-   :create-subject-handler (create-subject-handler path-for)
+   :subject-handler subject-handler
+   :create-subject-handler create-subject-handler
    :delete-subject-handler (delete-subject-handler path-for)
 
    :study-form-defs-handler study-form-defs-handler
    :find-form-def-handler find-form-def-handler
    :form-def-handler form-def-handler
    :form-count-handler (form-def-count-handler path-for)
-   :create-form-def-handler (create-form-def-handler path-for)
+   :create-form-def-handler create-form-def-handler
 
    :search-item-groups-handler (search-item-groups-handler path-for)
 
@@ -1214,13 +1323,16 @@
    :find-item-group-def-handler find-item-group-def-handler
    :item-group-def-handler item-group-def-handler
    :item-group-count-handler (item-group-def-count-handler path-for)
-   :create-item-group-def-handler (create-item-group-def-handler path-for)
+   :create-item-group-def-handler create-item-group-def-handler
 
    :search-items-handler (search-items-handler path-for)
 
-   :find-item-handler (item-handler path-for)
-   :item-handler (item-handler path-for)
-   :item-count-handler (item-count-handler path-for)
+   :study-item-defs-handler study-item-defs-handler
+   :find-item-def-handler find-item-def-handler
+   :item-def-handler item-def-handler
+   :item-def-count-handler (item-def-count-handler path-for)
+   :create-item-def-handler create-item-def-handler
+
    :item-code-list-item-count-handler
    (item-code-list-item-count-handler path-for)
    :code-list-handler (code-list-handler path-for)

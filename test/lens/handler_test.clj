@@ -19,6 +19,9 @@
     (transit/write (transit/writer out :json) o)
     (io/input-stream (.toByteArray out))))
 
+(defn- is->transit [in]
+  (transit/read (transit/reader in :json)))
+
 (defn- path-for [handler & args] (pr-str {:handler handler :args args}))
 
 (defn- connect [] (d/connect "datomic:mem:test"))
@@ -31,6 +34,18 @@
   (d/delete-database "datomic:mem:test"))
 
 (use-fixtures :each database-fixture)
+
+(defn- request [method & kvs]
+  (reduce-kv
+    (fn [m k v]
+      (if (sequential? k)
+        (assoc-in m k v)
+        (assoc m k v)))
+    {:request-method method
+     :headers {"accept" "*/*"}
+     :path-for path-for
+     :db (d/db (connect))}
+    (apply hash-map kvs)))
 
 ;; ---- Study -----------------------------------------------------------------
 
@@ -50,142 +65,107 @@
 (deftest study-handler-test
   (testing "Body contains self link"
     (create-study "id-224127")
-    (let [req {:request-method :get
-               :headers {"accept" "application/edn"}
-               :params {:study-id "id-224127"}
-               :db (d/db (connect))}
-          resp ((study-handler path-for) req)]
+    (let [req (request :get
+                :params {:study-id "id-224127"})
+          resp (study-handler req)]
       (is (= 200 (:status resp)))
-      (let [self-link (:self (:links (edn/read-string (:body resp))))
+      (let [self-link (:self (:links (is->transit (:body resp))))
             self-link-href (edn/read-string (:href self-link))]
         (is (= :study-handler (:handler self-link-href)))
         (is (= [:study-id "id-224127"] (:args self-link-href))))))
 
   (testing "Response contains an ETag"
     (create-study "id-175847" "name-175850")
-    (let [req {:request-method :get
-               :headers {"accept" "application/edn"}
-               :params {:study-id "id-175847"}
-               :db (d/db (connect))}
-          resp ((study-handler path-for) req)]
-      (is (= "\"ea1288457ad10d1223415f4b2ea862b7\""
+    (let [req (request :get
+                :params {:study-id "id-224127"})
+          resp (study-handler req)]
+      (is (= "\"5527cbff49ee808e8c4b56107b9fdf60\""
              (get-in resp [:headers "ETag"])))))
 
   (testing "Non-conditional update fails"
     (create-study "id-093946" "name-201516")
-    (let [req {:request-method :put
-               :headers {"accept" "application/json"
-                         "content-type" "application/json"}
-               :params {:id "id-093946"}
-               :db (d/db (connect))}
-          resp ((study-handler path-for) req)]
+    (let [req (request :put
+                :params {:study-id "id-093946"})
+          resp (study-handler req)]
       (is (= 400 (:status resp)))
       (is (= "Require conditional update." (:body resp)))))
 
   (testing "Update with missing body fails"
     (create-study "id-201514" "name-201516")
-    (let [req {:request-method :put
-               :headers {"accept" "application/json"
-                         "content-type" "application/json"
-                         "if-match" "\"foo\""}
-               :params {:id "id-201514"}
-               :db (d/db (connect))}
-          resp ((study-handler path-for) req)]
+    (let [req (request :put
+                :params {:study-id "id-201514"}
+                [:headers "content-type"] "application/transit+json"
+                [:headers "if-match"] "\"foo\"")
+          resp (study-handler req)]
       (is (= 400 (:status resp)))
       (is (= "Missing request body." (:body resp)))))
 
   (testing "Update with invalid body fails"
     (create-study "id-201514" "name-201516")
-    (let [req {:request-method :put
-               :headers {"accept" "application/json"
-                         "content-type" "application/json"
-                         "if-match" "\"foo\""}
-               :params {:id "id-201514"}
-               :body (str->is "{")
-               :db (d/db (connect))}
-          resp ((study-handler path-for) req)]
+    (let [req (request :put
+                :params {:study-id "id-201514"}
+                [:headers "content-type"] "application/transit+json"
+                [:headers "if-match"] "\"foo\""
+                :body (str->is "{"))
+          resp (study-handler req)]
       (is (= 400 (:status resp)))
       (is (= "Invalid request body." (:body resp)))))
 
   (testing "Update fails on ETag missmatch"
     (create-study "id-201514" "name-201516")
-    (let [req {:request-method :put
-               :headers {"accept" "application/json"
-                         "content-type" "application/json"
-                         "if-match" "\"foo\""}
-               :params {:study-id "id-201514"}
-               :body (str->is "{\"name\": \"name-202906\"}")
-               :db (d/db (connect))}
-          resp ((study-handler path-for) req)]
+    (let [req (request :put
+                :params {:study-id "id-201514"}
+                [:headers "content-type"] "application/transit+json"
+                [:headers "if-match"] "\"foo\""
+                :body (transit->is {:name "name-202906"}))
+          resp (study-handler req)]
       (is (= 412 (:status resp)))))
 
   (testing "Update fails on missing name"
     (create-study "id-174709" "name-202034")
-    (let [req {:request-method :put
-               :headers {"accept" "application/json"
-                         "content-type" "application/json"
-                         "if-match" "\"foo\""}
-               :params {:id "id-174709"}
-               :body (str->is "{}")
-               :conn (connect)
-               :db (d/db (connect))}
-          resp ((study-handler path-for) req)]
+    (let [req (request :put
+                :params {:study-id "id-201514"}
+                [:headers "content-type"] "application/transit+json"
+                [:headers "if-match"] "\"foo\""
+                :body (transit->is {}))
+          resp (study-handler req)]
       (is (= 422 (:status resp)))))
 
   (testing "Update fails in-transaction on name missmatch"
     (create-study "id-202032" "name-202034")
-    (let [req {:request-method :put
-               :headers {"accept" "application/json"
-                         "content-type" "application/json"
-                         "if-match" "\"d4ea5b1f1736e1ab5ed25e2703715479\""}
-               :params {:study-id "id-202032"}
-               :body (str->is "{\"name\": \"name-202906\"}")
-               :db (d/db (connect))}
+    (let [req (request :put
+                :params {:study-id "id-202032"}
+                [:headers "content-type"] "application/transit+json"
+                [:headers "if-match"] "\"e5c5bc6217a952907dedcdc539dc6c0d\""
+                :body (transit->is {:name "name-202906"})
+                :conn (connect))
           _ (api/update-study (connect) "id-202032" {:name "name-202034"}
                               {:name "name-203308"})
           req (assoc req :conn (connect))
-          resp ((study-handler path-for) req)]
+          resp (study-handler req)]
       (is (= 409 (:status resp)))))
-
-  (testing "Update with JSON succeeds"
-    (create-study "id-203855" "name-202034")
-    (let [req {:request-method :put
-               :headers {"accept" "application/json"
-                         "content-type" "application/json"
-                         "if-match" "\"42410fadebf56d086ee0a26b5a2f00ff\""}
-               :params {:study-id "id-203855"}
-               :body (str->is "{\"name\": \"name-202906\"}")
-               :conn (connect)
-               :db (d/db (connect))}
-          resp ((study-handler path-for) req)]
-      (is (= 204 (:status resp)))
-      (is (= "name-202906" (:name (find-study "id-203855"))))))
 
   (testing "Update with Transit succeeds"
     (create-study "id-143317" "name-143321")
-    (let [req {:request-method :put
-               :headers {"accept" "application/transit+json"
-                         "content-type" "application/transit+json"
-                         "if-match" "\"fe28d59b171118529808163db335051e\""}
-               :params {:study-id "id-143317"}
-               :body (transit->is {:name "name-143536"})
-               :conn (connect)
-               :db (d/db (connect))}
-          resp ((study-handler path-for) req)]
+    (let [req (request :put
+                :params {:study-id "id-143317"}
+                [:headers "content-type"] "application/transit+json"
+                [:headers "if-match"] "\"4e0cc9ea8f585ac9cfe4d917beef2914\""
+                :body (transit->is {:name "name-143536"})
+                :conn (connect))
+          resp (study-handler req)]
       (is (= 204 (:status resp)))
       (is (= "name-143536" (:name (find-study "id-143317"))))))
 
   (testing "Update can remove description"
     (create-study "id-171301" "name-143321" "desc-155658")
-    (let [req {:request-method :put
-               :headers {"accept" "application/transit+json"
-                         "content-type" "application/transit+json"
-                         "if-match" "\"ce175a98e788f5a9cdcb1db9f0959faf\""}
-               :params {:study-id "id-171301"}
-               :body (transit->is {:name "name-143536"})
-               :conn (connect)
-               :db (d/db (connect))}
-          resp ((study-handler path-for) req)]
+    (let [req (request :put
+                :params {:study-id "id-171301"}
+                [:headers "content-type"] "application/transit+json"
+                [:headers "if-match"] "\"c258b915d19d575dba79692169d7fc5e\""
+                :body (transit->is {:name "name-143536"})
+                :conn (connect))
+          resp (study-handler req)]
       (is (= 204 (:status resp)))
       (is (nil? (:description (find-study "id-143317")))))))
 

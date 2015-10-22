@@ -3,18 +3,18 @@
   (:require [bidi.bidi :as bidi]
             [bidi.ring :as bidi-ring]
             [io.clojure.liberator-transit]
-            [ring.middleware.params :refer [wrap-params]]
-            [ring.middleware.keyword-params :refer [wrap-keyword-params]]
+            [ring-twp.core :refer [wrap-twp]]
             [lens.route :refer [routes]]
             [lens.handler :refer [handlers]]
             [lens.representation]
             [lens.middleware.datomic :refer [wrap-connection]]
             [lens.middleware.wan-exception :refer [wrap-exception]]
-            [lens.middleware.cors :refer [wrap-cors]]))
+            [lens.middleware.cors :refer [wrap-cors]])
+  (:import [java.net URI]))
 
 (defn path-for [routes]
   (fn [handler & params]
-    (apply bidi/path-for routes handler params)))
+    (URI/create (apply bidi/path-for routes handler params))))
 
 (defn wrap-path-for [handler path-for]
   (fn [req] (handler (assoc req :path-for path-for))))
@@ -36,5 +36,4 @@
         (wrap-exception)
         (wrap-cors)
         (wrap-connection db-uri)
-        (wrap-keyword-params)
-        (wrap-params))))
+        (wrap-twp))))

@@ -3,7 +3,8 @@
             [lens.api :as api :refer [find-subject find-form-def]]
             [lens.schema :refer [load-base-schema]]
             [datomic.api :as d]
-            [clojure.core.reducers :as r]))
+            [clojure.core.reducers :as r]
+            [schema.test]))
 
 (defn- connect [] (d/connect "datomic:mem:test"))
 
@@ -15,6 +16,7 @@
   (d/delete-database "datomic:mem:test"))
 
 (use-fixtures :each database-fixture)
+(use-fixtures :once schema.test/validate-schemas)
 
 ;; ---- Study -----------------------------------------------------------------
 

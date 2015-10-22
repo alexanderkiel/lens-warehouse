@@ -34,22 +34,24 @@
        ["/" :item-group-def-id "/count"] :item-group-count-handler
        ["/" :item-group-def-id "/search-items"] :search-items-handler}
 
+      "/find-item-def" :find-item-def-handler
+
+      "/item-defs"
+      {"" :create-item-def-handler
+       ["/page/" :page-num] :study-item-defs-handler
+       ["/" :item-def-id] :item-def-handler
+       ["/" :item-def-id "/count"] :item-count-handler
+       ["/" :item-def-id "/search-items"] :search-items-handler}
+
       "/subjects"
       {"" :create-subject-handler
        ["/" :subject-id] {:get :subject-handler
                           :delete :delete-subject-handler}}}}
 
-    "/items"
-    {"" :all-items-handler
-     ["/" :id] :item-handler
-     ["/" :id "/count"] :item-count-handler
-     ["/" :id "/code-list-item/" :code "/count"]
-     :item-code-list-item-count-handler}
     ["/code-lists" :id] :code-list-handler
     "/snapshots"
     {"" :all-snapshots-handler
      ["/" :id] :snapshot-handler
      ["/" :id "/query"] :query-handler}
     "/most-recent-snapshot" :most-recent-snapshot-handler
-    "/find-study" :find-study-handler
-    "/find-item" :find-item-handler}])
+    "/find-study" :find-study-handler}])
