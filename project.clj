@@ -28,8 +28,8 @@
                  [org.slf4j/slf4j-api "1.7.7"]
                  [ch.qos.logback/logback-classic "1.1.2"]]
 
-  :profiles {:dev [:dev-common :datomic-free]
-             :dev-pro [:dev-common :datomic-pro]
+  :profiles {:dev [:datomic-free :dev-common :base :system :user :provided]
+             :dev-pro [:datomic-pro :dev-common :base :system :user :provided]
 
              :dev-common
              {:source-paths ["dev"]
