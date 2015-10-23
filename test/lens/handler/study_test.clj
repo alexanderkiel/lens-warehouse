@@ -56,7 +56,7 @@
 
   (testing "Non-conditional update fails"
     (given (execute handler :put)
-      :status := 400
+      :status := 428
       error-msg := "Require conditional update."))
 
   (testing "Update fails on missing request body"

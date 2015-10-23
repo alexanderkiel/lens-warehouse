@@ -49,7 +49,7 @@
 
   (testing "Non-conditional update fails"
     (let [resp (execute handler :put)]
-      (is (= 400 (:status resp)))
+      (is (= 428 (:status resp)))
       (is (= "Require conditional update." (error-msg resp)))))
 
   (testing "Update fails on missing name"

@@ -78,7 +78,11 @@
    ;; Just respond with plain text here because the media type is negotiated
    ;; later in the decision graph.
    :handle-unauthorized (fn [{:keys [error]}] (or error "Not authorized."))
-   :handle-malformed (error-handler "Malformed")
+   :handle-malformed
+   (fnk [error [:request path-for] :as ctx]
+     (if (= "Require conditional update." error)
+       (lens.handler.util/error path-for 428 error)
+       ((error-handler "Malformed") ctx)))
    :handle-unprocessable-entity (error-handler "Unprocessable Entity")
    :handle-precondition-failed (error-handler "Precondition Failed")
    :handle-not-found (error-handler "Not Found")
