@@ -57,13 +57,13 @@
   (testing "Non-conditional update fails"
     (given (execute handler :put)
       :status := 400
-      error-msg' := "Require conditional update."))
+      error-msg := "Require conditional update."))
 
   (testing "Update fails on missing request body"
     (given (execute handler :put
              [:headers "if-match"] "\"foo\"")
       :status := 400
-      error-msg' := "Missing request body."))
+      error-msg := "Missing request body."))
 
   (testing "Update fails on missing id, name and description"
     (let [eid (hu/entity-id (create-study "id-174709"))]
@@ -72,10 +72,10 @@
                :body {:data {}}
                [:headers "if-match"] "\"foo\"")
         :status := 422
-        error-msg' :# "Unprocessable Entity.+"
-        error-msg' :# ".+id.+"
-        error-msg' :# ".+name.+"
-        error-msg' :# ".+desc.+")))
+        error-msg :# "Unprocessable Entity.+"
+        error-msg :# ".+id.+"
+        error-msg :# ".+name.+"
+        error-msg :# ".+desc.+")))
 
   (testing "Update fails on missing description"
     (let [eid (hu/entity-id (create-study "id-113833" "name-202034"))]
@@ -86,10 +86,10 @@
                        :name "name-143536"}}
                [:headers "if-match"] "\"foo\"")
         :status := 422
-        error-msg' :# "Unprocessable Entity.+"
-        error-msg' :!# ".+id.+"
-        error-msg' :!# ".+name.+"
-        error-msg' :# ".+desc.+")))
+        error-msg :# "Unprocessable Entity.+"
+        error-msg :!# ".+id.+"
+        error-msg :!# ".+name.+"
+        error-msg :# ".+desc.+")))
 
   (testing "Update fails on ETag missmatch"
     (let [eid (hu/entity-id (create-study "id-201514" "name-201516"))]
@@ -118,7 +118,7 @@
       (is (nil? update))
       (given (handler req)
         :status := 409
-        error-msg' := "Conflict")))
+        error-msg := "Conflict")))
 
   (testing "Update succeeds"
     (let [eid (hu/entity-id (create-study "id-143317" "name-143321"))]
@@ -138,50 +138,50 @@
     (given (execute create-handler :post
              :conn (connect))
       :status := 422
-      error-msg' :# "Unprocessable Entity.+"
-      error-msg' :# ".+id.+"
-      error-msg' :# ".+name.+"
-      error-msg' :# ".+desc.+"))
+      error-msg :# "Unprocessable Entity.+"
+      error-msg :# ".+id.+"
+      error-msg :# ".+name.+"
+      error-msg :# ".+desc.+"))
 
   (testing "Create without name and description fails"
     (given (execute create-handler :post
              :params {:id "id-224305"}
              :conn (connect))
       :status := 422
-      error-msg' :# "Unprocessable Entity.+"
-      error-msg' :!# ".+id.+"
-      error-msg' :# ".+name.+"
-      error-msg' :# ".+desc.+"))
+      error-msg :# "Unprocessable Entity.+"
+      error-msg :!# ".+id.+"
+      error-msg :# ".+name.+"
+      error-msg :# ".+desc.+"))
 
   (testing "Create without description fails"
     (given (execute create-handler :post
              :params {:id "id-224305" :name "name-105943"}
              :conn (connect))
       :status := 422
-      error-msg' :# "Unprocessable Entity.+"
-      error-msg' :!# ".+id.+"
-      error-msg' :!# ".+name.+"
-      error-msg' :# ".+desc.+"))
+      error-msg :# "Unprocessable Entity.+"
+      error-msg :!# ".+id.+"
+      error-msg :!# ".+name.+"
+      error-msg :# ".+desc.+"))
 
   (testing "Create with blank id fails"
     (given (execute create-handler :post
              :params {:id "" :name "name-105943" :desc "desc-183610"}
              :conn (connect))
       :status := 422
-      error-msg' :# "Unprocessable Entity.+"
-      error-msg' :# ".+id.+"
-      error-msg' :!# ".+name.+"
-      error-msg' :!# ".+desc.+"))
+      error-msg :# "Unprocessable Entity.+"
+      error-msg :# ".+id.+"
+      error-msg :!# ".+name.+"
+      error-msg :!# ".+desc.+"))
 
   (testing "Create with blank name fails"
     (given (execute create-handler :post
              :params {:id "id-184118" :name "" :desc "desc-183610"}
              :conn (connect))
       :status := 422
-      error-msg' :# "Unprocessable Entity.+"
-      error-msg' :!# ".+id.+"
-      error-msg' :# ".+name.+"
-      error-msg' :!# ".+desc.+"))
+      error-msg :# "Unprocessable Entity.+"
+      error-msg :!# ".+id.+"
+      error-msg :# ".+name.+"
+      error-msg :!# ".+desc.+"))
 
   (testing "Create succeeds"
     (given (execute create-handler :post
@@ -218,7 +218,7 @@
     (given (execute find-handler :get
              :params {})
       :status := 422
-      error-msg' := "Unprocessable Entity")))
+      error-msg := "Unprocessable Entity")))
 
 (deftest find-child-handler-test
   (let [study (create-study "s-183549")
@@ -237,7 +237,7 @@
     (given (execute (find-child-handler :form-def) :get
              :params {:eid 1})
       :status := 422
-      error-msg' :# "Unprocessable Entity.+")))
+      error-msg :# "Unprocessable Entity.+")))
 
 (deftest db-pull-pattern-test
   (testing "{:data [:desc]} is converted to [:study/desc]"
