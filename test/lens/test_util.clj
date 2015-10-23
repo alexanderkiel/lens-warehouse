@@ -29,13 +29,6 @@
 (defn str->is [s]
   (io/input-stream (.getBytes s "utf-8")))
 
-(defn transit->is [o]
-  (let [out (ByteArrayOutputStream.)]
-    (transit/write (transit/writer out :json) o)
-    (io/input-stream (.toByteArray out))))
-
-(defn path-for [handler & args] (pr-str {:handler handler :args args}))
-
 (defn connect [] (d/connect "datomic:mem:test"))
 
 (defn database-fixture [f]
@@ -44,6 +37,8 @@
     (load-base-schema (connect)))
   (f)
   (d/delete-database "datomic:mem:test"))
+
+(defn path-for [handler & args] (pr-str {:handler handler :args args}))
 
 (defn request [method & kvs]
   (reduce-kv
