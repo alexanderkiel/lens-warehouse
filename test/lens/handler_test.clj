@@ -4,10 +4,30 @@
             [lens.test-util :refer :all]
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
-            [schema.test :refer [validate-schemas]]))
+            [schema.test :refer [validate-schemas]]
+            [juxt.iota :refer [given]]))
 
 (use-fixtures :each database-fixture)
 (use-fixtures :once validate-schemas)
+
+(deftest service-document-handler-test
+  (let [resp (execute (service-document-handler "") :get)]
+
+    (is (= 200 (:status resp)))
+
+    (testing "Response contains an ETag"
+      (is (get-in resp [:headers "ETag"])))
+
+    (testing "Data contains :name Lens Warehouse"
+      (is (= "Lens Warehouse" (-> resp :body :data :name))))
+
+    (testing "Body contains a self link"
+      (given (self-href resp)
+        :handler := :service-document-handler))
+
+    (testing "Body contains a find study query"
+      (given (-> resp :body :queries :lens/find-study)
+        [href :handler] := :find-study-handler))))
 
 (defn- visit [birth-date edat]
   {:visit/subject {:subject/birth-date (tc/to-date birth-date)}
