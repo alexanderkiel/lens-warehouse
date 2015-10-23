@@ -11,8 +11,7 @@
             [shortid.core :as sid]
             [datomic.api :as d]
             [digest.core :as digest])
-  (:refer-clojure :exclude [error-handler])
-  (:import [java.nio.charset Charset]))
+  (:refer-clojure :exclude [error-handler]))
 
 (defn error-body
   ([path-for msg]
