@@ -22,7 +22,11 @@
       :links {:up {:href (path-for :service-document-handler)}}}
      more)))
 
-(defn ring-error [path-for status msg]
+(defn ring-error
+  "Error as ring response.
+
+  Can't be used with liberator handlers."
+  [path-for status msg]
   {:status status
    :body (error-body path-for msg)})
 
