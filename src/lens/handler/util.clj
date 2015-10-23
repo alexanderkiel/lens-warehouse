@@ -56,9 +56,7 @@
                  (if (fn? more) (more ctx) more)))))
 
 (defn resource-defaults [& {:as opts}]
-  {:media-type-available?
-   (fnk [[:request headers]]
-     {:representation {:media-type (headers "accept")}})
+  {:available-media-types ["application/json" "application/transit+json"]
 
    :encoding-available? true
    :charset-available? true
