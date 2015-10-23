@@ -21,9 +21,9 @@
       (is (= 200 (:status resp)))
 
       (testing "Body contains a self link"
-        (is (= :subject-handler (:handler (href resp))))
-        (is (= :eid (first (:args (href resp)))))
-        (is (string? (second (:args (href resp))))))
+        (is (= :subject-handler (:handler (self-href resp))))
+        (is (= :eid (first (:args (self-href resp)))))
+        (is (string? (second (:args (self-href resp))))))
 
       (testing "contains the id"
         (is (= "id-172208" (-> resp :body :data :id)))))))

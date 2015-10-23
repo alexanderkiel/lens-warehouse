@@ -44,7 +44,7 @@
     (is (= 200 (:status resp)))
 
     (testing "Body contains a self link"
-      (given (href resp)
+      (given (self-href resp)
         :handler := :study-handler
         :args := [:eid eid]))
 

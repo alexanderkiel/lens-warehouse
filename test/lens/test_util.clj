@@ -59,7 +59,7 @@
 (defn location [resp]
   (edn/read-string (get-in resp [:headers "Location"])))
 
-(defn href [resp]
+(defn self-href [resp]
   (edn/read-string (-> resp :body :links :self :href)))
 
 (defn error-msg [resp]

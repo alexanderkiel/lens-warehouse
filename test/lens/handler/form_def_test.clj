@@ -38,8 +38,8 @@
     (is (= 200 (:status resp)))
 
     (testing "Body contains self link"
-      (is (= :form-def-handler (:handler (href resp))))
-      (is (= [:eid eid] (:args (href resp)))))
+      (is (= :form-def-handler (:handler (self-href resp))))
+      (is (= [:eid eid] (:args (self-href resp)))))
 
     (testing "Response contains an ETag"
       (is (get-in resp [:headers "ETag"])))
