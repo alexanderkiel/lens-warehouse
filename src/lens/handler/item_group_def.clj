@@ -121,7 +121,7 @@
   transaction only succeeds if the name and desc are still the same on
   the in-transaction item-group-def."
   (resource
-    (hu/standard-entity-resource-defaults)
+    (hu/entity-resource-defaults)
 
     :processable?
     (fnk [db [:request [:params eid]] :as ctx]

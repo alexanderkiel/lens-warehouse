@@ -127,7 +127,7 @@
     (or (not (l/=method :put ctx))
         (validate schema (:new-entity ctx)))))
 
-(defn standard-entity-resource-defaults []
+(defn entity-resource-defaults []
   (assoc
     (resource-defaults)
 

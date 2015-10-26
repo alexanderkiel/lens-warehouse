@@ -87,7 +87,7 @@
 (def handler
   "Handler for GET and DELETE on an item-group-ref."
   (resource
-    (hu/standard-entity-resource-defaults)
+    (hu/entity-resource-defaults)
 
     :allowed-methods [:get :delete]
 

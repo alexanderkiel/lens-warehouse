@@ -84,7 +84,7 @@
 (def handler
   "Handler for GET and DELETE on an form-ref."
   (resource
-    (hu/standard-entity-resource-defaults)
+    (hu/entity-resource-defaults)
 
     :allowed-methods [:get :delete]
 
