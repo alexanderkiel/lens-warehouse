@@ -75,9 +75,7 @@
    (fn [data ctx]
      (handle-cache-control (as-response data ctx) opts))
 
-   ;; Just respond with plain text here because the media type is negotiated
-   ;; later in the decision graph.
-   :handle-unauthorized (fn [{:keys [error]}] (or error "Not authorized."))
+   :handle-unauthorized (error-handler "Not authorized.")
    :handle-malformed
    (fnk [error [:request path-for] :as ctx]
      (if (= "Require conditional update." error)
