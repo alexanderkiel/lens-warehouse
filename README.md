@@ -28,7 +28,7 @@ This application uses the following environment vars:
 * `PORT` - the port to listen on
 * `DB_URI` - the Datomic database URI
 * `CONTEXT_PATH` - an optional context path under which the warehouse service
-   runs
+   runs. Has to be empty for root context or start with a slash but not ending with a slash.
 * `DATOMIC_EDITION` - one of `free` or `pro` with a default of `free`
 
 If you have [foreman][1] installed you can create an `.env` file listing the

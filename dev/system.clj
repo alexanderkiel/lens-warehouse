@@ -24,7 +24,7 @@
 (defn system [env]
   {:app app
    :db-uri (or (env "DB_URI") (create-mem-db))
-   :context-path (or (env "CONTEXT_PATH") "/")
+   :context-path (or (env "CONTEXT_PATH") "")
    :version (System/getProperty "lens-warehouse.version")
    :port (or (some-> (env "PORT") (parse-long)) 8080)})
 
