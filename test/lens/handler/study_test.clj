@@ -190,8 +190,8 @@
              :conn (connect))
       :status := 201
       :body := nil
-      [:headers "Location"] :# ".+study-handler.+"
-      [:headers "Location"] :# ".+eid.+"))
+      [location :handler] := :study-handler
+      [location :args] :> [:eid]))
 
   (testing "Create with existing id fails"
     (create-study "id-224419")
