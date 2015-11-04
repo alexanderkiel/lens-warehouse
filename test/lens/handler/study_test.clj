@@ -15,27 +15,6 @@
   (-> (execute handler :get :params {:eid eid})
       (get-in [:headers "ETag"])))
 
-(deftest study-queries
-  (let [eid (hu/entity-id (create-study "id-130414"))
-        resp (execute handler :get
-               :params {:eid eid})]
-    (are [id] (contains? (-> resp :body :queries) id)
-      :lens/find-study-event-def
-      :lens/find-form-def
-      :lens/find-item-group-def
-      :lens/find-item-def)))
-
-(deftest study-forms
-  (let [eid (hu/entity-id (create-study "id-130414"))
-        resp (execute handler :get
-               :params {:eid eid})]
-    (are [id] (contains? (-> resp :body :forms) id)
-      :lens/create-study-event-def
-      :lens/create-form-def
-      :lens/create-item-group-def
-      :lens/create-item-def
-      :lens/create-subject)))
-
 (deftest handler-test
   (let [eid (hu/entity-id (create-study "id-224127"))
         resp (execute handler :get
@@ -52,7 +31,31 @@
       (is (get-in resp [:headers "ETag"])))
 
     (testing "Data contains :id"
-      (is (= "id-224127" (-> resp :body :data :id)))))
+      (is (= "id-224127" (-> resp :body :data :id))))
+
+    (testing "Response contains various queries"
+      (given (-> resp :body :queries)
+        [:lens/find-study-event-def href :handler]
+        := :find-study-event-def-handler
+        [:lens/find-form-def href :handler]
+        := :find-form-def-handler
+        [:lens/find-item-group-def href :handler]
+        := :find-item-group-def-handler
+        [:lens/find-item-def href :handler]
+        := :find-item-def-handler))
+
+    (testing "Response contains various forms"
+      (given (-> resp :body :forms)
+        [:lens/create-study-event-def href :handler]
+        := :create-study-event-def-handler
+        [:lens/create-form-def href :handler]
+        := :create-form-def-handler
+        [:lens/create-item-group-def href :handler]
+        := :create-item-group-def-handler
+        [:lens/create-item-def href :handler]
+        := :create-item-def-handler
+        [:lens/create-subject href :handler]
+        := :create-subject-handler)))
 
   (testing "Non-conditional update fails"
     (given (execute handler :put)
@@ -105,13 +108,13 @@
   (testing "Update fails in-transaction on name missmatch"
     (let [eid (hu/entity-id (create-study "id-114012" "name-202034"))
           req (request :put
-                :params {:eid eid}
-                :body {:data
-                       {:id "id-114012"
-                        :name "name-202906"
-                        :desc "desc-105520"}}
-                [:headers "if-match"] (etag eid)
-                :conn (connect))
+                       :params {:eid eid}
+                       :body {:data
+                              {:id "id-114012"
+                               :name "name-202906"
+                               :desc "desc-105520"}}
+                       [:headers "if-match"] (etag eid)
+                       :conn (connect))
           update (api/update-study (connect) "id-114012"
                                    {:study/name "name-202034"}
                                    {:study/name "name-203308"})]
