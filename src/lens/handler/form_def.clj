@@ -2,7 +2,7 @@
   (:use plumbing.core)
   (:require [clojure.core.async :refer [timeout]]
             [clojure.core.reducers :as r]
-            [liberator.core :refer [resource to-location]]
+            [liberator.core :refer [resource]]
             [lens.handler.util :as hu]
             [lens.handler.study :as study]
             [lens.api :as api]

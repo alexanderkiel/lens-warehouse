@@ -1,7 +1,7 @@
 (ns lens.handler.subject
   (:use plumbing.core)
   (:require [clojure.core.async :refer [timeout]]
-            [liberator.core :refer [resource to-location]]
+            [liberator.core :refer [resource]]
             [lens.api :as api]
             [lens.handler.study :as study]
             [schema.core :as s]
