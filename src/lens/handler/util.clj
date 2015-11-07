@@ -146,7 +146,7 @@
 
 (defn redirect-resource-defaults []
   (assoc
-    (resource-defaults)
+    (resource-defaults :cache-control "no-cache")
 
     :exists? false
     :existed? true
