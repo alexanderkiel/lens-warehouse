@@ -22,8 +22,7 @@
             [lens.handler.item-def :as item-def]
             [schema.core :as s]
             [lens.handler.util :as hu]
-            [lens.pull :as pull]
-            [digest.core :as digest])
+            [lens.pull :as pull])
   (:import [java.util UUID]))
 
 ;; ---- Service Document ------------------------------------------------------
@@ -58,9 +57,7 @@
   (resource
     (hu/resource-defaults :cache-control "max-age=60")
 
-    :etag
-    (fnk [representation]
-      (digest/md5 (:media-type representation) "5"))
+    :etag (hu/etag 5)
 
     :handle-ok (render-service-document version)))
 
@@ -314,9 +311,7 @@
         {:snapshot snapshot
          :db (d/as-of db (:db/id snapshot))}))
 
-    :etag
-    (fnk [snapshot [:representation media-type]]
-      (digest/md5 media-type (snapshot-path path-for snapshot)))
+    :etag (hu/etag #(-> % :snapshot :tx-id) 1)
 
     :handle-ok
     (fnk [snapshot db expr]

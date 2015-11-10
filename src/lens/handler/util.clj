@@ -213,12 +213,22 @@
     {:type Str
      :desc "Search query which allows Lucene syntax."}}})
 
+(defn etag
+  "Returns a function which generates an ETag from context.
+
+  Elements of more can be values or functions. Each function is called with the
+  context."
+  [& more]
+  (fn [ctx]
+    (when-let [media-type (-> ctx :representation :media-type)]
+      (apply digest/md5 media-type (map #(if (fn? %) (% ctx) %) more)))))
+
 (defn profile-handler [key schema]
   (let [name (keyword (str (name key) "-profile-handler"))]
     (resource
       (resource-defaults :cache-control "max-age=3600")
 
-      :etag (fnk [representation] (digest/md5 (:media-type representation)))
+      :etag (etag 1)
 
       :handle-ok
       (fnk [[:request path-for]]

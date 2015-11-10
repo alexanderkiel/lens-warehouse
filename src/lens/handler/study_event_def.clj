@@ -9,8 +9,7 @@
             [lens.reducers :as lr]
             [clojure.string :as str]
             [lens.util :as util]
-            [schema.core :as s]
-            [digest.core :as digest]))
+            [schema.core :as s]))
 
 (defn path [path-for study-event-def]
   (path-for :study-event-def-handler :eid (hu/entity-id study-event-def)))
@@ -125,11 +124,9 @@
     :exists? (hu/exists? :study-event-def)
 
     :etag
-    (fnk [representation :as ctx]
-      (when-let [study-event-def (:study-event-def ctx)]
-        (digest/md5 (:media-type representation)
-                    (:name study-event-def)
-                    (:desc study-event-def))))
+    (hu/etag #(-> % :study-event-def :study-event-def/name)
+             #(-> % :study-event-def :study-event-def/desc)
+             1)
 
     :put!
     (fnk [conn study-event-def new-entity]

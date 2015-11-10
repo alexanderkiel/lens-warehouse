@@ -8,8 +8,7 @@
             [lens.util :as util]
             [lens.reducers :as lr]
             [clojure.core.reducers :as r]
-            [lens.handler.item-group-def :as item-group-def]
-            [digest.core :as digest]))
+            [lens.handler.item-group-def :as item-group-def]))
 
 (defn- path
   ([path-for item-group-ref]
@@ -93,7 +92,7 @@
 
     :exists? (hu/exists? :item-group-ref :item-group)
 
-    :etag (fnk [representation] (digest/md5 (:media-type representation)))
+    :etag (hu/etag 1)
 
     :delete!
     (fnk [conn item-group-ref] (api/retract-entity conn (:db/id item-group-ref)))

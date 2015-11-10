@@ -9,8 +9,7 @@
             [lens.reducers :as lr]
             [clojure.string :as str]
             [lens.util :as util]
-            [schema.core :as s]
-            [digest.core :as digest]))
+            [schema.core :as s]))
 
 (defn path [path-for form-def]
   (path-for :form-def-handler :eid (hu/entity-id form-def)))
@@ -27,8 +26,8 @@
        {:self
         (link path-for form-def)}}
       #_(assoc-count
-        (util/try-until timeout (api/num-form-subjects form-def))
-        (path-for :form-count-handler :id (:form-def/id form-def)))))
+          (util/try-until timeout (api/num-form-subjects form-def))
+          (path-for :form-count-handler :id (:form-def/id form-def)))))
 
 (defn render-embedded-list [path-for timeout form-defs]
   (r/map #(render-embedded path-for timeout %) form-defs))
@@ -130,12 +129,9 @@
     :exists? (hu/exists? :form-def)
 
     :etag
-    (fnk [representation :as ctx]
-      (when-let [form-def (:form-def ctx)]
-        (digest/md5 (:media-type representation)
-                    (:form-def/name form-def)
-                    (:form-def/desc form-def)
-                    "1")))
+    (hu/etag #(-> % :form-def :form-def/name)
+             #(-> % :form-def :form-def/desc)
+             1)
 
     :put!
     (fnk [conn form-def new-entity]
