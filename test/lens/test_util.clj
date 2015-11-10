@@ -1,7 +1,7 @@
 (ns lens.test-util
   (:require [datomic.api :as d]
             [cognitect.transit :as transit]
-            [lens.schema :refer [load-base-schema]]
+            [lens.schema :refer [load-schema]]
             [clojure.java.io :as io]
             [clojure.edn :as edn])
   (:import [java.io ByteArrayOutputStream]))
@@ -34,7 +34,7 @@
 (defn database-fixture [f]
   (do
     (d/create-database "datomic:mem:test")
-    (load-base-schema (connect)))
+    (load-schema (connect)))
   (f)
   (d/delete-database "datomic:mem:test"))
 

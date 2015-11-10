@@ -11,7 +11,7 @@
 (defn database-fixture [f]
   (do
     (d/create-database "datomic:mem:test")
-    (schema/load-base-schema (connect)))
+    (schema/load-schema (connect)))
   (f)
   (d/delete-database "datomic:mem:test"))
 

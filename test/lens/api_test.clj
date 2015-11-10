@@ -1,7 +1,7 @@
 (ns lens.api-test
   (:require [clojure.test :refer :all]
             [lens.api :as api :refer [find-subject find-study-child]]
-            [lens.schema :refer [load-base-schema]]
+            [lens.schema :refer [load-schema]]
             [datomic.api :as d]
             [clojure.core.reducers :as r]
             [schema.test :refer [validate-schemas]]))
@@ -11,7 +11,7 @@
 (defn database-fixture [f]
   (do
     (d/create-database "datomic:mem:test")
-    (load-base-schema (connect)))
+    (load-schema (connect)))
   (f)
   (d/delete-database "datomic:mem:test"))
 

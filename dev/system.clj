@@ -18,7 +18,7 @@
 (defn create-mem-db []
   (let [uri "datomic:mem://lens"]
     (d/create-database uri)
-    (schema/load-base-schema (d/connect uri))
+    (schema/load-schema (d/connect uri))
     uri))
 
 (defn system [env]

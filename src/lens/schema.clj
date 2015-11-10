@@ -810,7 +810,7 @@ Which is one of :code-list-item/long-code or :code-list-item/string-code."}
       (into (map make-enum (:enums subject)))
       (into (:functions schema))))
 
-(defn load-base-schema
+(defn load-schema
   "Loads the base schema in one transaction and derefs the result."
   [conn]
   (->> (into (build-tx {:study study

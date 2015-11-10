@@ -36,14 +36,14 @@
 (defn connect []
   (d/connect (:db-uri system)))
 
-(defn load-base-schema []
-  (schema/load-base-schema (connect)))
+(defn load-schema []
+  (keys (schema/load-schema (connect))))
 
 ;; Init Development
 (comment
   (startup)
   (create-database)
-  (load-base-schema)
+  (load-schema)
   )
 
 ;; Reset after making changes
