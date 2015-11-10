@@ -26,5 +26,5 @@
   (testing "With context path /112838"
     (are [handler params path] (= path (apply bidi/path-for (routes "/112838")
                                               handler params))
-      :service-document-handler [] "/112838/"
+      :service-document-handler [] "/112838"
       :item-def-profile-handler [] "/112838/p/id")))

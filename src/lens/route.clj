@@ -9,7 +9,7 @@
 
 (s/defn routes [context-path :- ContextPath]
   [context-path
-   [["/" :service-document-handler]
+   [[(if (= "" context-path) "/" "") :service-document-handler]
 
     ["/p/"
      [["id" :item-def-profile-handler]
