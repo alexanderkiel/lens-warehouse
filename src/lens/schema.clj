@@ -643,7 +643,7 @@ Which is one of :code-list-item/long-code or :code-list-item/string-code."}
     ;; Data-Point
 
     {:db/ident :data-point/id
-     :db/valueType :db.type/bytes
+     :db/valueType :db.type/string
      :db/unique :db.unique/identity
      :db/cardinality :db.cardinality/one
      :db/doc "The id of a data point."}
