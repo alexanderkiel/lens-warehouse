@@ -16,7 +16,7 @@
 
 (defn link [path-for item-def]
   {:href (path path-for item-def)
-   :label (str "Item Def " (:item-def/name item-def))})
+   :label (:item-def/name item-def)})
 
 (defn render-embedded [path-for timeout item-def]
   (-> {:id (:item-def/id item-def)

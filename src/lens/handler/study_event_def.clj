@@ -16,7 +16,7 @@
 
 (defn link [path-for study-event-def]
   {:href (path path-for study-event-def)
-   :label (str "Study Event " (:study-event-def/name study-event-def))})
+   :label (:study-event-def/name study-event-def)})
 
 (defn render-embedded [path-for study-event-def]
   {:id (:study-event-def/id study-event-def)

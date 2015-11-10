@@ -16,7 +16,7 @@
 
 (defn link [path-for form-def]
   {:href (path path-for form-def)
-   :label (str "Form Def " (:form-def/name form-def))})
+   :label (:form-def/name form-def)})
 
 (defn render-embedded [path-for timeout form-def]
   (-> {:id (:form-def/id form-def)

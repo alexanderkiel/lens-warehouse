@@ -18,7 +18,7 @@
   (path-for :study-handler :eid (hu/entity-id study)))
 
 (defn link [path-for study]
-  {:href (path path-for study) :label (str "Study " (:study/name study))})
+  {:href (path path-for study) :label (:study/name study)})
 
 (def find-handler
   (resource

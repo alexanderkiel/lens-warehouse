@@ -16,9 +16,7 @@
 
 (defn link [path-for item-group-ref]
   {:href (path path-for item-group-ref)
-   :label (str "Item Group Ref " (-> item-group-ref
-                                     :item-group-ref/item-group
-                                     :item-group-def/name))})
+   :label (-> item-group-ref :item-group-ref/item-group :item-group-def/name)})
 
 (defn render-embedded [path-for item-group-ref]
   {:links

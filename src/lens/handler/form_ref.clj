@@ -16,7 +16,7 @@
 
 (defn link [path-for form-ref]
   {:href (path path-for form-ref)
-   :label (str "Form Ref " (:form-def/name (:form-ref/form form-ref)))})
+   :label (:form-def/name (:form-ref/form form-ref))})
 
 (defn render-embedded [path-for form-ref]
   {:links
