@@ -6,7 +6,8 @@
             [lens.route :refer [ContextPath routes]]
             [lens.handler :refer [handlers]]
             [lens.middleware.datomic :refer [wrap-connection]]
-            [lens.middleware.cors :refer [wrap-cors]])
+            [lens.middleware.cors :refer [wrap-cors]]
+            [lens.middleware.log :refer [wrap-log]])
   (:import [java.net URI]))
 
 (defn path-for [routes]
@@ -24,4 +25,5 @@
         (wrap-path-for path-for)
         (wrap-connection db-uri)
         (wrap-hap {:up-href (path-for :service-document-handler)})
-        (wrap-cors))))
+        (wrap-cors)
+        (wrap-log))))
