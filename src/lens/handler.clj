@@ -60,7 +60,7 @@
 
     :etag
     (fnk [representation]
-      (digest/md5 (:media-type representation) "4"))
+      (digest/md5 (:media-type representation) "5"))
 
     :handle-ok (render-service-document version)))
 

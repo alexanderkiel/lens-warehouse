@@ -69,7 +69,10 @@
    :params
    {:id {:type s/Str :desc "The id has to be unique within the whole system."}
     :name {:type s/Str :desc "A short name for the study."}
-    :desc {:type s/Str :desc "A free-text description of the study."}}})
+    :desc
+    {:type s/Str
+     :label "Description"
+     :desc "A free-text description of the study."}}})
 
 (defn render-create-study-event-def-form [path-for study]
   {:href (child-action-path :study-event-def :create path-for study)
