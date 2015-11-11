@@ -189,7 +189,7 @@
     :etag
     (hu/etag #(-> % :study :study/name)
              #(-> % :study :study/desc)
-             1)
+             2)
 
     :put!
     (fnk [conn study new-entity]
@@ -231,6 +231,8 @@
     (hu/resource-defaults)
 
     :processable? (hu/coerce-params ListParamSchema)
+
+    ;;TODO: ETag
 
     :handle-ok
     (fnk [db [:request path-for [:params page-num {pull-pattern nil} {filter nil}]]]
