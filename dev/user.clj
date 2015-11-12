@@ -5,7 +5,7 @@
             [clojure.repl :refer :all]
             [clojure.tools.namespace.repl :refer [refresh]]
             [lens.schema :as schema]
-            [lens.api :as api]
+            [shortid.core :as shortid]
             [datomic.api :as d]
             [system]))
 
@@ -55,4 +55,8 @@
 (comment
   (def conn (connect))
   (def db (d/db conn))
+  )
+
+(comment
+  (shortid/generate 4)
   )
