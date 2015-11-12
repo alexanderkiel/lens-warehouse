@@ -204,6 +204,7 @@
    [:repeating :boolean]
    [:desc :string :fulltext]
    [:aliases :ref :many :comp]
+   [:keywords :string :many :comp]
    [:item-group-refs :ref :many :comp]
 
    (func create
@@ -246,14 +247,29 @@
          (let [cur-props (select-keys form-def (keys old-props))]
            (if (= cur-props old-props)
              (concat (for [[prop old-val] cur-props
+                           :when (not (instance? Iterable old-val))
                            :when (nil? (prop new-props))]
                        [:db/retract (:db/id form-def) prop old-val])
-                     (for [[prop val] new-props]
+                     (for [[prop old-val] cur-props
+                           :when (instance? Iterable old-val)
+                           old-val old-val
+                           :when (not (contains? (prop new-props) old-val))]
+                       [:db/retract (:db/id form-def) prop old-val])
+                     (for [[prop val] new-props
+                           :when (not (instance? Iterable val))]
+                       [:db/add (:db/id form-def) prop val])
+                     (for [[prop val] new-props
+                           :when (instance? Iterable val)
+                           val val]
                        [:db/add (:db/id form-def) prop val]))
              (throw (ex-info "Conflict!" {:type :conflict
                                           :old-props old-props
                                           :cur-props cur-props}))))
          (throw (ex-info "Form not found." {:type :not-found})))))])
+
+(for [[prop val] {:name "foo" :keywords #{:a :b}}
+      val (if (set? val) val [val])]
+  [:db/add (:db/id form-def) prop val])
 
 (def item-group-ref
   "A reference to a ItemGroupDef as it occurs within a specific FormDef. The

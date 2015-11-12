@@ -128,8 +128,8 @@
     (fnk [conn item-def new-entity]
       (let [new-entity (->> (update new-entity :data-type prefix-data-type)
                             (util/prefix-namespace :item-def))]
-        {:update-error (api/update conn item-def (select-props item-def)
-                                   (select-props new-entity))}))
+        {:update-error (api/update-item-def conn item-def (select-props item-def)
+                                            (select-props new-entity))}))
 
     :delete!
     (fnk [conn item-def] (api/retract-entity conn (:db/id item-def)))

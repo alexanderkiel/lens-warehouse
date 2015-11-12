@@ -168,6 +168,17 @@
                                       {:form-def/desc "desc-222413"})]
         (is (= "desc-222413" (:form-def/desc form-def)))))
 
+    (testing "create with id, name and one keyword"
+      (let [form-def (create-form-def study "id-190555" "name-222227"
+                                      {:form-def/keywords #{"kw-184128"}})]
+        (is (= #{"kw-184128"} (:form-def/keywords form-def)))))
+
+    (testing "create with id, name and two keywords"
+      (let [form-def (create-form-def study "id-190653" "name-222227"
+                                      {:form-def/keywords #{"kw-190656"
+                                                            "kw-190701"}})]
+        (is (= #{"kw-190656" "kw-190701"} (:form-def/keywords form-def)))))
+
     (testing "create with existing id fails"
       (create-form-def study "id-221808")
       (is (not (create-form-def study "id-221808"))))))
@@ -203,44 +214,82 @@
         (is (nil? (update-form-def form-def {:form-def/name "name-162720"
                                              :form-def/desc "desc-162727"}
                                    {:form-def/name "name-162720"})))
-        (is (nil? (:form-def/desc (refresh-form-def form-def))))))))
+        (is (nil? (:form-def/desc (refresh-form-def form-def))))))
+
+    (testing "update can add a keyword"
+      (let [form-def (create-form-def study "id-205237" "name-195834")]
+        (is (nil? (update-form-def form-def {:form-def/name "name-195834"}
+                                   {:form-def/name "name-195920"
+                                    :form-def/keywords #{"kw-205307"}})))
+        (is (= #{"kw-205307"} (:form-def/keywords (refresh-form-def form-def))))))
+
+    (testing "update can remove a keyword"
+      (let [form-def (create-form-def study "id-205426" "name-195834"
+                                      {:form-def/keywords #{"kw-205307"
+                                                            "kw-205435"}})]
+        (is (nil? (update-form-def form-def
+                                   {:form-def/name "name-195834"
+                                    :form-def/keywords #{"kw-205307"
+                                                         "kw-205435"}}
+                                   {:form-def/name "name-195920"
+                                    :form-def/keywords #{"kw-205307"}})))
+        (is (= #{"kw-205307"} (:form-def/keywords (refresh-form-def form-def))))))
+
+    (testing "update can remove all keywords"
+      (let [form-def (create-form-def study "id-211427" "name-195834"
+                                      {:form-def/keywords #{"kw-205307"
+                                                            "kw-205435"}})]
+        (is (nil? (update-form-def form-def
+                                   {:form-def/name "name-195834"
+                                    :form-def/keywords #{"kw-205307"
+                                                         "kw-205435"}}
+                                   {:form-def/name "name-195920"})))
+        (is (nil? (:form-def/keywords (refresh-form-def form-def))))))
+
+    (testing "updating non-existing keywords with empty keywords is ok"
+      (let [form-def (create-form-def study "id-211431" "name-195834")]
+        (is (nil? (update-form-def form-def
+                                   {:form-def/name "name-195834"}
+                                   {:form-def/name "name-195834"
+                                    :form-def/keywords #{}})))
+        (is (nil? (:form-def/keywords (refresh-form-def form-def))))))))
 
 ;; ---- Item Group ------------------------------------------------------------
 
 #_(deftest item-group-test
-  (let [conn (connect)]
-    (api/create-form-def conn "f-184846" "name-184720")
-    @(d/transact conn [[:add-item-group "ig-185204" "f-184846"]])
-    (testing "is found"
-      (is (:db/id (api/item-group (d/db conn) "ig-185204"))))
-    (testing "is not found"
-      (is (nil? (api/item-group (d/db conn) "other-ig-185411"))))))
+    (let [conn (connect)]
+      (api/create-form-def conn "f-184846" "name-184720")
+      @(d/transact conn [[:add-item-group "ig-185204" "f-184846"]])
+      (testing "is found"
+        (is (:db/id (api/item-group (d/db conn) "ig-185204"))))
+      (testing "is not found"
+        (is (nil? (api/item-group (d/db conn) "other-ig-185411"))))))
 
 #_(deftest item-test
-  (let [conn (connect)]
-    (api/create-form-def conn "f-184846" "name-184720")
-    @(d/transact conn [[:add-item-group "ig-185204" "f-184846"]])
-    @(d/transact conn [[:add-item "i-185700" "ig-185204"
-                        :data-point/long-value]])
-    (testing "is found"
-      (is (:db/id (api/item (d/db conn) "i-185700"))))
-    (testing "is not found"
-      (is (nil? (api/item (d/db conn) "other-i-185730"))))))
+    (let [conn (connect)]
+      (api/create-form-def conn "f-184846" "name-184720")
+      @(d/transact conn [[:add-item-group "ig-185204" "f-184846"]])
+      @(d/transact conn [[:add-item "i-185700" "ig-185204"
+                          :data-point/long-value]])
+      (testing "is found"
+        (is (:db/id (api/item (d/db conn) "i-185700"))))
+      (testing "is not found"
+        (is (nil? (api/item (d/db conn) "other-i-185730"))))))
 
 #_(deftest code-list-item-test
-  (let [conn (connect)]
-    (api/create-form-def conn "f-184846" "name-184720")
-    @(d/transact conn [[:add-item-group "ig-185204" "f-184846"]])
-    @(d/transact conn [[:add-item "i-185700" "ig-185204"
-                        :data-point/long-value]])
-    @(d/transact conn [[:add-code-list "cl-190356" :code-list-item/long-code]])
-    @(d/transact conn [[:add-code-list-to-item "i-185700" "cl-190356"]])
-    @(d/transact conn [[:add-code-list-item "cl-190356"
-                        :code-list-item/long-code 185935]])
-    (testing "is found"
-      (is (:db/id (api/code-list-item (api/item (d/db conn) "i-185700") 185935))))
-    (testing "is not found"
-      (is (nil? (api/code-list-item (api/item (d/db conn) "i-185700") 185947))))))
+    (let [conn (connect)]
+      (api/create-form-def conn "f-184846" "name-184720")
+      @(d/transact conn [[:add-item-group "ig-185204" "f-184846"]])
+      @(d/transact conn [[:add-item "i-185700" "ig-185204"
+                          :data-point/long-value]])
+      @(d/transact conn [[:add-code-list "cl-190356" :code-list-item/long-code]])
+      @(d/transact conn [[:add-code-list-to-item "i-185700" "cl-190356"]])
+      @(d/transact conn [[:add-code-list-item "cl-190356"
+                          :code-list-item/long-code 185935]])
+      (testing "is found"
+        (is (:db/id (api/code-list-item (api/item (d/db conn) "i-185700") 185935))))
+      (testing "is not found"
+        (is (nil? (api/code-list-item (api/item (d/db conn) "i-185700") 185947))))))
 
 (deftest all-studies-test
   (let [conn (connect)]

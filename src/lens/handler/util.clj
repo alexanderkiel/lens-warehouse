@@ -228,7 +228,7 @@
     (resource
       (resource-defaults :cache-control "max-age=3600")
 
-      :etag (etag 1)
+      :etag (etag 2)
 
       :handle-ok
       (fnk [[:request path-for]]

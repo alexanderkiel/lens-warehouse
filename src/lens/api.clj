@@ -4,12 +4,36 @@
             [clojure.set :as set]
             [clojure.core.reducers :as r]
             [clojure.core.cache :as cache]
-            [clojure.tools.logging :refer [tracef]]
+            [clojure.tools.logging :refer [debugf tracef]]
             [datomic.api :as d]
             [schema.core :as s :refer [Str Uuid]]
-            [lens.util :as util :refer [entity? EId Study]]
+            [lens.util :as util :refer [entity?]]
             [lens.k-means :refer [k-means]])
   (:refer-clojure :exclude [update]))
+
+;; ---- Schemas ---------------------------------------------------------------
+
+(def EId
+  "Datomic entity id as used in the e-part of the eavt datom."
+  s/Int)
+
+(def Study
+  (s/pred :study/id 'study?))
+
+(def StudyEventDef
+  (s/pred :study-event-def/id 'study-event-def?))
+
+(def FormDef
+  (s/pred :form-def/id 'form-def?))
+
+(def ItemGroupDef
+  (s/pred :item-group-def/id 'item-group-def?))
+
+(def ItemDef
+  (s/pred :item-def/id 'item-def?))
+
+(def Props
+  {s/Keyword s/Any})
 
 ;; ---- Last Loaded -----------------------------------------------------------
 
@@ -127,13 +151,12 @@
     (catch Exception e
       (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
-(defn update-study
+(s/defn update-study
   "Updates the study with the id.
 
   Ensures that the values in old-props are still current in the version of the
   in-transaction study."
-  [conn id old-props new-props]
-  {:pre [conn]}
+  [conn id :- Str old-props :- Props new-props :- Props]
   (try
     @(d/transact conn [[:study.fn/update id old-props new-props]])
     nil
@@ -141,30 +164,30 @@
 
 ;; ---- Study Event Def -------------------------------------------------------
 
-(defn create-study-event-def
-  "Creates a study event def with the id, name and more within a study.
+(def StudyEventDefExtras
+  {(s/optional-key :study-event-def/desc) Str})
 
-  More can be a map of :desc were :desc should be a string.
+(s/defn create-study-event-def
+  "Creates a study event def with the id, name and more within a study.
 
   Returns the created study event def or nil if there is already one with the
   id."
-  [conn study id name & [more]]
-  {:pre [(:study/id study)]}
+  ([conn study :- Study id :- Str name :- Str]
+    (create-study-event-def conn study id name {}))
+  ([conn study :- Study id :- Str name :- Str more :- StudyEventDefExtras]
   (try
     (->> (fn [tid] [[:study-event-def.fn/create tid (:db/id study) id name
                      more]])
          (util/create conn :part/meta-data))
     (catch Exception e
-      (when-not (= :duplicate (util/error-type e)) (throw e)))))
+      (when-not (= :duplicate (util/error-type e)) (throw e))))))
 
-(defn update-study-event-def
+(s/defn update-study-event-def
   "Updates the study-event-def.
 
   Ensures that the values in old-props are still current in the version of the
   in-transaction study-event."
-  [conn study-event-def old-props new-props]
-  {:pre [conn (:study-event-def/id study-event-def)
-         (map? old-props) (map? new-props)]}
+  [conn study-event-def :- StudyEventDef old-props :- Props new-props :- Props]
   (try
     @(d/transact conn [[:study-event-def.fn/update (:db/id study-event-def)
                         old-props new-props]])
@@ -173,13 +196,11 @@
 
 ;; ---- Form Ref --------------------------------------------------------------
 
-(defn create-form-ref
+(s/defn create-form-ref
   "Creates a form-ref pointing from a study-event-def to a form-def.
 
   Returns the created form-ref or nil if there is already one."
-  [conn study-event-def form-def]
-  {:pre [(:study-event-def/id study-event-def)
-         (:form-def/id form-def)]}
+  [conn study-event-def :- StudyEventDef form-def :- FormDef]
   (try
     (->> (fn [tid] [[:form-ref.fn/create tid (:db/id study-event-def)
                      (:db/id form-def)]])
@@ -191,7 +212,8 @@
 
 (def FormDefExtras
   {(s/optional-key :form-def/desc) Str
-   (s/optional-key :form-def/repeating) s/Bool})
+   (s/optional-key :form-def/repeating) s/Bool
+   (s/optional-key :form-def/keywords) #{s/Str}})
 
 (s/defn create-form-def
   "Creates a form-def with the id, name and more within a study.
@@ -206,13 +228,14 @@
     (catch Exception e
       (when-not (= :duplicate (util/error-type e)) (throw e))))))
 
-(defn update-form-def
+(s/defn update-form-def
   "Updates the form-def.
 
   Ensures that the values in old-props are still current in the version of the
   in-transaction form."
-  [conn form-def old-props new-props]
-  {:pre [conn (:form-def/id form-def) (map? old-props) (map? new-props)]}
+  [conn form-def :- FormDef old-props :- Props new-props :- Props]
+  (debugf "Update form def %s: %s -> %s", (:form-def/id form-def) old-props
+          new-props)
   (try
     @(d/transact conn [[:form-def.fn/update (:db/id form-def) old-props
                         new-props]])
@@ -221,13 +244,11 @@
 
 ;; ---- Item Group Ref --------------------------------------------------------------
 
-(defn create-item-group-ref
+(s/defn create-item-group-ref
   "Creates a item-group-ref pointing from a form-def to an item-group-def.
 
   Returns the created item-group-ref or nil if there is already one."
-  [conn form-def item-group-def]
-  {:pre [(:form-def/id form-def)
-         (:item-group-def/id item-group-def)]}
+  [conn form-def :- FormDef item-group-def :- ItemGroupDef]
   (try
     (->> (fn [tid] [[:item-group-ref.fn/create tid (:db/id form-def)
                      (:db/id item-group-def)]])
@@ -237,30 +258,30 @@
 
 ;; ---- Item Group Def --------------------------------------------------------
 
-(defn create-item-group-def
-  "Creates an item-group-def with the id, name and more within a study.
+(def ItemGroupDefDefExtras
+  {(s/optional-key :item-group-def/desc) Str
+   (s/optional-key :item-group-def/repeating) s/Bool})
 
-  More can be a map of :desc and :repeating were :desc should be a
-  string and :repeating a boolean defaulting to false.
+(s/defn create-item-group-def
+  "Creates an item-group-def with the id, name and more within a study.
 
   Returns the created item-group-def or nil if there is already one with the
   id."
-  [conn study id name & [more]]
-  {:pre [(:study/id study)]}
+  ([conn study :- Study id :- Str name :- Str]
+    (create-item-group-def conn study id name {}))
+  ([conn study :- Study id :- Str name :- Str more :- ItemGroupDefDefExtras]
   (try
     (->> (fn [tid] [[:item-group-def.fn/create tid (:db/id study) id name more]])
          (util/create conn :part/meta-data))
     (catch Exception e
-      (when-not (= :duplicate (util/error-type e)) (throw e)))))
+      (when-not (= :duplicate (util/error-type e)) (throw e))))))
 
-(defn update-item-group-def
+(s/defn update-item-group-def
   "Updates the item-group-def.
 
   Ensures that the values in old-props are still current in the version of the
   in-transaction item-group."
-  [conn item-group-def old-props new-props]
-  {:pre [conn (:item-group-def/id item-group-def) (map? old-props)
-         (map? new-props)]}
+  [conn item-group-def :- ItemGroupDef old-props :- Props new-props :- Props]
   (try
     @(d/transact conn [[:item-group-def.fn/update (:db/id item-group-def)
                         old-props new-props]])
@@ -269,13 +290,11 @@
 
 ;; ---- Item Ref --------------------------------------------------------------
 
-(defn create-item-ref
+(s/defn create-item-ref
   "Creates a item-ref pointing from an item-group-def to an item-def.
 
   Returns the created item-ref or nil if there is already one."
-  [conn item-group-def item-def]
-  {:pre [(:item-group-def/id item-group-def)
-         (:item-def/id item-def)]}
+  [conn item-group-def :- ItemGroupDef item-def :- ItemDef]
   (try
     (->> (fn [tid] [[:item-ref.fn/create tid (:db/id item-group-def)
                      (:db/id item-def)]])
@@ -303,23 +322,22 @@
   :question should be both strings and :length a positive integer.
 
   Returns the created item-def or nil if there is already one with the id."
-  [conn study id name data-type :- DataType & [more]]
-  {:pre [(:study/id study) (s/validate DataType data-type)]}
+  ([conn study :- Study id :- Str name :- Str data-type :- DataType]
+    (create-item-def conn study id name data-type {}))
+  ([conn study :- Study id :- Str name :- Str data-type :- DataType more]
   (try
     (->> (fn [tid] [[:item-def.fn/create tid (:db/id study) id name data-type
                      more]])
          (util/create conn :part/meta-data))
     (catch Exception e
-      (when-not (= :duplicate (util/error-type e)) (throw e)))))
+      (when-not (= :duplicate (util/error-type e)) (throw e))))))
 
-(defn update
+(s/defn update-item-def
   "Updates the item-def.
 
   Ensures that the values in old-props are still current in the version of the
   in-transaction item."
-  [conn item-def old-props new-props]
-  {:pre [conn (:item-def/id item-def) (map? old-props)
-         (map? new-props)]}
+  [conn item-def :- ItemDef old-props :- Props new-props :- Props]
   (try
     @(d/transact conn [[:item-def.fn/update (:db/id item-def)
                         old-props new-props]])

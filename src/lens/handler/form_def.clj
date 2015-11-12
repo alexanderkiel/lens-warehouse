@@ -2,6 +2,7 @@
   (:use plumbing.core)
   (:require [clojure.core.async :refer [timeout]]
             [clojure.core.reducers :as r]
+            [clojure.tools.logging :as log]
             [liberator.core :refer [resource]]
             [lens.handler.util :as hu]
             [lens.handler.study :as study]
@@ -23,7 +24,8 @@
        (-> {:id (:form-def/id form-def)
             ;;TODO: alias
             :name (:form-def/name form-def)}
-           (assoc-when :desc (:form-def/desc form-def)))
+           (assoc-when :desc (:form-def/desc form-def))
+           (assoc-when :keywords (:form-def/keywords form-def)))
        :links
        {:self
         (link path-for form-def)}}
@@ -82,14 +84,15 @@
   {:href (create-item-group-ref-path path-for form-def)
    :params {:item-group-id {:type s/Str}}})
 
-(def select-props (hu/select-props :form-def :name :desc))
+(def select-props (hu/select-props :form-def :name :desc :keywords))
 
 (defnk render [form-def [:request path-for]]
   {:data
    (-> {:id (:form-def/id form-def)
         ;;TODO: alias
         :name (:form-def/name form-def)}
-       (assoc-when :desc (:form-def/desc form-def)))
+       (assoc-when :desc (:form-def/desc form-def))
+       (assoc-when :keywords (:form-def/keywords form-def)))
 
    :links
    {:up (study/link path-for (:study/_form-defs form-def))
@@ -108,7 +111,10 @@
 
    :ops #{:update :delete}})
 
-(def schema {:name s/Str (s/optional-key :desc) s/Str})
+(def schema
+  {:name s/Str
+   (s/optional-key :desc) s/Str
+   (s/optional-key :keywords) #{s/Str}})
 
 (def handler
   "Handler for GET, PUT and DELETE on a form-def.
@@ -133,11 +139,13 @@
     :etag
     (hu/etag #(-> % :form-def :form-def/name)
              #(-> % :form-def :form-def/desc)
-             1)
+             #(-> % :form-def :form-def/keywords)
+             3)
 
     :put!
     (fnk [conn form-def new-entity]
       (let [new-entity (util/prefix-namespace :form-def new-entity)]
+        (log/debug "Update form def to" new-entity)
         {:update-error (api/update-form-def conn form-def (select-props form-def)
                                             (select-props new-entity))}))
 
@@ -166,6 +174,7 @@
   {:id util/NonBlankStr
    :name util/NonBlankStr
    (s/optional-key :desc) s/Str
+   (s/optional-key :keywords) #{s/Str}
    s/Any s/Any})
 
 (def create-handler
@@ -177,7 +186,7 @@
     :post!
     (fnk [conn study [:request params]]
       (let [{:keys [id name]} params
-            opts (->> (select-keys params [:desc])
+            opts (->> (select-keys params [:desc :keywords])
                       (util/remove-nil-valued-entries)
                       (util/prefix-namespace :form-def))]
         (if-let [entity (api/create-form-def conn study id name opts)]

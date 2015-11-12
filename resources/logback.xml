@@ -51,6 +51,9 @@
   <logger name="org.hornetq.core.client.impl" level="INFO"/>
   <logger name="org.apache.tomcat.jdbc.pool" level="INFO"/>
 
+  <logger name="lens.handler.form-def" level="INFO"/>
+  <logger name="lens.api" level="DEBUG"/>
+
   <root level="info">
     <appender-ref ref="STDOUT"/>
   </root>
