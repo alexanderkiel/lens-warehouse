@@ -7,7 +7,10 @@
             [lens.schema :as schema]
             [shortid.core :as shortid]
             [datomic.api :as d]
+            [schema.core :as s]
             [system]))
+
+(s/set-fn-validation! true)
 
 (def system nil)
 
