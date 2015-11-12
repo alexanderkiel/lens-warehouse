@@ -23,7 +23,7 @@
   ([study id] (create-form-def study id "name-182856"))
   ([study id name] (api/create-form-def (connect) study id name))
   ([study id name desc]
-   (api/create-form-def (connect) study id name {:desc desc})))
+   (api/create-form-def (connect) study id name {:form-def/desc desc})))
 
 (defn- refresh-form-def [form-def]
   (d/entity (d/db (connect)) (:db/id form-def)))

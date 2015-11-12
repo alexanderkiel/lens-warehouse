@@ -189,20 +189,22 @@
 
 ;; ---- Form Def --------------------------------------------------------------
 
-(defn create-form-def
+(def FormDefExtras
+  {(s/optional-key :form-def/desc) Str
+   (s/optional-key :form-def/repeating) s/Bool})
+
+(s/defn create-form-def
   "Creates a form-def with the id, name and more within a study.
 
-  More can be a map of :desc and :repeating were :desc should be a
-  string and :repeating a boolean defaulting to false.
-
   Returns the created form-def or nil if there is already one with the id."
-  [conn study id name & [more]]
-  {:pre [(:study/id study)]}
+  ([conn study :- Study id :- Str name :- Str]
+    (create-form-def conn study id name {}))
+  ([conn study :- Study id :- Str name :- Str more :- FormDefExtras]
   (try
     (->> (fn [tid] [[:form-def.fn/create tid (:db/id study) id name more]])
          (util/create conn :part/meta-data))
     (catch Exception e
-      (when-not (= :duplicate (util/error-type e)) (throw e)))))
+      (when-not (= :duplicate (util/error-type e)) (throw e))))))
 
 (defn update-form-def
   "Updates the form-def.

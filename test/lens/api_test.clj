@@ -95,7 +95,8 @@
 
 (defn- create-form-def
   ([study id] (create-form-def study id "name-212214"))
-  ([study id name & [more]] (api/create-form-def (connect) study id name more)))
+  ([study id name] (api/create-form-def (connect) study id name))
+  ([study id name more] (api/create-form-def (connect) study id name more)))
 
 (deftest find-study-child-test
   (let [study (create-study)
@@ -164,8 +165,8 @@
 
     (testing "create with id, name and desc"
       (let [form-def (create-form-def study "id-222745" "name-222227"
-                                      {:desc "desc-222413"})]
-        (is (= "desc-222413" (:desc form-def)))))
+                                      {:form-def/desc "desc-222413"})]
+        (is (= "desc-222413" (:form-def/desc form-def)))))
 
     (testing "create with existing id fails"
       (create-form-def study "id-221808")
@@ -297,11 +298,13 @@
         study-event-def (create-study-event-def study)
         subject (create-subject study)
         study-event (create-study-event subject study-event-def)]
+
     (testing "without form repetition"
       (let [form-def (create-form-def study "fd")
             _ (create-form study-event form-def)
             form-def (refresh-form-def form-def)]
         (is (= 1 (api/num-forms form-def)))))
+
     (testing "with form repetition"
       (let [form-def (create-form-def study "fdr" "n" {:form-def/repeating true})
             _ (create-form study-event form-def "1")
