@@ -86,7 +86,8 @@
    {:id {:type s/Str}
     :name {:type s/Str}
     :desc {:type s/Str :optional true}
-    :keywords {:type #{s/Str} :optional true}}})
+    :keywords {:type #{s/Str} :optional true}
+    :recording-type {:type s/Str :optional true}}})
 
 (defn render-create-item-group-create-form [path-for study]
   {:href (child-action-path :item-group-def :create path-for study)
@@ -190,7 +191,7 @@
     :etag
     (hu/etag #(-> % :study :study/name)
              #(-> % :study :study/desc)
-             3)
+             4)
 
     :put!
     (fnk [conn study new-entity]

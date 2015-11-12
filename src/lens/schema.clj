@@ -205,6 +205,7 @@
    [:desc :string :fulltext]
    [:aliases :ref :many :comp]
    [:keywords :string :many :comp]
+   [:recording-type :string]
    [:item-group-refs :ref :many :comp]
 
    (func create

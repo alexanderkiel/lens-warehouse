@@ -213,7 +213,8 @@
 (def FormDefExtras
   {(s/optional-key :form-def/desc) Str
    (s/optional-key :form-def/repeating) s/Bool
-   (s/optional-key :form-def/keywords) #{s/Str}})
+   (s/optional-key :form-def/keywords) #{s/Str}
+   (s/optional-key :form-def/recording-type) Str})
 
 (s/defn create-form-def
   "Creates a form-def with the id, name and more within a study.

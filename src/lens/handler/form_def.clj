@@ -25,7 +25,8 @@
             ;;TODO: alias
             :name (:form-def/name form-def)}
            (assoc-when :desc (:form-def/desc form-def))
-           (assoc-when :keywords (:form-def/keywords form-def)))
+           (assoc-when :keywords (:form-def/keywords form-def))
+           (assoc-when :recording-type (:form-def/recording-type form-def)))
        :links
        {:self
         (link path-for form-def)}}
@@ -84,7 +85,8 @@
   {:href (create-item-group-ref-path path-for form-def)
    :params {:item-group-id {:type s/Str}}})
 
-(def select-props (hu/select-props :form-def :name :desc :keywords))
+(def select-props
+  (hu/select-props :form-def :name :desc :keywords :recording-type))
 
 (defnk render [form-def [:request path-for]]
   {:data
@@ -92,7 +94,8 @@
         ;;TODO: alias
         :name (:form-def/name form-def)}
        (assoc-when :desc (:form-def/desc form-def))
-       (assoc-when :keywords (:form-def/keywords form-def)))
+       (assoc-when :keywords (:form-def/keywords form-def))
+       (assoc-when :recording-type (:form-def/recording-type form-def)))
 
    :links
    {:up (study/link path-for (:study/_form-defs form-def))
@@ -114,7 +117,8 @@
 (def schema
   {:name s/Str
    (s/optional-key :desc) s/Str
-   (s/optional-key :keywords) #{s/Str}})
+   (s/optional-key :keywords) #{s/Str}
+   (s/optional-key :recording-type) s/Str})
 
 (def handler
   "Handler for GET, PUT and DELETE on a form-def.
@@ -139,7 +143,8 @@
     :etag
     (hu/etag #(-> % :form-def :form-def/name)
              #(-> % :form-def :form-def/desc)
-             #(-> % :form-def :form-def/keywords)
+             #(-> % :form-def :form-def/keywords sort)
+             #(-> % :form-def :form-def/recording-type)
              3)
 
     :put!
@@ -186,7 +191,7 @@
     :post!
     (fnk [conn study [:request params]]
       (let [{:keys [id name]} params
-            opts (->> (select-keys params [:desc :keywords])
+            opts (->> (select-keys params [:desc :keywords :recording-type])
                       (util/remove-nil-valued-entries)
                       (util/prefix-namespace :form-def))]
         (if-let [entity (api/create-form-def conn study id name opts)]
