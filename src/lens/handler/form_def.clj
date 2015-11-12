@@ -19,9 +19,11 @@
    :label (:form-def/name form-def)})
 
 (defn render-embedded [path-for timeout form-def]
-  (-> {:id (:form-def/id form-def)
-       ;;TODO: alias
-       :name (:name form-def)
+  (-> {:data
+       (-> {:id (:form-def/id form-def)
+            ;;TODO: alias
+            :name (:form-def/name form-def)}
+           (assoc-when :desc (:form-def/desc form-def)))
        :links
        {:self
         (link path-for form-def)}}
@@ -35,7 +37,7 @@
 (defnk render-list [study [:request path-for [:params page-num {filter nil}]]]
   (let [form-defs (if (str/blank? filter)
                     (->> (:study/form-defs study)
-                         (sort-by :form-def/id))
+                         (sort-by :form-def/name))
                     (api/list-matching-form-defs study filter))
         next-page? (not (lr/empty? (hu/paginate (inc page-num) form-defs)))
         path #(-> (study/child-list-path :form-def path-for study %)
