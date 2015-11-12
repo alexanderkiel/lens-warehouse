@@ -398,9 +398,9 @@
        (r/map #(d/entity db %))))
 
 (defn all-studies
-  "Returns a reducible coll of all studies sorted by :study/id."
+  "Returns a reducible coll of all studies sorted by :study/name."
   [db pull-pattern]
-  (->> (d/datoms db :avet :study/id)
+  (->> (d/datoms db :avet :study/name)
        (r/map #(with-meta (d/pull db pull-pattern (:e %)) {:db db}))))
 
 (defn all-snapshots

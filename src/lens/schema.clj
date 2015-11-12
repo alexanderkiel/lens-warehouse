@@ -70,7 +70,7 @@
 (def study
   "A clinical or epidemiological study. "
   [[:id :string :unique "The id of a study. Same as the study OID in ODM."]
-   [:name :string :fulltext]
+   [:name :string :index :fulltext]
    [:desc :string :fulltext]
    [:protocol :ref :comp]
    [:study-event-defs :ref :many :comp]
