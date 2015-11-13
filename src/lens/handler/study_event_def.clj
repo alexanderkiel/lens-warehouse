@@ -39,8 +39,7 @@
                                 (sort-by :study-event-def/id))
                            (api/list-matching-study-event-defs study filter))
             next-page? (not (lr/empty? (hu/paginate (inc page-num) study-events)))
-            path #(-> (study/child-list-path :study-event-def path-for study %)
-                      (hu/assoc-filter filter))]
+            path #(study/child-list-path :study-event-def path-for study %)]
         {:links
          (-> {:up (study/link path-for study)
               :self {:href (path page-num)}}

@@ -1,8 +1,9 @@
 (ns lens.handler.form-def
   (:use plumbing.core)
-  (:require [clojure.core.async :refer [timeout]]
+  (:require [clojure.core.async :refer [<!! timeout]]
+            [async-error.core :refer [<??]]
             [clojure.core.reducers :as r]
-            [clojure.tools.logging :as log]
+            [lens.logging :refer [debug]]
             [liberator.core :refer [resource]]
             [lens.handler.util :as hu]
             [lens.handler.study :as study]
@@ -10,7 +11,8 @@
             [lens.reducers :as lr]
             [clojure.string :as str]
             [lens.util :as util]
-            [schema.core :as s]))
+            [schema.core :as s]
+            [datomic.api :as d]))
 
 (defn path [path-for form-def]
   (path-for :form-def-handler :eid (hu/entity-id form-def)))
@@ -37,33 +39,53 @@
 (defn render-embedded-list [path-for timeout form-defs]
   (r/map #(render-embedded path-for timeout %) form-defs))
 
-(defnk render-list [study [:request path-for [:params page-num {filter nil}]]]
-  (let [form-defs (if (str/blank? filter)
-                    (->> (:study/form-defs study)
-                         (sort-by :form-def/name))
-                    (api/list-matching-form-defs study filter))
-        next-page? (not (lr/empty? (hu/paginate (inc page-num) form-defs)))
-        path #(-> (study/child-list-path :form-def path-for study %)
-                  (hu/assoc-filter filter))]
-    {:links
-     (-> {:up (study/link path-for study)
-          :self {:href (path page-num)}}
-         (hu/assoc-prev page-num path)
-         (hu/assoc-next next-page? page-num path))
+(defnk render-list [search-conn study [:request path-for [:params page-num
+                                                          {filter nil}]]]
+  (if (str/blank? filter)
+    (let [form-defs (sort-by :form-def/name (:study/form-defs study))
+          next-page? (not (lr/empty? (hu/paginate (inc page-num) form-defs)))
+          path #(study/child-list-path :form-def path-for study %)]
+      {:data
+       {:total (count form-defs)}
+       :links
+       (-> {:up (study/link path-for study)
+            :self {:href (path page-num)}}
+           (hu/assoc-prev page-num path)
+           (hu/assoc-next next-page? page-num path))
 
-     :queries
-     {:lens/filter
-      (hu/render-filter-query (study/child-list-path :form-def path-for study))}
+       :queries
+       {:lens/filter
+        (hu/render-filter-query (study/child-list-path :form-def path-for study))}
 
-     :forms
-     {:lens/create-form-def
-      (study/render-create-form-def-form path-for study)}
+       :forms
+       {:lens/create-form-def
+        (study/render-create-form-def-form path-for study)}
 
-     :embedded
-     {:lens/form-defs
-      (->> (hu/paginate page-num form-defs)
-           (render-embedded-list path-for (timeout 100))
-           (into []))}}))
+       :embedded
+       {:lens/form-defs
+        (->> (hu/paginate page-num form-defs)
+             (render-embedded-list path-for (timeout 100))
+             (into []))}})
+    (letk [[total page] (<?? (api/list-matching-form-defs search-conn study filter))]
+      {:data
+       {:total total}
+       :links
+       {:up (study/link path-for study)
+        :self {:href (study/child-list-path :form-def path-for study 1)}}
+
+       :queries
+       {:lens/filter
+        (hu/render-filter-query (study/child-list-path :form-def path-for study))}
+
+       :forms
+       {:lens/create-form-def
+        (study/render-create-form-def-form path-for study)}
+
+       :embedded
+       {:lens/form-defs
+        (->> page
+             (render-embedded-list path-for (timeout 100))
+             (into []))}})))
 
 (def list-handler
   "Resource of all form-defs of a study."
@@ -150,7 +172,7 @@
     :put!
     (fnk [conn form-def new-entity]
       (let [new-entity (util/prefix-namespace :form-def new-entity)]
-        (log/debug "Update form def to" new-entity)
+        (debug {:type :update :sub-type :form-def :new-entity new-entity})
         {:update-error (api/update-form-def conn form-def (select-props form-def)
                                             (select-props new-entity))}))
 

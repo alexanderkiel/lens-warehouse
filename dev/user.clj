@@ -4,11 +4,12 @@
   (:require [clojure.pprint :refer [pprint pp]]
             [clojure.repl :refer :all]
             [clojure.tools.namespace.repl :refer [refresh]]
-            [lens.schema :as schema]
-            [shortid.core :as shortid]
             [datomic.api :as d]
             [schema.core :as s]
-            [system]))
+            [com.stuartsierra.component :as comp]
+            [lens.system :refer [new-system]]
+            [lens.util :as util]
+            [environ.core :refer [env]]))
 
 (s/set-fn-validation! true)
 
@@ -16,13 +17,13 @@
 
 (defn init []
   (assert (nil? system))
-  (alter-var-root #'system (constantly (system/system (system/env)))))
+  (alter-var-root #'system (constantly (new-system env))))
 
 (defn start []
-  (alter-var-root #'system system/start))
+  (alter-var-root #'system comp/start))
 
 (defn stop []
-  (alter-var-root #'system system/stop))
+  (alter-var-root #'system comp/stop))
 
 (defn startup []
   (init)
@@ -33,20 +34,12 @@
   (stop)
   (refresh :after 'user/startup))
 
-(defn create-database []
-  (d/create-database (:db-uri system)))
-
 (defn connect []
   (d/connect (:db-uri system)))
-
-(defn load-schema []
-  (keys (schema/load-schema (connect))))
 
 ;; Init Development
 (comment
   (startup)
-  (create-database)
-  (load-schema)
   )
 
 ;; Reset after making changes
@@ -58,8 +51,4 @@
 (comment
   (def conn (connect))
   (def db (d/db conn))
-  )
-
-(comment
-  (shortid/generate 4)
   )

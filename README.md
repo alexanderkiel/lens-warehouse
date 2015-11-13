@@ -30,6 +30,9 @@ This application uses the following environment vars:
 * `CONTEXT_PATH` - an optional context path under which the warehouse service
    runs. Has to be empty for root context or start with a slash but not ending with a slash.
 * `DATOMIC_EDITION` - one of `free` or `pro` with a default of `free`
+* `SEARCH_HOST` - hostname of the Elastic Search Cluster
+* `SEARCH_PORT` - port of the Elastic Search Cluster (defaults to 9200)
+* `SEARCH_INDEX` - index to use in the Elastic Search Cluster
 
 If you have [foreman][1] installed you can create an `.env` file listing the
 environment vars specified above and just type `foreman start`.

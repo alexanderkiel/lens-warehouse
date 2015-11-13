@@ -4,10 +4,10 @@
                                                   alts! alts!! alt!!]]
             [clojure.core.cache :as cache]
             [clojure.core.reducers :as r]
-            [clojure.tools.logging :refer [trace]]
+            [lens.logging :refer [trace]]
             [datomic.api :as d]
             [clojure.string :as str]
-            [schema.core :as s])
+            [schema.core :as s :refer [Int]])
   (:import [datomic Entity]
            [java.util.concurrent ExecutionException]))
 
@@ -99,9 +99,13 @@
 
 ;; ---- Timer -----------------------------------------------------------------
 
-(defn duration
+(def Ms
+  "Duration in milliseconds."
+  s/Num)
+
+(s/defn duration :- Ms
   "Returns the duaration in milliseconds from a System/nanoTime start point."
-  [start]
+  [start :- Int]
   (/ (double (- (System/nanoTime) start)) 1000000.0))
 
 (defmacro timer [m & body]
@@ -110,11 +114,11 @@
      (println (pr-str (merge {:type :timer :duration (duration start#)} ~m)))
      ret#))
 
-(defn paginate
+(s/defn paginate
   "Returns a reducible collection of all items belonging to one page.
 
   Page numbers start with one."
-  [page-size page coll]
+  [page-size :- Int page :- Int coll]
   (->> coll
        (r/drop (* (dec page) page-size))
        (r/take page-size)))
@@ -168,13 +172,13 @@
                         (cache/miss % ~key ~value-expr))))
 
 (defn transact [conn tx-data]
-  (let [begin (System/nanoTime)]
+  (let [start (System/nanoTime)]
     (try
       @(d/transact conn tx-data)
       (catch Exception e
         (throw (unwrap-execution-exception e)))
       (finally
-        (trace "Transact" tx-data "in" (quot (- (System/nanoTime) begin) 1000000) "ms")))))
+        (trace {:type :transact :tx-data tx-data :took (duration start)})))))
 
 (defn create
   "Submits a transaction which creates an entity.

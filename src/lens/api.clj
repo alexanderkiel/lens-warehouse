@@ -1,14 +1,17 @@
 (ns lens.api
   (:use plumbing.core)
-  (:require [clojure.string :as str]
+  (:require [clojure.core.async :refer [go]]
+            [async-error.core :refer [<?]]
+            [clojure.string :as str]
             [clojure.set :as set]
             [clojure.core.reducers :as r]
             [clojure.core.cache :as cache]
-            [clojure.tools.logging :refer [debugf tracef]]
+            [lens.logging :refer [debug trace]]
             [datomic.api :as d]
             [schema.core :as s :refer [Str Uuid]]
             [lens.util :as util :refer [entity?]]
-            [lens.k-means :refer [k-means]])
+            [lens.k-means :refer [k-means]]
+            [lens.search.api :as search])
   (:refer-clojure :exclude [update]))
 
 ;; ---- Schemas ---------------------------------------------------------------
@@ -35,6 +38,12 @@
 (def Props
   {s/Keyword s/Any})
 
+(def StudyChildType
+  (s/enum :study-event-def
+          :form-def
+          :item-group-def
+          :item-def))
+
 ;; ---- Last Loaded -----------------------------------------------------------
 
 (defn last-loaded [db]
@@ -52,13 +61,13 @@
   "Returns the entity with type and eid or nil if none was found.
 
   Type is something like :study or :form-def."
-  ([db type eid :- EId]
-   (find-entity db type :id eid))
+  ([db type :- s/Keyword eid :- EId]
+    (find-entity db type :id eid))
   ([db type arg eid]
-   (let [pred (keyword (name type) (name arg))
-         e (d/entity db eid)]
-     (when (pred e)
-       e))))
+    (let [pred (keyword (name type) (name arg))
+          e (d/entity db eid)]
+      (when (pred e)
+        e))))
 
 (defn- all-study-childs [study child-type id]
   (d/datoms (d/entity-db study) :avet (keyword (name child-type) "id") id))
@@ -69,21 +78,12 @@
           (filter #(= (:db/id study) (:db/id (reverse-childs-key %)))))))
 
 (s/defn find-study-child
-  "Returns the child of a study with child-type and id if there is one.
-
-  Child types can be:
-
-   * :study-event-def
-   * :form-def
-   * :item-group-def
-   * :item-def"
-  [study child-type id :- Str]
-  {:pre [(:study/id study) child-type (string? id)]}
-  (let [begin (System/nanoTime)
+  "Returns the child of a study with child-type and id if there is one."
+  [study :- Study child-type :- StudyChildType id :- Str]
+  (let [start (System/nanoTime)
         childs (all-study-childs study child-type id)
         child (first (sequence (find-study-xf study child-type) childs))]
-    (tracef "Find %s with id %s in %.3f ms" (name child-type) id
-            (/ (double (- (System/nanoTime) begin)) 1000000))
+    (trace {:type :find-study-child :id id :took (util/duration start)})
     child))
 
 (s/defn find-subject
@@ -175,12 +175,12 @@
   ([conn study :- Study id :- Str name :- Str]
     (create-study-event-def conn study id name {}))
   ([conn study :- Study id :- Str name :- Str more :- StudyEventDefExtras]
-  (try
-    (->> (fn [tid] [[:study-event-def.fn/create tid (:db/id study) id name
-                     more]])
-         (util/create conn :part/meta-data))
-    (catch Exception e
-      (when-not (= :duplicate (util/error-type e)) (throw e))))))
+    (try
+      (->> (fn [tid] [[:study-event-def.fn/create tid (:db/id study) id name
+                       more]])
+           (util/create conn :part/meta-data))
+      (catch Exception e
+        (when-not (= :duplicate (util/error-type e)) (throw e))))))
 
 (s/defn update-study-event-def
   "Updates the study-event-def.
@@ -223,11 +223,11 @@
   ([conn study :- Study id :- Str name :- Str]
     (create-form-def conn study id name {}))
   ([conn study :- Study id :- Str name :- Str more :- FormDefExtras]
-  (try
-    (->> (fn [tid] [[:form-def.fn/create tid (:db/id study) id name more]])
-         (util/create conn :part/meta-data))
-    (catch Exception e
-      (when-not (= :duplicate (util/error-type e)) (throw e))))))
+    (try
+      (->> (fn [tid] [[:form-def.fn/create tid (:db/id study) id name more]])
+           (util/create conn :part/meta-data))
+      (catch Exception e
+        (when-not (= :duplicate (util/error-type e)) (throw e))))))
 
 (s/defn update-form-def
   "Updates the form-def.
@@ -235,8 +235,10 @@
   Ensures that the values in old-props are still current in the version of the
   in-transaction form."
   [conn form-def :- FormDef old-props :- Props new-props :- Props]
-  (debugf "Update form def %s: %s -> %s", (:form-def/id form-def) old-props
-          new-props)
+  (debug {:type :update
+          :form-def/id (:form-def/id form-def)
+          :old-props old-props
+          :new-props new-props})
   (try
     @(d/transact conn [[:form-def.fn/update (:db/id form-def) old-props
                         new-props]])
@@ -271,11 +273,11 @@
   ([conn study :- Study id :- Str name :- Str]
     (create-item-group-def conn study id name {}))
   ([conn study :- Study id :- Str name :- Str more :- ItemGroupDefDefExtras]
-  (try
-    (->> (fn [tid] [[:item-group-def.fn/create tid (:db/id study) id name more]])
-         (util/create conn :part/meta-data))
-    (catch Exception e
-      (when-not (= :duplicate (util/error-type e)) (throw e))))))
+    (try
+      (->> (fn [tid] [[:item-group-def.fn/create tid (:db/id study) id name more]])
+           (util/create conn :part/meta-data))
+      (catch Exception e
+        (when-not (= :duplicate (util/error-type e)) (throw e))))))
 
 (s/defn update-item-group-def
   "Updates the item-group-def.
@@ -326,12 +328,12 @@
   ([conn study :- Study id :- Str name :- Str data-type :- DataType]
     (create-item-def conn study id name data-type {}))
   ([conn study :- Study id :- Str name :- Str data-type :- DataType more]
-  (try
-    (->> (fn [tid] [[:item-def.fn/create tid (:db/id study) id name data-type
-                     more]])
-         (util/create conn :part/meta-data))
-    (catch Exception e
-      (when-not (= :duplicate (util/error-type e)) (throw e))))))
+    (try
+      (->> (fn [tid] [[:item-def.fn/create tid (:db/id study) id name data-type
+                       more]])
+           (util/create conn :part/meta-data))
+      (catch Exception e
+        (when-not (= :duplicate (util/error-type e)) (throw e))))))
 
 (s/defn update-item-def
   "Updates the item-def.
@@ -562,17 +564,36 @@
            (map #(d/entity db %))
            (sort-by :study-event/id)))))
 
-(defn list-matching-form-defs
-  "Returns a seq of forms matching the filter expression sorted by :form/id."
-  [db filter]
-  {:pre [(string? filter)]}
-  (util/timer
-    {:fn 'list-matching-form-defs :args {:filter filter}}
-    (when-not (str/blank? filter)
-      (->> (d/q '[:find [?f ...] :in $ % ?filter :where (form-search ?filter ?f)]
-                db matching-rules filter)
-           (map #(d/entity db %))
-           (sort-by :form/id)))))
+(s/defn list-matching-form-defs
+  "Returns a seq of forms defs matching the filter expression sorted relevance."
+  [search-conn :- search/Conn study :- Study filter :- Str]
+  (let [query {:size 50
+               :_source [:id]
+               :query
+               {:bool
+                {:filter
+                 {:term {:study-id (:study/id study)}}
+                 :must
+                 {:simple_query_string
+                  {:query filter
+                   :fields [:id :name :desc :keywords :recording-type]
+                   :flags "AND|NOT|PHRASE"}}}}}]
+    (go
+      (try
+        (letk [[took-overall took [:hits total hits]]
+               (<? (search/search search-conn :form-def query))]
+          (trace {:type :search
+                  :target :form-def
+                  :query filter
+                  :hits total
+                  :took-overall took-overall
+                  :took-elastic took})
+          (let [xf (comp (map #(find-study-child study :form-def (:id (:_source %))))
+                         (remove nil?))]
+            {:total total :page (into [] xf hits)}))
+        (catch Throwable e
+          (ex-info (str "Error while listing matching form defs: " (.getMessage e))
+                   {} e))))))
 
 (defn list-matching-item-group-defs
   "Returns a seq of item-group-defs of a form matching the filter expression

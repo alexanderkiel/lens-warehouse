@@ -4,7 +4,7 @@
             [liberator.core :as l :refer [resource]]
             [liberator.representation :refer [Representation as-response]]
             [lens.util :as util]
-            [schema.core :as s :refer [Str]]
+            [schema.core :as s :refer [Str Int]]
             [schema.coerce :as c]
             [schema.utils :as su]
             [lens.api :as api]
@@ -69,7 +69,7 @@
      (let [conn (:conn request)
            db (:db request)]
        (when (or conn db)
-         {:conn conn :db db})))
+         {:conn conn :db db :search-conn (:search-conn request)})))
 
    :as-response
    (fn [data ctx]
@@ -177,12 +177,8 @@
 
 (def page-size 50)
 
-(def paginate (partial util/paginate page-size))
-
-(defn assoc-filter [path filter]
-  (if filter
-    (str (assoc (url path) :query {:filter (url-encode filter)}))
-    path))
+(s/defn paginate [page :- Int coll]
+  (util/paginate page-size page coll))
 
 (defn- page-link [path-fn page-num]
   {:href (path-fn page-num)
@@ -208,10 +204,7 @@
 (defn render-filter-query [uri]
   {:href uri
    :title "Filter"
-   :params
-   {:filter
-    {:type Str
-     :desc "Search query which allows Lucene syntax."}}})
+   :params {:filter {:type Str}}})
 
 (defn etag
   "Returns a function which generates an ETag from context.

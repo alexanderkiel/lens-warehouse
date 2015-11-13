@@ -242,8 +242,7 @@
                       (api/all-studies db (db-pull-pattern pull-pattern))
                       (api/list-matching-studies db filter))
             next-page? (not (lr/empty? (hu/paginate (inc page-num) studies)))
-            path #(-> (all-studies-path path-for %)
-                      (hu/assoc-filter filter))]
+            path #(all-studies-path path-for %)]
         {:links
          (-> {:up {:href (path-for :service-document-handler)}
               :self {:href (path page-num)}}

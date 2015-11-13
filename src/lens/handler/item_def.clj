@@ -46,8 +46,7 @@
                          (sort-by :item-def/id))
                     (api/list-matching-item-defs study filter))
             next-page? (not (lr/empty? (hu/paginate (inc page-num) items)))
-            path #(-> (study/child-list-path :item-def path-for study %)
-                      (hu/assoc-filter filter))]
+            path #(study/child-list-path :item-def path-for study %)]
         {:links
          (-> {:up (study/link path-for study)
               :self {:href (path page-num)}}

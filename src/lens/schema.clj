@@ -5,8 +5,7 @@
 
     (load-base-schema conn)"
   (:use plumbing.core)
-  (:require [clojure.tools.logging :refer [debug]]
-            [datomic.api :as d]
+  (:require [datomic.api :as d]
             [clojure.core.reducers :as r])
   (:refer-clojure :exclude [alias]))
 
