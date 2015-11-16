@@ -31,7 +31,6 @@
              {:source-paths ["dev"]
               :dependencies [[org.clojure/tools.namespace "0.2.4"]
                              [criterium "0.4.3"]
-                             [ring/ring-mock "0.2.0"]
                              [juxt/iota "0.2.0"]]
               :global-vars {*print-length* 20}}
 
