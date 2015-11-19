@@ -92,7 +92,18 @@
   (resource
     (study/child-list-resource-defaults)
 
-    :handle-ok render-list))
+    :handle-ok render-list
+
+    :handle-exception
+    (fnk [exception study [:request path-for]]
+      (println 'ex-data (ex-data exception))
+      {:data
+       {:message (.getMessage exception)
+        :ex-data (ex-data exception)
+        :cause-ex-data (ex-data (.getCause exception))}
+       :links
+       {:up (study/link path-for study)
+        :self {:href (study/child-list-path :form-def path-for study 1)}}})))
 
 (defn- find-item-group-ref-path [path-for form-def]
   (path-for :find-item-group-ref-handler :eid (hu/entity-id form-def)))

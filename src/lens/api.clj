@@ -570,10 +570,10 @@
   (let [query {:size 50
                :_source [:id]
                :query
-               {:bool
+               {:filtered
                 {:filter
                  {:term {:study-id (:study/id study)}}
-                 :must
+                 :query
                  {:simple_query_string
                   {:query filter
                    :fields [:id :name :desc :keywords :recording-type]
@@ -593,7 +593,7 @@
             {:total total :page (into [] xf hits)}))
         (catch Throwable e
           (ex-info (str "Error while listing matching form defs: " (.getMessage e))
-                   {} e))))))
+                   {:study (:study/id study) :filter filter} e))))))
 
 (defn list-matching-item-group-defs
   "Returns a seq of item-group-defs of a form matching the filter expression
