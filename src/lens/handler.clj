@@ -20,6 +20,7 @@
             [lens.handler.item-group-def :as item-group-def]
             [lens.handler.item-ref :as item-ref]
             [lens.handler.item-def :as item-def]
+            [lens.handler.attachment-type :as attachment-type]
             [schema.core :as s]
             [lens.handler.util :as hu]
             [lens.pull :as pull])
@@ -36,7 +37,10 @@
      {:self {:href (path-for :service-document-handler)}
       :lens/all-studies {:href (study/all-studies-path path-for)}
       :lens/all-snapshots {:href (path-for :all-snapshots-handler)}
-      :lens/most-recent-snapshot {:href (path-for :most-recent-snapshot-handler)}
+      :lens/all-attachment-types
+      {:href (attachment-type/all-attachment-types-path path-for)}
+      :lens/most-recent-snapshot
+      {:href (path-for :most-recent-snapshot-handler)}
       :datomic/basis-t {:href (path-for :basis-t-handler)}}
      :queries
      {:lens/find-study
@@ -57,7 +61,7 @@
   (resource
     (hu/resource-defaults :cache-control "max-age=60")
 
-    :etag (hu/etag 5)
+    :etag (hu/etag 6)
 
     :handle-ok (render-service-document version)))
 
@@ -388,4 +392,8 @@
    :query-handler (query-handler path-for)
    :snapshot-handler (snapshot-handler path-for)
    :all-snapshots-handler (all-snapshots-handler path-for)
-   :most-recent-snapshot-handler (most-recent-snapshot-handler path-for)})
+   :most-recent-snapshot-handler (most-recent-snapshot-handler path-for)
+
+   :all-attachment-types-handler attachment-type/all-attachment-types-handler
+   :attachment-type-handler attachment-type/handler
+   :create-attachment-type-handler attachment-type/create-handler})

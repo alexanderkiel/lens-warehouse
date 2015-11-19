@@ -206,6 +206,7 @@
    [:keywords :string :many :comp]
    [:recording-type :string]
    [:item-group-refs :ref :many :comp]
+   [:attachment :ref :many :comp]
 
    (func create
      "Creates a form-def.
@@ -266,10 +267,6 @@
                                           :old-props old-props
                                           :cur-props cur-props}))))
          (throw (ex-info "Form not found." {:type :not-found})))))])
-
-(for [[prop val] {:name "foo" :keywords #{:a :b}}
-      val (if (set? val) val [val])]
-  [:db/add (:db/id form-def) prop val])
 
 (def item-group-ref
   "A reference to a ItemGroupDef as it occurs within a specific FormDef. The
@@ -567,6 +564,29 @@
    [:string-value :string]
    [:integer-value :long]])
 
+(def attachment
+  "An attachment is a file like a PDF attached to a metadata item like a
+  form-def.
+
+  Attachements are not stored in the warehouse. They are only referenced by
+  there SHA-1. Whenever an attachment changes, it should be stored under its
+  current SHA-1, a new attachement entity should be created and referenced by
+  the metadata object."
+  [[:sha-1 :string "SHA-1 of the file. Is used to reference it."]
+   [:type :ref "Reference to attachment-type."]])
+
+(def attachment-type
+  "A type of an attachment like a report or a aCRF."
+  [[:id :string :unique "The unique id of an attachment type."]
+
+   (func create
+     "Creates an attachment type."
+     [db tid id]
+     (if-not (d/entity db [:attachment-type/id id])
+       [{:db/id tid
+         :attachment-type/id id}]
+       (throw (ex-info "Duplicate." {:type :duplicate}))))])
+
 (def base-schema
   {:partitions
    [{:db/ident :part/meta-data}
@@ -845,7 +865,9 @@ Which is one of :code-list-item/long-code or :code-list-item/string-code."}
                         :study-event study-event
                         :form form
                         :item-group item-group
-                        :item item})
+                        :item item
+                        :attachment attachment
+                        :attachment-type attachment-type})
              (prepare-schema base-schema))
        (d/transact conn)
        (deref)))

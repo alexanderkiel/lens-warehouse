@@ -9,7 +9,7 @@
             [lens.logging :refer [debug trace]]
             [datomic.api :as d]
             [schema.core :as s :refer [Str Uuid]]
-            [lens.util :as util :refer [entity?]]
+            [lens.util :as util :refer [entity? NonBlankStr]]
             [lens.k-means :refer [k-means]]
             [lens.search.api :as search])
   (:refer-clojure :exclude [update]))
@@ -137,14 +137,13 @@
 
 ;; ---- Study -----------------------------------------------------------------
 
-(defn create-study
+(s/defn create-study
   "Creates a study with the id, name, desc and more.
 
   More is currently not used.
 
   Returns the created study or nil if there is already one with the id."
-  [conn id name desc & [more]]
-  {:pre [conn id name desc]}
+  [conn id :- NonBlankStr name :- NonBlankStr desc :- Str & [more]]
   (try
     (util/create conn :part/meta-data (fn [tid] [[:study.fn/create tid id name
                                                   desc more]]))
@@ -156,7 +155,7 @@
 
   Ensures that the values in old-props are still current in the version of the
   in-transaction study."
-  [conn id :- Str old-props :- Props new-props :- Props]
+  [conn id :- NonBlankStr old-props :- Props new-props :- Props]
   (try
     @(d/transact conn [[:study.fn/update id old-props new-props]])
     nil
@@ -172,7 +171,7 @@
 
   Returns the created study event def or nil if there is already one with the
   id."
-  ([conn study :- Study id :- Str name :- Str]
+  ([conn study :- Study id :- NonBlankStr name :- NonBlankStr]
     (create-study-event-def conn study id name {}))
   ([conn study :- Study id :- Str name :- Str more :- StudyEventDefExtras]
     (try
@@ -220,7 +219,7 @@
   "Creates a form-def with the id, name and more within a study.
 
   Returns the created form-def or nil if there is already one with the id."
-  ([conn study :- Study id :- Str name :- Str]
+  ([conn study :- Study id :- NonBlankStr name :- NonBlankStr]
     (create-form-def conn study id name {}))
   ([conn study :- Study id :- Str name :- Str more :- FormDefExtras]
     (try
@@ -270,7 +269,7 @@
 
   Returns the created item-group-def or nil if there is already one with the
   id."
-  ([conn study :- Study id :- Str name :- Str]
+  ([conn study :- Study id :- NonBlankStr name :- NonBlankStr]
     (create-item-group-def conn study id name {}))
   ([conn study :- Study id :- Str name :- Str more :- ItemGroupDefDefExtras]
     (try
@@ -325,9 +324,11 @@
   :question should be both strings and :length a positive integer.
 
   Returns the created item-def or nil if there is already one with the id."
-  ([conn study :- Study id :- Str name :- Str data-type :- DataType]
+  ([conn study :- Study id :- NonBlankStr name :- NonBlankStr
+    data-type :- DataType]
     (create-item-def conn study id name data-type {}))
-  ([conn study :- Study id :- Str name :- Str data-type :- DataType more]
+  ([conn study :- Study id :- NonBlankStr name :- NonBlankStr
+    data-type :- DataType more]
     (try
       (->> (fn [tid] [[:item-def.fn/create tid (:db/id study) id name data-type
                        more]])
@@ -349,12 +350,11 @@
 
 ;; ---- Subject ---------------------------------------------------------------
 
-(defn create-subject
+(s/defn create-subject
   "Creates a subject with the id within the study.
 
   Returns the created subject or nil if there is already one with the id."
-  [conn study id]
-  {:pre [(:study/id study)]}
+  [conn study :- Study id :- NonBlankStr]
   (try
     (->> (fn [tid] [[:subject.fn/create tid (:db/id study) id]])
          (util/create conn :part/subject))
@@ -407,6 +407,20 @@
      (catch Exception e
        (when-not (= :duplicate (util/error-type e)) (throw e))))))
 
+;; ---- Attachment Type -----------------------------------------------------------------
+
+(s/defn create-attachment-type
+  "Creates an attachment-type with the id.
+
+  Returns the created attachment-type or nil if there is already one with the
+  id."
+  [conn id :- NonBlankStr]
+  (try
+    (util/create conn :part/meta-data
+                 (fn [tid] [[:attachment-type.fn/create tid id]]))
+    (catch Exception e
+      (when-not (= :duplicate (util/error-type e)) (throw e)))))
+
 ;; ---- Retract ---------------------------------------------------------------
 
 (defn retract-entity [conn eid]
@@ -421,15 +435,23 @@
        (r/map #(d/entity db %))))
 
 (defn all-studies
-  "Returns a reducible coll of all studies sorted by :study/name."
+  "Returns a reducible coll of all studies sorted by there name."
   [db pull-pattern]
   (->> (d/datoms db :avet :study/name)
-       (r/map #(with-meta (d/pull db pull-pattern (:e %)) {:db db}))))
+       (eduction (comp (map :e)
+                       (map #(d/pull db pull-pattern %))
+                       (map #(with-meta % {:db db}))))))
 
 (defn all-snapshots
   "Returns a reducible coll of all snapshots."
   [db]
   (list-all '[:find [?tx ...] :where [?tx :tx-id]] db))
+
+(defn all-attachment-types
+  "Returns a reducible coll of all attachment types sorted by there id."
+  [db]
+  (->> (d/datoms db :avet :attachment-type/id)
+       (r/map #(with-meta (d/pull db [:db/id :attachment-type/id] (:e %)) {:db db}))))
 
 ;; ---- Traversal -------------------------------------------------------------
 

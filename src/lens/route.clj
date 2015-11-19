@@ -91,4 +91,9 @@
 
     ["/most-recent-snapshot" :most-recent-snapshot-handler]
     ["/find-study" :find-study-handler]
-    ["/basis-t" :basis-t-handler]]])
+    ["/basis-t" :basis-t-handler]
+
+    ["/attachment-types"
+     {"" :create-attachment-type-handler
+      ["/page/" :page-num] :all-attachment-types-handler
+      ["/" :eid] :attachment-type-handler}]]])

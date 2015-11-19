@@ -245,3 +245,18 @@
 (deftest db-pull-pattern-test
   (testing "{:data [:desc]} is converted to [:study/desc]"
     (is (some #{:study/desc} (db-pull-pattern [{:data [:desc]}])))))
+
+(deftest all-studies-handler-test
+  (let [_ (create-study "s-192351")
+        resp (execute all-studies-handler :get
+               :params {:page-num 1})]
+
+    (is (= 200 (:status resp)))
+
+    (testing "Body contains a self link"
+      (given (self-href resp)
+        :handler := :all-studies-handler
+        :args := [:page-num 1]))
+
+    (testing "Body contains one embedded study"
+      (is (= 1 (count (-> resp :body :embedded :lens/studies)))))))
