@@ -125,6 +125,34 @@
       (callback ch process-create-index-resp))
     ch))
 
+;; ---- Delete Index ----------------------------------------------------------
+
+(defn delete-index-error-ex-info [opts error]
+  (ex-info (str "Error while deleting an index at " (:url opts) ": " error)
+           (error-ex-data opts error)))
+
+(defn- delete-index-status-ex-info [opts status body]
+  (ex-info (str "Non-ok status " status " while deleting an index at "
+                (:url opts))
+           (status-ex-data opts status body)))
+
+(defn- process-delete-index-resp [{:keys [opts error status] :as resp}]
+  (when error
+    (throw (delete-index-error-ex-info opts error)))
+  (letk [[body] (parse-response resp)]
+    (case status
+      200 body
+      (throw (delete-index-status-ex-info opts status body)))))
+
+(s/defn delete-index [conn :- Conn]
+  (let [ch (async/chan)]
+    (http/request
+      {:url (base-uri conn)
+       :method :delete
+       :as :stream}
+      (callback ch process-delete-index-resp))
+    ch))
+
 ;; ---- Index Status ----------------------------------------------------------
 
 (defn index-status-error-ex-info [opts error]

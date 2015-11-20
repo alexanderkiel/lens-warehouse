@@ -60,7 +60,7 @@
 (defn new-search-index-ingestor []
   (map->SearchIndexIngestor {}))
 
-(def ^:private index-config
+(def index-config
   {:settings
    {:number_of_shards 1
     :analysis
