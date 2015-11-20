@@ -10,6 +10,8 @@
             [lens.util :as util])
   (:import [java.net URI]))
 
+;; ---- Schemas ---------------------------------------------------------------
+
 (def Representation
   {s/Any s/Any})
 
@@ -36,6 +38,8 @@
     :hits
     [{:_id Str}]}})
 
+;; ---- Helper ----------------------------------------------------------------
+
 (s/defn ^:private callback [ch process-fn :- ProcessFn]
   (fn [resp]
     (try
@@ -60,6 +64,38 @@
 (defnk ^:private base-uri :- Str [host {port 9200} index]
   (str "http://" host ":" port "/" index))
 
+;; ---- Index Exists ----------------------------------------------------------
+
+(defn index-exists-error-ex-info [opts error]
+  (ex-info (str "Error while looking whether the index at " (:url opts)
+                " exists: " error)
+           (error-ex-data opts error)))
+
+(defn- index-exists-status-ex-info [opts status body]
+  (ex-info (str "Unexpected status " status " while looking whether the index "
+                "at " (:url opts) " exists")
+           (status-ex-data opts status body)))
+
+(defn- process-index-exists-resp [{:keys [opts error status] :as resp}]
+  (when error
+    (throw (index-exists-error-ex-info opts error)))
+  (letk [[body] (parse-response resp)]
+    (case status
+      200 true
+      404 false
+      (throw (index-exists-status-ex-info opts status body)))))
+
+(s/defn index-exists? [conn :- Conn]
+  (let [ch (async/chan)]
+    (http/request
+      {:url (base-uri conn)
+       :method :head
+       :as :stream}
+      (callback ch process-index-exists-resp))
+    ch))
+
+;; ---- Create Index ----------------------------------------------------------
+
 (defn create-index-error-ex-info [opts error]
   (ex-info (str "Error while creating an index at " (:url opts) ": " error)
            (error-ex-data opts error)))
@@ -82,10 +118,41 @@
     (http/request
       {:url (base-uri conn)
        :method :put
-       :body (json/write-str m)
+       :body (json/write-str m :escape-unicode false)
        :as :stream}
       (callback ch process-create-index-resp))
     ch))
+
+;; ---- Index Status ----------------------------------------------------------
+
+(defn index-status-error-ex-info [opts error]
+  (ex-info (str "Error while fetching the index status at " (:url opts) ": "
+                error)
+           (error-ex-data opts error)))
+
+(defn- index-status-status-ex-info [opts status body]
+  (ex-info (str "Non-ok status " status " while fetching the index status at "
+                (:url opts))
+           (status-ex-data opts status body)))
+
+(defn- process-index-status-resp [{:keys [opts error status] :as resp}]
+  (when error
+    (throw (index-status-error-ex-info opts error)))
+  (letk [[body] (parse-response resp)]
+    (case status
+      200 body
+      (throw (index-status-status-ex-info opts status body)))))
+
+(s/defn index-status [conn :- Conn]
+  (let [ch (async/chan)]
+    (http/request
+      {:url (str (base-uri conn) "/_status")
+       :method :get
+       :as :stream}
+      (callback ch process-index-status-resp))
+    ch))
+
+;; ---- Index -----------------------------------------------------------------
 
 (defn index-error-ex-info [opts error]
   (ex-info (str "Error while indexing a document at " (:url opts) ": " error)
@@ -110,10 +177,12 @@
     (http/request
       {:url (str (url (base-uri conn) (name type) id))
        :method :put
-       :body (json/write-str m)
+       :body (json/write-str m :escape-unicode false)
        :as :stream}
       (callback ch process-index-resp))
     ch))
+
+;; ---- Search ----------------------------------------------------------------
 
 (defn- search-error-ex-info [opts error]
   (ex-info (str "Error while searching at " (:url opts) ": " error)
@@ -137,11 +206,44 @@
     (http/request
       {:url (str (url (base-uri conn) (name type) "_search"))
        :method :get
-       :body (json/write-str query)
+       :body (json/write-str query :escape-unicode false)
        :as :stream
        :start (System/nanoTime)}
       (callback ch process-search-resp))
     ch))
+
+;; ---- Search ----------------------------------------------------------------
+
+(defn- explain-error-ex-info [opts error]
+  (ex-info (str "Error while explaining at " (:url opts) ": " error)
+           (error-ex-data opts error)))
+
+(defn- explain-status-ex-info [opts status body]
+  (ex-info (str "Non-ok status " status " while explaining at " (:url opts))
+           (status-ex-data opts status body)))
+
+(defn- process-explain-resp [{:keys [opts error status] :as resp}]
+  (when error
+    (throw (explain-error-ex-info opts error)))
+  (letk [[body] (parse-response resp)]
+    (case status
+      200 (assoc body :took-overall (util/duration (:start opts)))
+      (throw (explain-status-ex-info opts status body)))))
+
+(s/defn explain [conn :- Conn type :- s/Keyword id :- Str
+                 query :- {s/Any s/Any}]
+  "Returns a channel conveying the ExplainResult."
+  (let [ch (async/chan)]
+    (http/request
+      {:url (str (url (base-uri conn) (name type) id "_explain"))
+       :method :get
+       :body (json/write-str query :escape-unicode false)
+       :as :stream
+       :start (System/nanoTime)}
+      (callback ch process-explain-resp))
+    ch))
+
+;; ---- Analyze ---------------------------------------------------------------
 
 (defn- analyze-error-ex-info [opts error]
   (ex-info (str "Error while analyzing at " (:url opts) ": " error)
@@ -167,29 +269,79 @@
                 (assoc :query {:field (name field)})
                 (str))
        :method :get
-       :body (json/write-str {:text text})
+       :body (json/write-str text :escape-unicode false)
        :as :stream}
       (callback ch process-analyze-resp))
     ch))
 
 (comment
 
+  (<!! (index-exists? {:host "192.168.99.100" :index "lens"}))
+  (<!! (index-status {:host "192.168.99.100" :index "lens"}))
+
   (<!! (search {:host "192.168.99.100" :index "lens"} :form-def
-               {:_source [:id]
+               {:size 4
+                :_source [:id :name]
                 :query
-                {:bool
+                {:filtered
                  {:filter
-                  {:term {:study-id "S002"}}
-                  :must
+                  {:term {:study-id "S001"}}
+                  :query
                   {:simple_query_string
-                   {:query "t0000"
+                   {:query "schlaf"
                     :fields [:id :name :desc :keywords :recording-type]
                     :flags "AND|NOT|PHRASE"}}}}}))
+
+  (<!! (explain {:host "192.168.99.100" :index "lens"} :form-def "580542139466928"
+                {:query
+                 {:filtered
+                  {:filter
+                   {:term {:study-id "S003"}}
+                   :query
+                   {:simple_query_string
+                    {:query "stress"
+                     :fields [:id :name :desc :keywords :recording-type]
+                     :flags "AND|NOT|PHRASE"}}}}}))
+
+  (<!! (create-index
+         {:host "192.168.99.100" :index "test6"}
+         {:settings
+          {:number_of_shards 1
+           :analysis
+           {:analyzer
+            {:german-plain
+             {:type :custom
+              :tokenizer :standard
+              :filter [:lowercase]}
+             :german-norm
+             {:type :custom
+              :tokenizer :standard
+              :filter [:lowercase :german_normalization]}
+             :german-tri
+             {:type :custom
+              :tokenizer :standard
+              :filter [:lowercase :german_normalization :trigram]}}
+            :filter
+            {:lowercase
+             {:type :lowercase}
+             :trigram
+             {:type :nGram
+              :min_gram 3
+              :max_gram 3}}}}
+          :mappings
+          {:test
+           {:properties
+            {:id {:type :string :analyzer :german-plain}
+             :id1 {:type :string :analyzer :german-norm}
+             :id2 {:type :string :analyzer :german-tri}
+             :id3 {:type :string :analyzer :german}}}}}))
 
   (<!! (analyze {:host "192.168.99.100" :index "lens"} :desc
                 "Die Daten wurden bei Probanden der ADULT-Kohorte im Altersbereich 18-79 Jahre erhoben.\n                        Im Rahmen eines standardisierten Interviews wurden verschiedene soziodemographische Angaben wie z.B. Nationalität, Familienstand, Schul- und Berufsausbildung sowie Angaben zur Erwerbstätigkeit des Studienteilnehmers sowie des Lebenspartners erfasst."))
 
-  (<!! (analyze {:host "192.168.99.100" :index "lens"} :id "T00001"))
-  (<!! (analyze {:host "192.168.99.100" :index "lens"} :recording-type "Interview"))
+  (<!! (analyze {:host "192.168.99.100" :index "lens"} :name "hän"))
+  (<!! (analyze {:host "192.168.99.100" :index "test6"} :id2 "händigkeit"))
+
+  (json/write-str {:id "hän"} :escape-unicode false)
 
   )

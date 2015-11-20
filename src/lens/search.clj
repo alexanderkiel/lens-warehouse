@@ -1,6 +1,7 @@
 (ns lens.search
   (:use plumbing.core)
   (:require [clojure.core.async :refer [<!!]]
+            [async-error.core :refer [<??]]
             [lens.logging :refer [error info]]
             [datomic.api :as d]
             [schema.core :as s :refer [Str Int]]
@@ -50,37 +51,45 @@
 (defn new-search-index-ingestor []
   (map->SearchIndexIngestor {}))
 
+(def ^:private index-config
+  {:settings
+   {:number_of_shards 1
+    :analysis
+    {:analyzer
+     {:default
+      {:type :custom
+       :tokenizer :standard
+       :filter [:lowercase :german_normalization :trigram]}
+      :form-def-id
+      {:type :custom
+       :tokenizer :ngram-36
+       :filter [:lowercase]}}
+     :tokenizer
+     {:ngram-36
+      {:type :nGram
+       :min_gram 3
+       :max_gram 6}}
+     :filter
+     {:lowercase
+      {:type :lowercase}
+      :trigram
+      {:type :nGram
+       :min_gram 3
+       :max_gram 3}}}}
+   :mappings
+   {:form-def
+    {:properties
+     {:id {:type :string :analyzer :form-def-id}
+      :study-id {:type :string :index :not_analyzed}
+      :name {:type :string}
+      :desc {:type :string}
+      :recording-type {:type :string :index :not_analyzed}}}}})
+
 (s/defrecord SearchConn [host :- Str port :- Int index :- Str]
   Lifecycle
   (start [conn]
-    (<!! (api/create-index
-           conn
-           {:settings
-            {:analysis
-             {:analyzer
-              {:default
-               {:type :german
-                :stem_exclusion ["daten" "angaben"]}
-               :ngram-36
-               {:type :custom
-                :tokenizer :ngram-36
-                :filter [:lowercase]}}
-              :tokenizer
-              {:ngram-36
-               {:type :nGram
-                :min_gram 3
-                :max_gram 6}}
-              :filter
-              {:lowercase
-               {:type :lowercase}}}}
-            :mappings
-            {:form-def
-             {:properties
-              {:id {:type :string :analyzer :ngram-36}
-               :study-id {:type :string :index :not_analyzed}
-               :name {:type :string}
-               :desc {:type :string}
-               :recording-type {:type :string}}}}}))
+    (when-not (api/index-exists? conn)
+      (<?? (api/create-index conn index-config)))
     conn)
   (stop [conn]
     conn))
