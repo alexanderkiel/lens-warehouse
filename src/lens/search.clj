@@ -6,7 +6,8 @@
             [datomic.api :as d]
             [schema.core :as s :refer [Str Int]]
             [lens.bus :as bus]
-            [lens.search.api :as api]
+            [lens.api :as api]
+            [lens.search.api :as sapi]
             [com.stuartsierra.component :refer [Lifecycle]]))
 
 (def ^:private form-def-pull-pattern
@@ -21,26 +22,34 @@
 (defn- contains-form-def-attr? [db {:keys [a]}]
   (= "form-def" (namespace (:db/ident (d/entity db a)))))
 
-(s/defn ^:private ingester [conn :- api/Conn]
+(s/defn index-form-def [conn :- sapi/Conn form-def :- api/FormDef]
+  (let [eid (:db/id form-def)
+        id (:form-def/id form-def)
+        study-id (:study/id (:study/_form-defs form-def))
+        form-def (-> (select-keys
+                       form-def
+                       [:form-def/id
+                        :form-def/name
+                        :form-def/desc
+                        :form-def/keywords
+                        :form-def/recording-type])
+                     (assoc :study-id study-id))
+        res (<!! (sapi/index conn :form-def (str eid) form-def))]
+    (if (instance? Throwable res)
+      (error res {:msg (format "Error while indexing form def %s: %s"
+                               id (.getMessage res))
+                  :ex-data (ex-data res)})
+      (info {:type :index :sub-type :form-def :study-id study-id :id id}))))
+
+(s/defn ^:private ingester [conn :- sapi/Conn]
   (fnk ingest [db-after tx-data]
     (doseq [[eid tx-data] (group-by :e tx-data)]
       (when (some #(contains-form-def-attr? db-after %) tx-data)
-        (let [form-def (d/pull db-after form-def-pull-pattern eid)]
-          (when-let [id (:form-def/id form-def)]
-            (let [eid (:db/id form-def)
-                  study-id (:study/id (:study/_form-defs form-def))
-                  form-def (-> form-def
-                               (dissoc :db/id :study/_form-defs)
-                               (assoc :study-id study-id))
-                  res (<!! (api/index conn :form-def (str eid) form-def))]
-              (if (instance? Throwable res)
-                (error res {:msg (format "Error while ingesting form def %s: %s"
-                                         id (.getMessage res))
-                            :ex-data (ex-data res)})
-                (info {:type :ingest :sub-type :form-def :study-id study-id
-                       :id id})))))))))
+        (let [form-def (d/entity db-after eid)]
+          (when (:form-def/id form-def)
+            (index-form-def conn form-def)))))))
 
-(s/defrecord SearchIndexIngestor [conn :- api/Conn bus token]
+(s/defrecord SearchIndexIngestor [conn :- sapi/Conn bus token]
   Lifecycle
   (start [ingestor]
     (assoc ingestor :token (bus/listen-on bus :tx-report (ingester conn))))
@@ -88,8 +97,10 @@
 (s/defrecord SearchConn [host :- Str port :- Int index :- Str]
   Lifecycle
   (start [conn]
-    (when-not (api/index-exists? conn)
-      (<?? (api/create-index conn index-config)))
+    (if (<?? (sapi/index-exists? conn))
+      (info {:type :skip-index-creation :conn conn})
+      (do (<?? (sapi/create-index conn index-config))
+          (info {:type :create-index :conn conn})))
     conn)
   (stop [conn]
     conn))

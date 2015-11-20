@@ -9,7 +9,9 @@
             [com.stuartsierra.component :as comp]
             [lens.system :refer [new-system]]
             [lens.util :as util]
-            [environ.core :refer [env]]))
+            [lens.search :as search]
+            [environ.core :refer [env]]
+            [lens.api :as api]))
 
 (s/set-fn-validation! true)
 
@@ -51,4 +53,11 @@
 (comment
   (def conn (connect))
   (def db (d/db conn))
+  )
+
+;; (Re)Index all form defs
+(comment
+  (doseq [study (api/all-studies (d/db (connect)))
+          form-def (:study/form-defs study)]
+    (search/index-form-def (:search-conn system) form-def))
   )

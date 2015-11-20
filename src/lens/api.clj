@@ -436,11 +436,13 @@
 
 (defn all-studies
   "Returns a reducible coll of all studies sorted by there name."
-  [db pull-pattern]
-  (->> (d/datoms db :avet :study/name)
-       (eduction (comp (map :e)
-                       (map #(d/pull db pull-pattern %))
-                       (map #(with-meta % {:db db}))))))
+  ([db]
+   (eduction (map #(d/entity db (:e %))) (d/datoms db :avet :study/name)))
+  ([db pull-pattern]
+   (->> (d/datoms db :avet :study/name)
+        (eduction (comp (map :e)
+                        (map #(d/pull db pull-pattern %))
+                        (map #(with-meta % {:db db})))))))
 
 (defn all-snapshots
   "Returns a reducible coll of all snapshots."

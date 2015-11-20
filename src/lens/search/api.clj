@@ -85,7 +85,9 @@
       404 false
       (throw (index-exists-status-ex-info opts status body)))))
 
-(s/defn index-exists? [conn :- Conn]
+(s/defn index-exists?
+  "Returns a channel conveying true if the index exists."
+  [conn :- Conn]
   (let [ch (async/chan)]
     (http/request
       {:url (base-uri conn)
