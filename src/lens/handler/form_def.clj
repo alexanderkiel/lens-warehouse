@@ -96,11 +96,10 @@
 
     :handle-exception
     (fnk [exception study [:request path-for]]
-      (println 'ex-data (ex-data exception))
       {:data
        {:message (.getMessage exception)
         :ex-data (ex-data exception)
-        :cause-ex-data (ex-data (.getCause exception))}
+        :cause-message (.getMessage (.getCause exception))}
        :links
        {:up (study/link path-for study)
         :self {:href (study/child-list-path :form-def path-for study 1)}}})))
