@@ -70,6 +70,7 @@
   )
 
 (comment
+  (<?? (sapi/delete-index (:search-conn system)))
   (<?? (sapi/create-index (:search-conn system) search/index-config))
   )
 
