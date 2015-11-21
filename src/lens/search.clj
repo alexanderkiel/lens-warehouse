@@ -92,6 +92,7 @@
       :study-id {:type :string :index :not_analyzed}
       :name {:type :string}
       :desc {:type :string}
+      :keywords {:type :string}
       :recording-type {:type :string :index :not_analyzed}}}}})
 
 (s/defrecord SearchConn [host :- Str port :- Int index :- Str]
