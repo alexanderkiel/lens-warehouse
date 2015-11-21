@@ -598,10 +598,9 @@
                 {:filter
                  {:term {:study-id (:study/id study)}}
                  :query
-                 {:simple_query_string
+                 {:multi_match
                   {:query filter
-                   :fields [:id :name :desc :keywords :recording-type]
-                   :flags "AND|NOT|PHRASE"}}}}}]
+                   :fields [:id :name :desc :keywords :recording-type]}}}}}]
     (go
       (try
         (letk [[took-overall took [:hits total hits]]
