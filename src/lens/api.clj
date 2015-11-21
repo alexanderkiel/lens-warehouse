@@ -598,9 +598,16 @@
                 {:filter
                  {:term {:study-id (:study/id study)}}
                  :query
-                 {:multi_match
-                  {:query filter
-                   :fields [:id :name :desc :keywords :recording-type]}}}}}]
+                 {:dis_max
+                  {:queries
+                   [{:multi_match
+                     {:query filter
+                      :fields [:id :name.trigrams :desc.trigrams :keywords.trigrams]
+                      :minimum_should_match "80%"}}
+                    {:multi_match
+                     {:query filter
+                      :fields [:name :desc :keywords]
+                      :fuzziness "AUTO"}}]}}}}}]
     (go
       (try
         (letk [[took-overall took [:hits total hits]]

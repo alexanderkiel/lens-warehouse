@@ -52,7 +52,7 @@
   <logger name="org.apache.tomcat.jdbc.pool" level="INFO"/>
 
   <logger name="lens.handler.form-def" level="INFO"/>
-  <logger name="lens.api" level="TRACE"/>
+  <logger name="lens.api" level="DEBUG"/>
   <logger name="lens.search" level="DEBUG"/>
   <logger name="lens.tx-report" level="DEBUG"/>
 

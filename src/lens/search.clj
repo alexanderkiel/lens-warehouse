@@ -65,7 +65,7 @@
    {:number_of_shards 1
     :analysis
     {:analyzer
-     {:default
+     {:trigram
       {:type :custom
        :tokenizer :standard
        :filter [:lowercase :german_normalization :trigram]}
@@ -90,9 +90,27 @@
     {:properties
      {:id {:type :string :analyzer :form-def-id}
       :study-id {:type :string :index :not_analyzed}
-      :name {:type :string}
-      :desc {:type :string}
-      :keywords {:type :string}
+      :name
+      {:type :string
+       :analyzer :german
+       :fields
+       {:trigrams
+        {:type :string
+         :analyzer :trigram}}}
+      :desc
+      {:type :string
+       :analyzer :german
+       :fields
+       {:trigrams
+        {:type :string
+         :analyzer :trigram}}}
+      :keywords
+      {:type :string
+       :analyzer :german
+       :fields
+       {:trigrams
+        {:type :string
+         :analyzer :trigram}}}
       :recording-type {:type :string :index :not_analyzed}}}}})
 
 (s/defrecord SearchConn [host :- Str port :- Int index :- Str]
