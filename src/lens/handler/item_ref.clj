@@ -122,10 +122,11 @@
     (fnk [item-ref [:request path-for]] (path path-for item-ref))
 
     :handle-exception
-    (fnk [exception [:request path-for] :as ctx]
+    (fnk [exception [:request path-for [:params item-id]] :as ctx]
       (condp = (util/error-type exception)
         :duplicate
-        (hu/error path-for 409 "The item ref exists already."
+        (hu/error path-for 409
+                  (format "The item ref to item %s exists already." item-id)
                   (build-up-link ctx))
         :item-def-not-found
         (hu/error path-for 404 "Item def not found."
