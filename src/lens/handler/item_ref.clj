@@ -128,6 +128,6 @@
         (hu/error path-for 409 "The item ref exists already."
                   (build-up-link ctx))
         :item-def-not-found
-        (hu/error path-for 409 "Item def not found."
+        (hu/error path-for 404 "Item def not found."
                   (build-up-link ctx))
         (throw exception)))))

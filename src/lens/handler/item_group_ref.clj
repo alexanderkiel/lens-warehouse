@@ -129,6 +129,6 @@
         (hu/error path-for 409 "The item group ref exists already."
                   (build-up-link ctx))
         :form-def-not-found
-        (hu/error path-for 409 "Item group def not found."
+        (hu/error path-for 404 "Item group def not found."
                   (build-up-link ctx))
         (throw exception)))))

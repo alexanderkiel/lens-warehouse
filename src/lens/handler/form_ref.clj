@@ -128,6 +128,6 @@
         (hu/error path-for 409 "The form ref exists already."
                   (build-up-link ctx))
         :form-def-not-found
-        (hu/error path-for 409 "Form def not found."
+        (hu/error path-for 404 "Form def not found."
                   (build-up-link ctx))
         (throw exception)))))
