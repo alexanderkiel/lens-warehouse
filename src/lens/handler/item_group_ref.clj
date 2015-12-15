@@ -123,10 +123,11 @@
     (fnk [item-group-ref [:request path-for]] (path path-for item-group-ref))
 
     :handle-exception
-    (fnk [exception [:request path-for] :as ctx]
+    (fnk [exception [:request path-for [:params item-group-id]] :as ctx]
       (condp = (util/error-type exception)
         :duplicate
-        (hu/error path-for 409 "The item group ref exists already."
+        (hu/error path-for 409
+                  (format "The item group ref %s exists already." item-group-id)
                   (build-up-link ctx))
         :form-def-not-found
         (hu/error path-for 404 "Item group def not found."
