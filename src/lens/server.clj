@@ -1,7 +1,6 @@
 (ns lens.server
   (:require [com.stuartsierra.component :refer [Lifecycle]]
             [org.httpkit.server :refer [run-server]]
-            [schema.core :as s :refer [Str]]
             [lens.app :refer [app]]
             [lens.route :refer [ContextPath]]))
 
@@ -18,5 +17,5 @@
     (stop-fn)
     (assoc server :stop-fn nil)))
 
-(s/defn new-server []
+(defn new-server []
   (map->Server {}))
