@@ -20,8 +20,7 @@
 (def system nil)
 
 (defn init []
-  (assert (nil? system))
-  (alter-var-root #'system (constantly (new-system env))))
+  (when-not system (alter-var-root #'system (constantly (new-system env)))))
 
 (defn start []
   (alter-var-root #'system comp/start))
