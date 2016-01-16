@@ -2,7 +2,7 @@
   (:use plumbing.core)
   (:require [com.stuartsierra.component :as comp]
             [environ.core :refer [env]]
-            [lens.system :as system]
+            [lens.system :refer [new-system]]
             [lens.logging :refer [info]]))
 
 (defn- max-memory []
@@ -13,7 +13,7 @@
 
 (defn -main [& _]
   (letk [[port thread version db-uri context-path :as system]
-         (system/new-system env)]
+         (new-system env)]
     (comp/start system)
     (info {:version version})
     (info {:max-memory (max-memory)})
