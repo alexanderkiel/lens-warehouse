@@ -5,7 +5,7 @@
             [org.httpkit.client :as http]
             [schema.core :as s :refer [Str Int]]
             [clojure.java.io :as io]
-            [cemerick.url :refer [url url-encode]]
+            [cemerick.url :refer [url]]
             [clojure.string :as str]
             [lens.util :as util])
   (:import [java.net URI]))
