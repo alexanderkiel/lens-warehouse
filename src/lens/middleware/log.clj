@@ -1,16 +1,10 @@
 (ns lens.middleware.log
-  (:require [lens.logging :refer [info]]
-            [lens.util :as util]))
+  (:require [lens.logging :refer [warn error]]))
 
-(defn- filter-response [{:keys [status] :as resp}]
-  (select-keys resp (cond-> [:status :headers] (<= 400 status) (conj :body))))
-
-(defn wrap-log [handler]
+(defn wrap-log-errors [handler]
   (fn [req]
-    (let [start (System/nanoTime)
-          resp (handler req)]
-      (info {:request (select-keys req [:remote-addr :request-method
-                                        :uri :query-string :headers])
-             :response (filter-response resp)
-             :took (util/duration start)})
+    (let [{:keys [status] :as resp} (handler req)]
+      (cond
+        (<= 500 status) (error {:type :server-error-response :response resp})
+        (<= 400 status) (warn {:type :client-error-response :response resp}))
       resp)))
