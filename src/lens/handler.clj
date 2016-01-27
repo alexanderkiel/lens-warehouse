@@ -1,10 +1,12 @@
 (ns lens.handler
   (:use plumbing.core)
-  (:require [clojure.core.async :refer [timeout]]
+  (:require [async-error.core :refer [<??]]
+            [clojure.core.async :refer [timeout]]
             [clojure.core.reducers :as r]
             [liberator.core :refer [resource to-location]]
             [lens.handler.util :as hu]
             [lens.api :as api]
+            [lens.search.api :as sapi]
             [lens.util :as util]
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
@@ -41,7 +43,8 @@
       {:href (attachment-type/all-attachment-types-path path-for)}
       :lens/most-recent-snapshot
       {:href (path-for :most-recent-snapshot-handler)}
-      :datomic/basis-t {:href (path-for :basis-t-handler)}}
+      :datomic/basis-t {:href (path-for :basis-t-handler)}
+      :life/health {:href (path-for :health-handler)}}
      :queries
      {:lens/find-study
       {:href (path-for :find-study-handler)
@@ -65,6 +68,8 @@
 
     :handle-ok (render-service-document version)))
 
+;; ---- Basis-T ---------------------------------------------------------------
+
 (defnk render-basis-t [db [:request path-for]]
   {:data
    {:basis-t (d/basis-t db)}
@@ -77,6 +82,27 @@
     (hu/resource-defaults)
 
     :handle-ok render-basis-t))
+
+;; ---- Health ----------------------------------------------------------------
+
+(defnk render-health [search-conn [:request path-for]]
+  {:data
+   {:search
+    (let [index-exists? (<?? (sapi/index-exists? search-conn))]
+      (cond-> {:cluster-status (:status (<?? (sapi/cluster-health search-conn)))
+               :index-exists? index-exists?}
+        index-exists?
+        (assoc :num-docs (-> (<?? (sapi/index-status search-conn))
+                             :indices :lens :docs :num_docs))))}
+   :links
+   {:up {:href (path-for :service-document-handler)}
+    :self {:href (path-for :health-handler)}}})
+
+(def health-handler
+  (resource
+    (hu/resource-defaults)
+
+    :handle-ok render-health))
 
 (defn item-code-list-item-count-handler [path-for]
   (resource
@@ -332,6 +358,7 @@
 (defnk handlers [path-for version]
   {:service-document-handler (service-document-handler version)
    :basis-t-handler basis-t-handler
+   :health-handler health-handler
 
    :all-studies-handler study/all-studies-handler
    :find-study-handler study/find-handler

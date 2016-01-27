@@ -61,8 +61,43 @@
 (defn- status-ex-data [opts status body]
   {:status status :uri (URI/create (:url opts)) :body body})
 
-(defnk ^:private base-uri :- Str [host {port 9200} index]
-  (str "http://" host ":" port "/" index))
+(defnk ^:private base-uri :- Str [host {port 9200}]
+  (str "http://" host ":" port))
+
+(defnk ^:private index-uri :- Str [index :as conn]
+  (str (base-uri conn) "/" index))
+
+;; ---- Cluster Health ---------------------------------------------------------
+
+(defn cluster-health-error-ex-info [opts error]
+  (ex-info (str "Error while looking after the cluster health at " (:url opts)
+                ": " error)
+           (error-ex-data opts error)))
+
+(defn- cluster-health-status-ex-info [opts status body]
+  (ex-info (str "Unexpected status " status " while looking after the cluster "
+                "health at " (:url opts))
+           (status-ex-data opts status body)))
+
+(defn- process-cluster-health-resp [{:keys [opts error status] :as resp}]
+  (when error
+    (throw (cluster-health-error-ex-info opts error)))
+  (letk [[body] (parse-response resp)]
+    (println "URI:" (:url opts))
+    (case status
+      200 body
+      (throw (cluster-health-status-ex-info opts status body)))))
+
+(s/defn cluster-health
+  "Returns a channel conveying the cluster health."
+  [conn :- Conn]
+  (let [ch (async/chan)]
+    (http/request
+      {:url (str (base-uri conn) "/_cluster/health")
+       :method :get
+       :as :stream}
+      (callback ch process-cluster-health-resp))
+    ch))
 
 ;; ---- Index Exists ----------------------------------------------------------
 
@@ -90,7 +125,7 @@
   [conn :- Conn]
   (let [ch (async/chan)]
     (http/request
-      {:url (base-uri conn)
+      {:url (index-uri conn)
        :method :head
        :as :stream}
       (callback ch process-index-exists-resp))
@@ -118,7 +153,7 @@
 (s/defn create-index [conn :- Conn m]
   (let [ch (async/chan)]
     (http/request
-      {:url (base-uri conn)
+      {:url (index-uri conn)
        :method :put
        :body (json/write-str m :escape-unicode false)
        :as :stream}
@@ -147,7 +182,7 @@
 (s/defn delete-index [conn :- Conn]
   (let [ch (async/chan)]
     (http/request
-      {:url (base-uri conn)
+      {:url (index-uri conn)
        :method :delete
        :as :stream}
       (callback ch process-delete-index-resp))
@@ -176,7 +211,7 @@
 (s/defn index-status [conn :- Conn]
   (let [ch (async/chan)]
     (http/request
-      {:url (str (base-uri conn) "/_status")
+      {:url (str (index-uri conn) "/_status")
        :method :get
        :as :stream}
       (callback ch process-index-status-resp))
@@ -205,7 +240,7 @@
   (assert (not (str/blank? id)))
   (let [ch (async/chan)]
     (http/request
-      {:url (str (url (base-uri conn) (name type) id))
+      {:url (str (url (index-uri conn) (name type) id))
        :method :put
        :body (json/write-str m :escape-unicode false)
        :as :stream}
@@ -234,7 +269,7 @@
   "Returns a channel conveying the SearchResult."
   (let [ch (async/chan)]
     (http/request
-      {:url (str (url (base-uri conn) (name type) "_search"))
+      {:url (str (url (index-uri conn) (name type) "_search"))
        :method :get
        :body (json/write-str query :escape-unicode false)
        :as :stream
@@ -265,7 +300,7 @@
   "Returns a channel conveying the ExplainResult."
   (let [ch (async/chan)]
     (http/request
-      {:url (str (url (base-uri conn) (name type) id "_explain"))
+      {:url (str (url (index-uri conn) (name type) id "_explain"))
        :method :get
        :body (json/write-str query :escape-unicode false)
        :as :stream
@@ -295,7 +330,7 @@
   "Returns a channel conveying the AnalyzeResult."
   (let [ch (async/chan)]
     (http/request
-      {:url (-> (url (base-uri conn) "_analyze")
+      {:url (-> (url (index-uri conn) "_analyze")
                 (assoc :query {:field (name field)})
                 (str))
        :method :get

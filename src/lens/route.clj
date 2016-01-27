@@ -92,6 +92,7 @@
     ["/most-recent-snapshot" :most-recent-snapshot-handler]
     ["/find-study" :find-study-handler]
     ["/basis-t" :basis-t-handler]
+    ["/health" :health-handler]
 
     ["/attachment-types"
      {"" :create-attachment-type-handler

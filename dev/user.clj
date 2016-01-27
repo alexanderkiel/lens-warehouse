@@ -64,6 +64,7 @@
 
 ;; Index Status
 (comment
+  (<?? (sapi/cluster-health (:search-conn system)))
   (<?? (sapi/index-exists? (:search-conn system)))
   (<?? (sapi/index-status (:search-conn system)))
   )
