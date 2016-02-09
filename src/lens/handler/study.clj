@@ -228,6 +228,27 @@
       (conj default :study/desc)
       default)))
 
+(defnk render-list [db [:request path-for [:params page-num {pull-pattern nil}
+                                           {filter nil}]]]
+  (let [studies (if (str/blank? filter)
+                  (api/all-studies db (db-pull-pattern pull-pattern))
+                  (api/list-matching-studies db filter))
+        next-page? (not (lr/empty? (hu/paginate (inc page-num) studies)))
+        path #(all-studies-path path-for %)]
+    {:links
+     (-> {:up {:href (path-for :service-document-handler)}
+          :self {:href (path page-num)}}
+         (hu/assoc-prev page-num path)
+         (hu/assoc-next next-page? page-num path))
+     :forms
+     {:lens/create-study
+      (render-create-study-form path-for)}
+     :embedded
+     {:lens/studies
+      (->> (hu/paginate page-num studies)
+           (render-embedded-studies path-for)
+           (into []))}}))
+
 (def all-studies-handler
   (resource
     (hu/resource-defaults)
@@ -236,26 +257,7 @@
 
     ;;TODO: ETag
 
-    :handle-ok
-    (fnk [db [:request path-for [:params page-num {pull-pattern nil} {filter nil}]]]
-      (let [studies (if (str/blank? filter)
-                      (api/all-studies db (db-pull-pattern pull-pattern))
-                      (api/list-matching-studies db filter))
-            next-page? (not (lr/empty? (hu/paginate (inc page-num) studies)))
-            path #(all-studies-path path-for %)]
-        {:links
-         (-> {:up {:href (path-for :service-document-handler)}
-              :self {:href (path page-num)}}
-             (hu/assoc-prev page-num path)
-             (hu/assoc-next next-page? page-num path))
-         :forms
-         {:lens/create-study
-          (render-create-study-form path-for)}
-         :embedded
-         {:lens/studies
-          (->> (hu/paginate page-num studies)
-               (render-embedded-studies path-for)
-               (into []))}}))))
+    :handle-ok render-list))
 
 (def ^:private CreateParamSchema
   {:id util/NonBlankStr
