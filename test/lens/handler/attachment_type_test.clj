@@ -66,15 +66,14 @@
 
 (deftest all-attachment-types-handler-test
   (let [_ (create-attachment-type "id-193958")
-        resp (execute all-attachment-types-handler :get
+        resp (execute all-handler :get
                :params {:page-num 1})]
 
     (is (= 200 (:status resp)))
 
     (testing "Body contains a self link"
       (given (self-href resp)
-        :handler := :all-attachment-types-handler
-        :args := [:page-num 1]))
+        :handler := :all-attachment-types-handler))
 
     (testing "Body contains one embedded attachment type"
       (is (= 1 (count (-> resp :body :embedded :lens/attachment-types)))))))

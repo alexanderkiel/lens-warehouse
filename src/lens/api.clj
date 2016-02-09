@@ -434,10 +434,13 @@
   (->> (apply d/q q db inputs)
        (r/map #(d/entity db %))))
 
+(defn- entity-xf [db]
+  (map #(d/entity db (:e %))))
+
 (defn all-studies
   "Returns a reducible coll of all studies sorted by there name."
   ([db]
-   (eduction (map #(d/entity db (:e %))) (d/datoms db :avet :study/name)))
+   (eduction (entity-xf db) (d/datoms db :avet :study/name)))
   ([db pull-pattern]
    (->> (d/datoms db :avet :study/name)
         (eduction (comp (map :e)
@@ -452,8 +455,7 @@
 (defn all-attachment-types
   "Returns a reducible coll of all attachment types sorted by there id."
   [db]
-  (->> (d/datoms db :avet :attachment-type/id)
-       (r/map #(with-meta (d/pull db [:db/id :attachment-type/id] (:e %)) {:db db}))))
+  (eduction (entity-xf db) (d/datoms db :avet :attachment-type/id)))
 
 ;; ---- Traversal -------------------------------------------------------------
 

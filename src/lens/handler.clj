@@ -40,7 +40,7 @@
       :lens/all-studies {:href (study/all-studies-path path-for)}
       :lens/all-snapshots {:href (path-for :all-snapshots-handler)}
       :lens/all-attachment-types
-      {:href (attachment-type/all-attachment-types-path path-for)}
+      {:href (path-for :all-attachment-types-handler)}
       :lens/most-recent-snapshot
       {:href (path-for :most-recent-snapshot-handler)}
       :datomic/basis-t {:href (path-for :basis-t-handler)}
@@ -64,7 +64,7 @@
   (resource
     (hu/resource-defaults :cache-control "max-age=60")
 
-    :etag (hu/etag 6)
+    :etag (hu/etag 7)
 
     :handle-ok (render-service-document version)))
 
@@ -421,6 +421,6 @@
    :all-snapshots-handler (all-snapshots-handler path-for)
    :most-recent-snapshot-handler (most-recent-snapshot-handler path-for)
 
-   :all-attachment-types-handler attachment-type/all-attachment-types-handler
+   :all-attachment-types-handler attachment-type/all-handler
    :attachment-type-handler attachment-type/handler
    :create-attachment-type-handler attachment-type/create-handler})

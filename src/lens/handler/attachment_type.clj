@@ -1,17 +1,10 @@
 (ns lens.handler.attachment-type
   (:use plumbing.core)
-  (:require [clojure.core.reducers :as r]
-            [liberator.core :refer [resource]]
+  (:require [liberator.core :refer [resource]]
             [lens.api :as api]
             [lens.util :as util]
             [lens.handler.util :as hu]
-            [lens.reducers :as lr]
             [schema.core :as s]))
-
-(defn all-attachment-types-path
-  ([path-for] (all-attachment-types-path path-for 1))
-  ([path-for page-num]
-   (path-for :all-attachment-types-handler :page-num page-num)))
 
 (defn path [path-for attachment-type]
   (path-for :attachment-type-handler :eid (hu/entity-id attachment-type)))
@@ -48,53 +41,39 @@
 
     :handle-ok render))
 
-(defn render-embedded-attachment-type [path-for attachment-type]
+(defn render-embedded [path-for attachment-type]
   {:data
-   {:id (:attachment-type/id attachment-type)
-    :name (:attachment-type/name attachment-type)
-    :desc (:attachment-type/desc attachment-type)}
+   {:id (:attachment-type/id attachment-type)}
    :links
    {:self (link path-for attachment-type)}})
 
-(defn render-embedded-attachment-types [path-for attachment-types]
-  (r/map #(render-embedded-attachment-type path-for %) attachment-types))
+(defn render-embedded-list-xf [path-for]
+  (map (partial render-embedded path-for)))
 
-(def ListParamSchema
-  {:page-num util/PosInt
-   s/Any s/Any})
-
-(defn render-create-attachment-type-form [path-for]
+(defn render-create-form [path-for]
   {:href (path-for :create-attachment-type-handler)
    :params
    {:id {:type s/Str :desc "The unique id of an attachment type."}}})
 
-(def all-attachment-types-handler
+(defnk render-list [db [:request path-for]]
+  {:links
+   {:up {:href (path-for :service-document-handler)}
+    :self {:href (path-for :all-attachment-types-handler)}}
+   :forms
+   {:lens/create-attachment-type
+    (render-create-form path-for)}
+   :embedded
+   {:lens/attachment-types
+    (->> (api/all-attachment-types db)
+         (into [] (render-embedded-list-xf path-for)))}})
+
+(def all-handler
   (resource
     (hu/resource-defaults)
 
-    :processable? (hu/coerce-params ListParamSchema)
-
     ;;TODO: ETag
 
-    :handle-ok
-    (fnk [db [:request path-for [:params page-num]]]
-      (let [attachment-types (api/all-attachment-types db)
-            next-page? (not (lr/empty? (hu/paginate (inc page-num)
-                                                    attachment-types)))
-            path #(all-attachment-types-path path-for %)]
-        {:links
-         (-> {:up {:href (path-for :service-document-handler)}
-              :self {:href (path page-num)}}
-             (hu/assoc-prev page-num path)
-             (hu/assoc-next next-page? page-num path))
-         :forms
-         {:lens/create-attachment-type
-          (render-create-attachment-type-form path-for)}
-         :embedded
-         {:lens/attachment-types
-          (->> (hu/paginate page-num attachment-types)
-               (render-embedded-attachment-types path-for)
-               (into []))}}))))
+    :handle-ok render-list))
 
 (def ^:private CreateParamSchema
   {:id util/NonBlankStr
@@ -117,4 +96,4 @@
       (path path-for attachment-type))
 
     :handle-exception
-    (hu/duplicate-exception "Attachment-type exists already.")))
+    (hu/duplicate-exception "The attachment-type exists already.")))

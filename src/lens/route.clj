@@ -95,6 +95,6 @@
     ["/health" :health-handler]
 
     ["/attachment-types"
-     {"" :create-attachment-type-handler
-      ["/page/" :page-num] :all-attachment-types-handler
+     {"" {:get :all-attachment-types-handler
+          :post :create-attachment-type-handler}
       ["/" :eid] :attachment-type-handler}]]])
