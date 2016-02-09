@@ -6,6 +6,8 @@
   (fn [req]
     (letk [[{status 200} :as resp] (handler req)]
       (cond
-        (<= 500 status) (error {:type :server-error-response :response resp})
-        (<= 400 status) (warn {:type :client-error-response :response resp}))
+        (<= 500 status)
+        (error {:type :server-error-response :request req :response resp})
+        (<= 400 status)
+        (warn {:type :client-error-response :request req :response resp}))
       resp)))
