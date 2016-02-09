@@ -234,7 +234,7 @@
     (fnk [entity [:request path-for]] (path path-for entity))
 
     :handle-exception
-    (study/duplicate-exception "The form def exists already.")))
+    (study/duplicate-exception "The form-def exists already.")))
 
 ;; ---- For Childs ------------------------------------------------------------
 

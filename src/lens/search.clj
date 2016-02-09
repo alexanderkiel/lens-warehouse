@@ -36,7 +36,7 @@
                      (assoc :study-id study-id))
         res (<!! (sapi/index conn :form-def (str eid) form-def))]
     (if (instance? Throwable res)
-      (error res {:msg (format "Error while indexing form def %s: %s"
+      (error res {:msg (format "Error while indexing form-def %s: %s"
                                id (.getMessage res))
                   :ex-data (ex-data res)})
       (info {:type :index :sub-type :form-def :study-id study-id :id id}))))

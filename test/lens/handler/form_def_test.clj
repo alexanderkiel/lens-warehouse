@@ -194,4 +194,4 @@
                           :name "name-224240"}
                  :conn (connect))]
       (is (= 409 (:status resp)))
-      (is (= "The form def exists already." (error-msg resp))))))
+      (is (= "The form-def exists already." (error-msg resp))))))

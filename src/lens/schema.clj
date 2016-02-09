@@ -67,7 +67,7 @@
   (reduce-kv build-entity-tx [] entities))
 
 (def study
-  "A clinical or epidemiological study. "
+  "A clinical or epidemiological study."
   [[:id :string :unique "The id of a study. Same as the study OID in ODM."]
    [:name :string :index :fulltext]
    [:desc :string :fulltext]
@@ -227,7 +227,7 @@
          (throw (ex-info "Duplicate!" {:type :duplicate})))))
 
    (func find
-     "Returns the form with study-id and form-id or nil if not found."
+     "Returns the form-def with study-id and form-id or nil if not found."
      [db study-id form-id]
      (some->> (d/q '[:find ?f . :in $ ?sid ?fid
                      :where
@@ -241,7 +241,7 @@
      "Updates the form-def.
 
      Ensures that the values in old-props are still current in the version of
-     the in-transaction form."
+     the in-transaction form-def."
      [db form-def-eid old-props new-props]
      (let [form-def (d/entity db form-def-eid)]
        (if (:form-def/id form-def)

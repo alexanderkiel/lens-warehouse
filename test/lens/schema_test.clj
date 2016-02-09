@@ -84,7 +84,7 @@
       (is (thrown-with-data? {:type :form-def-not-found}
                              (create-form-ref study-event-def 1)))))
 
-  (testing "Form ref to form def exists already"
+  (testing "Form ref to form-def exists already"
     (let [study (create-study)
           study-event-def (create-study-event-def study)
           form-def (create-form-def study)

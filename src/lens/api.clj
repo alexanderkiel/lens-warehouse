@@ -232,7 +232,7 @@
   "Updates the form-def.
 
   Ensures that the values in old-props are still current in the version of the
-  in-transaction form."
+  in-transaction form-def."
   [conn form-def :- FormDef old-props :- Props new-props :- Props]
   (debug {:type :update
           :form-def/id (:form-def/id form-def)
@@ -244,7 +244,7 @@
     nil
     (catch Exception e (if-let [t (util/error-type e)] t (throw e)))))
 
-;; ---- Item Group Ref --------------------------------------------------------------
+;; ---- Item Group Ref --------------------------------------------------------
 
 (s/defn create-item-group-ref
   "Creates a item-group-ref pointing from a form-def to an item-group-def.
@@ -304,7 +304,7 @@
     (catch Exception e
       (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
-;; ---- Item Def --------------------------------------------------------
+;; ---- Item Def --------------------------------------------------------------
 
 (def DataType
   (s/enum :data-type/text
@@ -383,7 +383,7 @@
     (catch Exception e
       (when-not (= :duplicate (util/error-type e)) (throw e)))))
 
-;; ---- Form -----------------------------------------------------------
+;; ---- Form ------------------------------------------------------------------
 
 (defn create-form
   "Creates a form of study event and form-def.
@@ -407,7 +407,7 @@
      (catch Exception e
        (when-not (= :duplicate (util/error-type e)) (throw e))))))
 
-;; ---- Attachment Type -----------------------------------------------------------------
+;; ---- Attachment Type -------------------------------------------------------
 
 (s/defn create-attachment-type
   "Creates an attachment-type with the id.
