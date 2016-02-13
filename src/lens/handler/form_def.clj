@@ -167,7 +167,7 @@
 
     :processable?
     (fnk [db [:request [:params eid]] :as ctx]
-      (let [form-def (api/find-entity db :form-def (hu/to-eid db eid))]
+      (let [form-def (api/find-entity db :form-def (hu/to-eid eid))]
         ((hu/entity-processable (assoc schema :id (s/eq (:form-def/id form-def)))) ctx)))
 
     :exists? (hu/exists? :form-def)

@@ -183,7 +183,7 @@
 
     :processable?
     (fnk [db [:request [:params eid]] :as ctx]
-      (let [study (api/find-entity db :study (hu/to-eid db eid))]
+      (let [study (api/find-entity db :study (hu/to-eid eid))]
         ((hu/entity-processable (assoc schema :id (s/eq (:study/id study)))) ctx)))
 
     :exists? (hu/exists? :study)
@@ -323,7 +323,7 @@
 
 (defn find-child [type]
   (fnk [db [:request [:params eid id]]]
-    (when-let [study (api/find-entity db :study (hu/to-eid db eid))]
+    (when-let [study (api/find-entity db :study (hu/to-eid eid))]
       (when-let [entity (api/find-study-child study type id)]
         {:entity entity}))))
 

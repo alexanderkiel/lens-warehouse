@@ -231,18 +231,20 @@
          {:up {:href (path-for :service-document-handler)}
           :self {:href (path-for name)}}}))))
 
-(defn entity-id [entity]
-  (let [db (or (:db (meta entity)) (d/entity-db entity))
-        part-id (:db/id (d/entity db :part/meta-data))]
-    (sid/int-to-base62 (- (:db/id entity) (bit-shift-left part-id 42)))))
+(defn entity-id
+  "Calculates a Base62 ID of an entity which is used in URIs."
+  [entity]
+  (sid/int-to-base62 (:db/id entity)))
 
-(s/defn to-eid [db id :- Str]
-  (+ (bit-shift-left (:db/id (d/entity db :part/meta-data)) 42) (sid/base62-to-int id)))
+(s/defn to-eid
+  "Calculates the eid of a Base62 ID used in URIs."
+  [id :- Str]
+  (sid/base62-to-int id))
 
 (defn exists?
   ([type]
    (exists? type :id))
   ([type arg]
    (fnk [db [:request [:params eid]]]
-     (when-let [entity (api/find-entity db type arg (to-eid db eid))]
+     (when-let [entity (api/find-entity db type arg (to-eid eid))]
        {type entity}))))

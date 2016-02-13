@@ -57,7 +57,7 @@
 
 (def find-item-ref
   (fnk [db [:request [:params eid item-id]]]
-    (when-let [item-group-def (api/find-entity db :item-group-def (hu/to-eid db eid))]
+    (when-let [item-group-def (api/find-entity db :item-group-def (hu/to-eid eid))]
       (when-let [item-ref (some #(when (= item-id (-> % :item-ref/item
                                                       :item-def/id)) %)
                                 (:item-group-def/item-refs item-group-def))]
