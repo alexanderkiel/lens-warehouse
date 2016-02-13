@@ -203,8 +203,8 @@
    [:repeating :boolean]
    [:desc :string :fulltext]
    [:aliases :ref :many :comp]
-   [:keywords :string :many :comp]
-   [:recording-type :string]
+   [:keywords :string :many]
+   [:inquiry-type :ref]
    [:item-group-refs :ref :many :comp]
    [:attachment :ref :many :comp]
 
@@ -243,30 +243,31 @@
      Ensures that the values in old-props are still current in the version of
      the in-transaction form-def."
      [db form-def-eid old-props new-props]
-     (let [form-def (d/entity db form-def-eid)]
-       (if (:form-def/id form-def)
+     (let [form-def (d/pull db '[*] form-def-eid)]
+       (if (:form-def/id form-def) 
          (let [cur-props (select-keys form-def (keys old-props))]
            (if (= cur-props old-props)
              (concat (for [[prop old-val] cur-props
-                           :when (not (instance? Iterable old-val))
+                           :when (not (instance? java.util.List old-val))
                            :when (nil? (prop new-props))]
-                       [:db/retract (:db/id form-def) prop old-val])
+                       [:db/retract (:db/id form-def) prop 
+                        (or (:db/id old-val) old-val)])
                      (for [[prop old-val] cur-props
-                           :when (instance? Iterable old-val)
+                           :when (instance? java.util.List old-val)
                            old-val old-val
-                           :when (not (contains? (prop new-props) old-val))]
+                           :when (not (some #{old-val} (prop new-props)))]
                        [:db/retract (:db/id form-def) prop old-val])
                      (for [[prop val] new-props
-                           :when (not (instance? Iterable val))]
-                       [:db/add (:db/id form-def) prop val])
+                           :when (not (instance? java.util.List val))]
+                       [:db/add (:db/id form-def) prop (or (:db/id val) val)])
                      (for [[prop val] new-props
-                           :when (instance? Iterable val)
+                           :when (instance? java.util.List val)
                            val val]
                        [:db/add (:db/id form-def) prop val]))
              (throw (ex-info "Conflict!" {:type :conflict
                                           :old-props old-props
                                           :cur-props cur-props}))))
-         (throw (ex-info "Form not found." {:type :not-found})))))])
+         (throw (ex-info "Form-def not found." {:type :not-found})))))])
 
 (def item-group-ref
   "A reference to a ItemGroupDef as it occurs within a specific FormDef. The
@@ -575,6 +576,41 @@
   [[:sha-1 :string "SHA-1 of the file. Is used to reference it."]
    [:type :ref "Reference to attachment-type."]])
 
+(def inquiry-type
+  "Non standard type of inquiry of a form."
+  [[:id :string :unique]
+   [:name :string :index]
+   [:rank :long]
+
+   (func create
+     "Creates an inquiry-type."
+     [db tid id name rank]
+     (if-not (d/entity db [:inquiry-type/id id])
+       [{:db/id tid
+         :inquiry-type/id id
+         :inquiry-type/name name
+         :inquiry-type/rank rank}]
+       (throw (ex-info "Duplicate." {:type :duplicate}))))
+
+   (func update
+     "Updates the inquiry-type with the id.
+
+     Ensures that the values in old-props are still current in the version of
+     the in-transaction inquiry-type."
+     [db eid old-props new-props]
+     (if-let [inquiry-type (d/entity db eid)]
+       (let [cur-props (select-keys inquiry-type (keys old-props))]
+         (if (= cur-props old-props)
+           (concat (for [[prop old-val] cur-props
+                         :when (nil? (prop new-props))]
+                     [:db/retract (:db/id inquiry-type) prop old-val])
+                   (for [[prop val] new-props]
+                     [:db/add (:db/id inquiry-type) prop val]))
+           (throw (ex-info "Conflict!" {:type :conflict
+                                        :old-props old-props
+                                        :cur-props cur-props}))))
+       (throw (ex-info "Inquiry type not found." {:type :not-found}))))])
+
 (def attachment-type
   "A type of an attachment like a report or a aCRF."
   [[:id :string :unique "The unique id of an attachment type."]
@@ -867,6 +903,7 @@ Which is one of :code-list-item/long-code or :code-list-item/string-code."}
                         :item-group item-group
                         :item item
                         :attachment attachment
+                        :inquiry-type inquiry-type
                         :attachment-type attachment-type})
              (prepare-schema base-schema))
        (d/transact conn)

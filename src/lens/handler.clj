@@ -22,6 +22,7 @@
             [lens.handler.item-group-def :as item-group-def]
             [lens.handler.item-ref :as item-ref]
             [lens.handler.item-def :as item-def]
+            [lens.handler.inquiry-type :as inquiry-type]
             [lens.handler.attachment-type :as attachment-type]
             [schema.core :as s]
             [lens.handler.util :as hu]
@@ -39,6 +40,8 @@
      {:self {:href (path-for :service-document-handler)}
       :lens/all-studies {:href (study/all-studies-path path-for)}
       :lens/all-snapshots {:href (path-for :all-snapshots-handler)}
+      :lens/all-inquiry-types
+      {:href (path-for :all-inquiry-types-handler)}
       :lens/all-attachment-types
       {:href (path-for :all-attachment-types-handler)}
       :lens/most-recent-snapshot
@@ -64,7 +67,7 @@
   (resource
     (hu/resource-defaults :cache-control "max-age=60")
 
-    :etag (hu/etag 7)
+    :etag (hu/etag 8)
 
     :handle-ok (render-service-document version)))
 
@@ -420,6 +423,11 @@
    :snapshot-handler (snapshot-handler path-for)
    :all-snapshots-handler (all-snapshots-handler path-for)
    :most-recent-snapshot-handler (most-recent-snapshot-handler path-for)
+
+   :all-inquiry-types-handler inquiry-type/all-handler
+   :inquiry-type-handler inquiry-type/handler
+   :create-inquiry-type-handler inquiry-type/create-handler
+   :inquiry-type-profile-handler (hu/profile-handler :inquiry-type inquiry-type/schema)
 
    :all-attachment-types-handler attachment-type/all-handler
    :attachment-type-handler attachment-type/handler

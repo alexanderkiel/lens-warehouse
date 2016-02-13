@@ -221,7 +221,7 @@
     (resource
       (resource-defaults :cache-control "max-age=3600")
 
-      :etag (etag 2)
+      :etag (etag schema 2)
 
       :handle-ok
       (fnk [[:request path-for]]
@@ -234,6 +234,7 @@
 (defn entity-id
   "Calculates a Base62 ID of an entity which is used in URIs."
   [entity]
+  (assert (:db/id entity))
   (sid/int-to-base62 (:db/id entity)))
 
 (s/defn to-eid
@@ -248,3 +249,9 @@
    (fnk [db [:request [:params eid]]]
      (when-let [entity (api/find-entity db type arg (to-eid eid))]
        {type entity}))))
+
+(defn exists-pull?
+  [key pattern]
+  (fnk [db [:request [:params eid]]]
+    (when-let [entity (d/pull db pattern (to-eid eid))] 
+      {key entity})))

@@ -6,9 +6,9 @@
             [clojure.set :as set]
             [clojure.core.reducers :as r]
             [clojure.core.cache :as cache]
-            [lens.logging :refer [debug trace]]
+            [lens.logging :refer [warn debug trace]]
             [datomic.api :as d]
-            [schema.core :as s :refer [Str Uuid]]
+            [schema.core :as s :refer [Str Uuid Int]]
             [lens.util :as util :refer [entity? NonBlankStr]]
             [lens.k-means :refer [k-means]]
             [lens.search.api :as search])
@@ -18,7 +18,7 @@
 
 (def EId
   "Datomic entity id as used in the e-part of the eavt datom."
-  s/Int)
+  util/PosInt)
 
 (def Study
   (s/pred :study/id 'study?))
@@ -28,6 +28,9 @@
 
 (def FormDef
   (s/pred :form-def/id 'form-def?))
+
+(def InquiryType
+  (s/pred :inquiry-type/id 'inquiry-type?))
 
 (def ItemGroupDef
   (s/pred :item-group-def/id 'item-group-def?))
@@ -135,6 +138,13 @@
     (-> (util/update-cache! cli-cache key (code-list-item' db item-eid code))
         (cache/lookup key))))
 
+(s/defn find-inquiry-type
+  "Returns the inquiry-type with the id or nil if none was found."
+  ([db id :- Str]
+    (find-inquiry-type db '[*] id))
+  ([db pattern id :- Str]
+    (d/pull db pattern [:inquiry-type/id id])))
+
 ;; ---- Study -----------------------------------------------------------------
 
 (s/defn create-study
@@ -212,8 +222,8 @@
 (def FormDefExtras
   {(s/optional-key :form-def/desc) Str
    (s/optional-key :form-def/repeating) s/Bool
-   (s/optional-key :form-def/keywords) #{s/Str}
-   (s/optional-key :form-def/recording-type) Str})
+   (s/optional-key :form-def/keywords) [s/Str]
+   (s/optional-key :form-def/inquiry-type) {:db/id Int}})
 
 (s/defn create-form-def
   "Creates a form-def with the id, name and more within a study.
@@ -242,7 +252,13 @@
     @(d/transact conn [[:form-def.fn/update (:db/id form-def) old-props
                         new-props]])
     nil
-    (catch Exception e (if-let [t (util/error-type e)] t (throw e)))))
+    (catch Exception e
+      (let [d (ex-data (util/unwrap-execution-exception e))]
+        (if-let [type (:type d)]
+          (do
+            (warn d)
+            type)
+          (throw e))))))
 
 ;; ---- Item Group Ref --------------------------------------------------------
 
@@ -407,6 +423,35 @@
      (catch Exception e
        (when-not (= :duplicate (util/error-type e)) (throw e))))))
 
+;; ---- Inquiry Type ----------------------------------------------------------
+
+(s/defn create-inquiry-type
+  "Creates a inquiry-type with the id, name rank.
+
+  Returns the created inquiry-type or nil if there is already one with the id."
+  [conn id :- NonBlankStr name :- NonBlankStr rank :- util/PosInt]
+  (try
+    (->> (fn [tid] [[:inquiry-type.fn/create tid id name rank]])
+         (util/create conn :part/meta-data))
+    (catch Exception e
+      (when-not (= :duplicate (util/error-type e)) (throw e)))))
+
+(s/defn update-inquiry-type
+  "Updates the inquiry-type.
+
+  Ensures that the values in old-props are still current in the version of the
+  in-transaction inquiry-type."
+  [conn inquiry-type :- InquiryType old-props :- Props new-props :- Props]
+  (debug {:type :update
+          :inquiry-type/id (:inquiry-type/id inquiry-type)
+          :old-props old-props
+          :new-props new-props})
+  (try
+    @(d/transact conn [[:inquiry-type.fn/update (:db/id inquiry-type) old-props
+                        new-props]])
+    nil
+    (catch Exception e (if-let [t (util/error-type e)] t (throw e)))))
+
 ;; ---- Attachment Type -------------------------------------------------------
 
 (s/defn create-attachment-type
@@ -423,8 +468,7 @@
 
 ;; ---- Retract ---------------------------------------------------------------
 
-(defn retract-entity [conn eid]
-  {:pre [conn (number? eid)]}
+(s/defn retract-entity [conn eid :- EId]
   @(d/transact-async conn [[:db.fn/retractEntity eid]])
   nil)
 
@@ -438,19 +482,24 @@
   (map #(d/entity db (:e %))))
 
 (defn all-studies
-  "Returns a reducible coll of all studies sorted by there name."
+  "Returns a reducible coll of all studies.
+  
+  If one doesn't specify a pull-pattern, studies are sorted by there name."
   ([db]
    (eduction (entity-xf db) (d/datoms db :avet :study/name)))
   ([db pull-pattern]
-   (->> (d/datoms db :avet :study/name)
-        (eduction (comp (map :e)
-                        (map #(d/pull db pull-pattern %))
-                        (map #(with-meta % {:db db})))))))
+   (d/q [:find [(list 'pull '?e pull-pattern) '...]
+         :where ['?e :study/id]] db)))
 
 (defn all-snapshots
   "Returns a reducible coll of all snapshots."
   [db]
   (list-all '[:find [?tx ...] :where [?tx :tx-id]] db))
+
+(defn all-inquiry-types
+  "Returns a reducible coll of all inquiry-types sorted by there name."
+  [db]
+  (eduction (entity-xf db) (d/datoms db :avet :inquiry-type/name)))
 
 (defn all-attachment-types
   "Returns a reducible coll of all attachment types sorted by there id."
@@ -604,7 +653,8 @@
                   {:queries
                    [{:multi_match
                      {:query filter
-                      :fields [:id :name.trigrams :desc.trigrams :keywords.trigrams]
+                      :fields [:id :name.trigrams :desc.trigrams
+                               :keywords.trigrams :inquiry-type]
                       :minimum_should_match "80%"}}
                     {:multi_match
                      {:query filter

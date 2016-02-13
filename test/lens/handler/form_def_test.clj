@@ -86,10 +86,10 @@
                        (create-form-def "id-224127" "name-095717"))
           eid (hu/entity-id form-def)
           req (request :put
-                :params {:eid eid}
-                :body {:data {:id "id-224127" :name "name-202906"}}
-                [:headers "if-match"] (etag eid)
-                :conn (connect))
+                       :params {:eid eid}
+                       :body {:data {:id "id-224127" :name "name-202906"}}
+                       [:headers "if-match"] (etag eid)
+                       :conn (connect))
           update (api/update-form-def (connect) form-def
                                       {:form-def/name "name-095717"}
                                       {:form-def/name "name-203308"})
@@ -133,7 +133,24 @@
                  [:headers "if-match"] (etag eid)
                  :conn (connect))]
       (is (= 204 (:status resp)))
-      (is (nil? (:form-def/desc (refresh-form-def form-def)))))))
+      (is (nil? (:form-def/desc (refresh-form-def form-def))))))
+
+  (testing "Update can add inquiry-type"
+    (let [_ (create-inquiry-type "it-104351")
+          form-def (-> (create-study "s-103529")
+                       (create-form-def "id-103836" "name-103840"))
+          eid (hu/entity-id form-def)
+          resp (execute handler :put
+                 :params {:eid eid}
+                 :body {:data {:id "id-103836"
+                               :name "name-103840"
+                               :inquiry-type-id "it-104351"}}
+                 [:headers "if-match"] (etag eid)
+                 :conn (connect))]
+      (is (= 204 (:status resp)))
+      (is (= "it-104351" (-> (refresh-form-def form-def)
+                             :form-def/inquiry-type
+                             :inquiry-type/id))))))
 
 (deftest create-handler-test
   (testing "Create without id and name fails"
@@ -184,6 +201,19 @@
                  :conn (connect))]
       (is (= 201 (:status resp)))
       (is (= "desc-224339" (:form-def/desc (find-form-def "s-152055" "id-121736"))))))
+
+  (testing "Create with inquiry-type"
+    (let [_ (create-inquiry-type "it-170642")
+          study (create-study "s-170645")
+          resp (execute create-handler :post
+                 :params {:eid (hu/entity-id study)
+                          :id "id-170648"
+                          :name "name-170651"
+                          :inquiry-type-id "it-170642"}
+                 :conn (connect))]
+      (is (= 201 (:status resp)))
+      (is (= "it-170642" (-> (find-form-def "s-170645" "id-170648")
+                             :form-def/inquiry-type :inquiry-type/id)))))
 
   (testing "Create with existing id fails"
     (let [study (create-study "s-153736")

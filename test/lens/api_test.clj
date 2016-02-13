@@ -170,14 +170,20 @@
 
     (testing "create with id, name and one keyword"
       (let [form-def (create-form-def study "id-190555" "name-222227"
-                                      {:form-def/keywords #{"kw-184128"}})]
+                                      {:form-def/keywords ["kw-184128"]})]
         (is (= #{"kw-184128"} (:form-def/keywords form-def)))))
 
     (testing "create with id, name and two keywords"
       (let [form-def (create-form-def study "id-190653" "name-222227"
-                                      {:form-def/keywords #{"kw-190656"
-                                                            "kw-190701"}})]
+                                      {:form-def/keywords ["kw-190656"
+                                                           "kw-190701"]})]
         (is (= #{"kw-190656" "kw-190701"} (:form-def/keywords form-def)))))
+
+    (testing "create with two identical keywords results in only one"
+      (let [form-def (create-form-def study "id-165414" "name-165416"
+                                      {:form-def/keywords ["kw-165419"
+                                                           "kw-165419"]})]
+        (is (= #{"kw-165419"} (:form-def/keywords form-def)))))
 
     (testing "create with existing id fails"
       (create-form-def study "id-221808")
@@ -220,29 +226,29 @@
       (let [form-def (create-form-def study "id-205237" "name-195834")]
         (is (nil? (update-form-def form-def {:form-def/name "name-195834"}
                                    {:form-def/name "name-195920"
-                                    :form-def/keywords #{"kw-205307"}})))
+                                    :form-def/keywords ["kw-205307"]})))
         (is (= #{"kw-205307"} (:form-def/keywords (refresh-form-def form-def))))))
 
     (testing "update can remove a keyword"
       (let [form-def (create-form-def study "id-205426" "name-195834"
-                                      {:form-def/keywords #{"kw-205307"
-                                                            "kw-205435"}})]
+                                      {:form-def/keywords ["kw-205307"
+                                                           "kw-205435"]})]
         (is (nil? (update-form-def form-def
                                    {:form-def/name "name-195834"
-                                    :form-def/keywords #{"kw-205307"
-                                                         "kw-205435"}}
+                                    :form-def/keywords ["kw-205307"
+                                                        "kw-205435"]}
                                    {:form-def/name "name-195920"
-                                    :form-def/keywords #{"kw-205307"}})))
+                                    :form-def/keywords ["kw-205307"]})))
         (is (= #{"kw-205307"} (:form-def/keywords (refresh-form-def form-def))))))
 
     (testing "update can remove all keywords"
       (let [form-def (create-form-def study "id-211427" "name-195834"
-                                      {:form-def/keywords #{"kw-205307"
-                                                            "kw-205435"}})]
+                                      {:form-def/keywords ["kw-205307"
+                                                           "kw-205435"]})]
         (is (nil? (update-form-def form-def
                                    {:form-def/name "name-195834"
-                                    :form-def/keywords #{"kw-205307"
-                                                         "kw-205435"}}
+                                    :form-def/keywords ["kw-205307"
+                                                        "kw-205435"]}
                                    {:form-def/name "name-195920"})))
         (is (nil? (:form-def/keywords (refresh-form-def form-def))))))
 
@@ -251,7 +257,7 @@
         (is (nil? (update-form-def form-def
                                    {:form-def/name "name-195834"}
                                    {:form-def/name "name-195834"
-                                    :form-def/keywords #{}})))
+                                    :form-def/keywords []})))
         (is (nil? (:form-def/keywords (refresh-form-def form-def))))))))
 
 ;; ---- Item Group ------------------------------------------------------------

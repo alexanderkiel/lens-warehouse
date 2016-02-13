@@ -196,10 +196,13 @@
 ;; ---- Schema ----------------------------------------------------------------
 
 (def NonBlankStr
-  (s/both s/Str (s/pred (complement str/blank?) 'non-blank?)))
+  (s/constrained s/Str (complement str/blank?) 'non-blank?))
 
 (def PosInt
-  (s/both s/Int (s/pred pos? 'pos?)))
+  (s/constrained s/Int pos? 'pos?))
+
+(def EId
+  PosInt)
 
 (def Base62EntityId
   s/Str)

@@ -16,7 +16,8 @@
       ["igd" :item-group-def-profile-handler]
       ["fd" :form-def-profile-handler]
       ["sed" :study-event-def-profile-handler]
-      ["s" :study-profile-handler]]]
+      ["s" :study-profile-handler]
+      ["it" :inquiry-type-profile-handler]]]
 
     ["/id/" (eid-handler :item-def-handler)]
 
@@ -93,6 +94,11 @@
     ["/find-study" :find-study-handler]
     ["/basis-t" :basis-t-handler]
     ["/health" :health-handler]
+
+    ["/inquiry-types"
+     {"" {:get :all-inquiry-types-handler
+          :post :create-inquiry-type-handler}
+      ["/" :eid] :inquiry-type-handler}]
 
     ["/attachment-types"
      {"" {:get :all-attachment-types-handler

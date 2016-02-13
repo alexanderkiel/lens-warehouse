@@ -354,7 +354,7 @@
                   :query
                   {:simple_query_string
                    {:query "schlaf"
-                    :fields [:id :name :desc :keywords :recording-type]
+                    :fields [:id :name :desc :keywords :inquiry-type]
                     :flags "AND|NOT|PHRASE"}}}}}))
 
   (<!! (explain {:host "192.168.99.100" :index "lens"} :form-def "580542139466928"
@@ -365,7 +365,7 @@
                    :query
                    {:simple_query_string
                     {:query "stress"
-                     :fields [:id :name :desc :keywords :recording-type]
+                     :fields [:id :name :desc :keywords :inquiry-type]
                      :flags "AND|NOT|PHRASE"}}}}}))
 
   (<!! (create-index

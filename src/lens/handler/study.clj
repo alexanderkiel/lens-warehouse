@@ -87,7 +87,7 @@
     :name {:type s/Str}
     :desc {:type s/Str :optional true}
     :keywords {:type #{s/Str} :optional true}
-    :recording-type {:type s/Str :optional true}}})
+    :inquiry-type {:type s/Str :optional true}}})
 
 (defn render-create-item-group-create-form [path-for study]
   {:href (child-action-path :item-group-def :create path-for study)
@@ -233,6 +233,7 @@
   (let [studies (if (str/blank? filter)
                   (api/all-studies db (db-pull-pattern pull-pattern))
                   (api/list-matching-studies db filter))
+        studies (sort-by :study/name studies)
         next-page? (not (lr/empty? (hu/paginate (inc page-num) studies)))
         path #(all-studies-path path-for %)]
     {:links

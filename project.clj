@@ -15,7 +15,7 @@
                  [prismatic/schema "1.0.4"]
                  [http-kit "2.1.18"]
                  [ring/ring-core "1.4.0" :exclusions [commons-codec]]
-                 [org.clojars.akiel/ring-hap "0.5-SNAPSHOT"]
+                 [org.clojars.akiel/ring-hap "0.4"]
                  [bidi "1.25.0"]
                  [pathetic "0.5.1"]
                  [liberator "0.13"]
@@ -28,7 +28,8 @@
                  [com.stuartsierra/component "0.3.0"]
                  [environ "1.0.1"]
                  [org.clojars.akiel/async-error "0.1"
-                  :exclusions [org.clojure/clojurescript]]]
+                  :exclusions [org.clojure/clojurescript]]
+                 [org.clojars.akiel/pull "0.1"]]
 
   :profiles {:dev [:datomic-free :dev-common :base :system :user :provided]
              :dev-pro [:datomic-pro :dev-common :base :system :user :provided]

@@ -13,7 +13,8 @@
             [lens.search :as search]
             [environ.core :refer [env]]
             [lens.api :as api]
-            [lens.search.api :as sapi]))
+            [lens.search.api :as sapi]
+            [lens.schema :refer [load-schema]]))
 
 (s/set-fn-validation! true)
 
@@ -76,7 +77,13 @@
 
 ;; (Re)Index all form defs
 (comment
-  (doseq [study (api/all-studies (d/db (connect)))
-          form-def (:study/form-defs study)]
-    (search/index-form-def (:search-conn system) form-def))
+  (let [pull-pattern [{:study/form-defs search/form-def-pull-pattern}]]
+    (doseq [study (api/all-studies (d/db (connect)) pull-pattern)
+            form-def (:study/form-defs study)]
+      (search/index-form-def (:search-conn system) form-def)))
+  )
+
+;; Schema Update
+(comment
+  (load-schema conn)
   )
