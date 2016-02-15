@@ -709,9 +709,9 @@
              (map #(d/entity db %))
              (sort-by :item/rank))))))
 
-;; ---- Subject-Stat ----------------------------------------------------------
+;; ---- Subject Stat ----------------------------------------------------------
 
-(def ^:private subject-stat
+(def ^:private subject-stat-cache
   "Cache for subject statistics.
 
   Keys are maps of :basis-t and :id. Values are counts."
@@ -720,17 +720,19 @@
 (defn- subject-stat-key [db id]
   {:basis-t (d/basis-t db) :id id})
 
-(defn- num-subjects [db entity-eid]
+(defn- num-subjects
+  "Returns the number of subjects the entity with eid has."
+  [db eid]
   (-> (d/q '[:find (count ?s) .
              :in $ ?e
              :where [?e :visits ?v] [?v :visit/subject ?s]]
-           db entity-eid)
+           db eid)
       (or 0)))
 
 (defmacro using-subject-stat! [e]
   `(let [db# (d/entity-db ~e)
          key# (subject-stat-key db# (:db/id ~e))]
-     (-> subject-stat
+     (-> subject-stat-cache
          (util/update-cache! key# (num-subjects db# (:id key#)))
          (cache/lookup key#))))
 
