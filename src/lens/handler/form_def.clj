@@ -43,14 +43,10 @@
 (defn render-embedded-list [path-for timeout form-defs]
   (r/map #(render-embedded path-for timeout %) form-defs))
 
-(defn- default-sort [form-def]
-  [(or (-> form-def :form-def/inquiry-type :inquiry-type/rank) Long/MAX_VALUE)
-   (:form-def/name form-def)])
-
 (defnk render-list [search-conn study [:request path-for [:params page-num
                                                           {filter nil}]]]
   (if (str/blank? filter)
-    (let [form-defs (sort-by default-sort (:study/form-defs study))
+    (let [form-defs (sort-by :form-def/name (:study/form-defs study))
           next-page? (not (lr/empty? (hu/paginate (inc page-num) form-defs)))
           path #(study/child-list-path :form-def path-for study %)]
       {:data
