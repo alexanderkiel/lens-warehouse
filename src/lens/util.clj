@@ -7,7 +7,7 @@
             [lens.logging :refer [trace]]
             [datomic.api :as d]
             [clojure.string :as str]
-            [schema.core :as s :refer [Int]])
+            [schema.core :as s :refer [Int Str]])
   (:import [datomic Entity]
            [java.util.concurrent ExecutionException]))
 
@@ -196,7 +196,7 @@
 ;; ---- Schema ----------------------------------------------------------------
 
 (def NonBlankStr
-  (s/constrained s/Str (complement str/blank?) 'non-blank?))
+  (s/constrained Str (complement str/blank?) 'non-blank?))
 
 (def PosInt
   (s/constrained s/Int pos? 'pos?))
@@ -205,4 +205,4 @@
   PosInt)
 
 (def Base62EntityId
-  s/Str)
+  NonBlankStr)

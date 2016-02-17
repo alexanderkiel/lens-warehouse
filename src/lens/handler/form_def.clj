@@ -91,7 +91,7 @@
              (render-embedded-list path-for (timeout 100))
              (into []))}})))
 
-(def list-handler
+(def list-all-handler
   "Resource of all form-defs of a study."
   (resource
     (study/child-list-resource-defaults)
@@ -109,6 +109,88 @@
          {:up (study/link path-for study)
           :self {:href (study/child-list-path :form-def path-for study 1)}}
          {:up {:href (path-for :service-document-handler)}})})))
+
+(defn- by-inquiry-type-path [path-for study inquiry-type]
+  (path-for :study-form-defs-by-inquiry-type-handler
+            :eid (hu/entity-id study) :inquiry-type-id
+            (:inquiry-type/id inquiry-type)))
+
+(def ^:private ListByInquiryTypeSchema
+  {:inquiry-type-id util/NonBlankStr
+   s/Any s/Any})
+
+(def list-form-defs-by-inquiry-type-handler
+  (resource
+    (hu/redirect-resource-defaults)
+
+    :processable? (hu/validate-params ListByInquiryTypeSchema)
+
+    :existed?
+    (fnk [db [:request [:params inquiry-type-id]] :as ctx]
+      (when-let [m ((hu/exists? :study) ctx)]
+        (when-let [it (api/find-inquiry-type db inquiry-type-id)]
+          (assoc m :inquiry-type it))))
+
+    :location
+    (fnk [study inquiry-type [:request path-for]]
+      (by-inquiry-type-path path-for study inquiry-type))
+
+    :handle-unprocessable-entity
+    (hu/error-handler "Unprocessable Entity")))
+
+(def ^:private ByInquiryTypeSchema
+  {:eid util/Base62EntityId
+   :inquiry-type-id util/NonBlankStr
+   Any Any})
+
+(def by-inquiry-type-handler
+  "Resource of form-defs of an inquiry-type of a study."
+  (resource
+    (hu/resource-defaults)
+
+    :processable? (hu/coerce-params ByInquiryTypeSchema)
+
+    :exists?
+    (fnk [db [:request [:params inquiry-type-id]] :as ctx]
+      (when-let [m ((hu/exists? :study) ctx)]
+        (when-let [it (api/find-inquiry-type db inquiry-type-id)]
+          (assoc m :inquiry-type it))))
+
+    :handle-ok
+    (fnk [study inquiry-type [:request path-for]]
+      (let [form-defs (->> (:study/form-defs study)
+                           (filter #(= (:db/id inquiry-type)
+                                       (:db/id (:form-def/inquiry-type %))))
+                           (sort-by :form-def/name))]
+        {:data
+         {:total (count form-defs)}
+         :links
+         {:up (study/link path-for study)
+          :self {:href (by-inquiry-type-path path-for study inquiry-type)}
+          :lens/inquiry-type (inquiry-type/link path-for inquiry-type)}
+
+         :queries
+         {:lens/filter
+          (hu/render-filter-query (study/child-list-path :form-def path-for study))}
+
+         :embedded
+         {:lens/form-defs
+          (->> form-defs
+               (render-embedded-list path-for (timeout 100))
+               (into []))}}))
+
+    :handle-exception
+    (fnk [exception [:request path-for] :as ctx]
+      {:data
+       {:message (.getMessage exception)
+        :ex-data (ex-data exception)
+        :cause-message (some-> (.getCause exception) (.getMessage))}
+       :links
+       (let [study (:study ctx) inquiry-type (:inquiry-type ctx)]
+         (if (and study inquiry-type)
+           {:up (study/link path-for study)
+            :self {:href (by-inquiry-type-path path-for study inquiry-type)}}
+           {:up {:href (path-for :service-document-handler)}}))})))
 
 (defn- find-item-group-ref-path [path-for form-def]
   (path-for :find-item-group-ref-handler :eid (hu/entity-id form-def)))

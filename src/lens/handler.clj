@@ -380,7 +380,9 @@
    :form-ref-handler form-ref/handler
    :create-form-ref-handler form-ref/create-handler
 
-   :study-form-defs-handler form-def/list-handler
+   :study-form-defs-handler form-def/list-all-handler
+   :list-form-defs-by-inquiry-type-handler form-def/list-form-defs-by-inquiry-type-handler
+   :study-form-defs-by-inquiry-type-handler form-def/by-inquiry-type-handler
    :find-form-def-handler (study/find-child-handler :form-def)
    :form-def-handler form-def/handler
    :form-count-handler (form-def/form-def-count-handler path-for)

@@ -29,6 +29,7 @@
         ["/figd" :find-item-group-def-handler]
         ["/ffd" :find-form-def-handler]
         ["/fsed" :find-study-event-def-handler]
+        ["/lfdbit" :list-form-defs-by-inquiry-type-handler]
 
         ["" :study-handler]
 
@@ -38,7 +39,9 @@
 
         ["/form-defs"
          {"" :create-form-def-handler
-          ["/page/" :page-num] :study-form-defs-handler}]
+          ["/page/" :page-num] :study-form-defs-handler
+          ["/by-inquiry-type/" :inquiry-type-id] 
+          :study-form-defs-by-inquiry-type-handler}]
 
         ["/item-group-defs"
          {"" :create-item-group-def-handler

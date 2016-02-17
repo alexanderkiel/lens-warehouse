@@ -63,6 +63,11 @@
   {:href (child-action-path child-type :find path-for study)
    :params {:id {:type s/Str}}})
 
+(defn- render-list-form-defs-by-inquiry-type-query [path-for study]
+  {:href (path-for :list-form-defs-by-inquiry-type-handler :eid
+                   (hu/entity-id study))
+   :params {:inquiry-type-id {:type s/Str}}})
+
 (defn render-create-study-form [path-for]
   {:href (path-for :create-study-handler)
    :params
@@ -144,7 +149,10 @@
     (render-child-find-query :item-group-def path-for study)
 
     :lens/find-item-def
-    (render-child-find-query :item-def path-for study)}
+    (render-child-find-query :item-def path-for study)
+    
+    :lens/list-form-defs-by-inquiry-type
+    (render-list-form-defs-by-inquiry-type-query path-for study)}
 
    :forms
    {:lens/create-study-event-def
@@ -191,7 +199,7 @@
     :etag
     (hu/etag #(-> % :study :study/name)
              #(-> % :study :study/desc)
-             4)
+             5)
 
     :put!
     (fnk [conn study new-entity]
