@@ -32,8 +32,10 @@
            (assoc-when :inquiry-type (-> form-def :form-def/inquiry-type
                                          :inquiry-type/name)))
        :links
-       {:self
-        (link path-for form-def)}}
+       (-> {:self (link path-for form-def)}
+           (assoc-when :lens/inquiry-type
+                       (some->> form-def :form-def/inquiry-type
+                                (inquiry-type/link path-for))))}
       #_(assoc-count
           (util/try-until timeout (api/num-form-subjects form-def))
           (path-for :form-count-handler :id (:form-def/id form-def)))))
