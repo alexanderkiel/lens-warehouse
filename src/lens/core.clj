@@ -12,8 +12,7 @@
   (.availableProcessors (Runtime/getRuntime)))
 
 (defn -main [& _]
-  (letk [[port thread version db-uri context-path :as system]
-         (new-system env)]
+  (letk [[port thread version db-uri context-path :as system] (new-system env)]
     (comp/start system)
     (info {:version version})
     (info {:max-memory (max-memory)})
