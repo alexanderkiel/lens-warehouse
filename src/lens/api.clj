@@ -483,7 +483,7 @@
 
 (defn all-studies
   "Returns a reducible coll of all studies.
-  
+
   If one doesn't specify a pull-pattern, studies are sorted by there name."
   ([db]
    (eduction (entity-xf db) (d/datoms db :avet :study/name)))
@@ -497,9 +497,9 @@
   (list-all '[:find [?tx ...] :where [?tx :tx-id]] db))
 
 (defn all-inquiry-types
-  "Returns a reducible coll of all inquiry-types sorted by there name."
+  "Returns a reducible coll of all inquiry-types sorted by there rank."
   [db]
-  (eduction (entity-xf db) (d/datoms db :avet :inquiry-type/name)))
+  (eduction (entity-xf db) (d/datoms db :avet :inquiry-type/rank)))
 
 (defn all-attachment-types
   "Returns a reducible coll of all attachment types sorted by there id."
