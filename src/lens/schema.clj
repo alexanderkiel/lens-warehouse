@@ -244,13 +244,13 @@
      the in-transaction form-def."
      [db form-def-eid old-props new-props]
      (let [form-def (d/pull db '[*] form-def-eid)]
-       (if (:form-def/id form-def) 
+       (if (:form-def/id form-def)
          (let [cur-props (select-keys form-def (keys old-props))]
            (if (= cur-props old-props)
              (concat (for [[prop old-val] cur-props
                            :when (not (instance? java.util.List old-val))
                            :when (nil? (prop new-props))]
-                       [:db/retract (:db/id form-def) prop 
+                       [:db/retract (:db/id form-def) prop
                         (or (:db/id old-val) old-val)])
                      (for [[prop old-val] cur-props
                            :when (instance? java.util.List old-val)
@@ -580,7 +580,7 @@
   "Non standard type of inquiry of a form."
   [[:id :string :unique]
    [:name :string :index]
-   [:rank :long]
+   [:rank :long :index]
 
    (func create
      "Creates an inquiry-type."
